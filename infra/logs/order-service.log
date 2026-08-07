@@ -1,0 +1,14 @@
+{"timestamp":"2026-07-23T15:44:48.458Z","service":"order-service","level":"info","message":"order-service listening on :4001"}
+{"timestamp":"2026-07-23T15:44:51.829Z","service":"order-service","level":"info","message":"GET /health"}
+{"timestamp":"2026-07-23T15:49:25.767Z","service":"order-service","level":"info","message":"POST /orders"}
+{"timestamp":"2026-07-23T15:49:25.875Z","service":"order-service","level":"info","message":"Production order created","orderId":"cmrxosogj0000zz1d5oc8tr7g","priorityScore":50}
+{"timestamp":"2026-07-23T16:30:25.295Z","service":"order-service","level":"info","message":"POST /orders"}
+{"timestamp":"2026-07-23T16:30:25.330Z","service":"order-service","level":"info","message":"Production order created","orderId":"cmrxq9e780001zz1d2grd33b5","priorityScore":84.6019793307387}
+{"timestamp":"2026-07-23T16:36:27.188Z","service":"order-service","level":"info","message":"POST /orders"}
+{"timestamp":"2026-07-23T16:36:27.206Z","service":"order-service","level":"info","message":"Production order created","orderId":"cmrxqh5fi0002zz1dhtgknxbc","priorityScore":84.60336014194138}
+{"timestamp":"2026-07-23T16:49:26.494Z","service":"order-service","level":"info","message":"POST /orders"}
+{"timestamp":"2026-07-23T16:49:26.517Z","service":"order-service","level":"info","message":"Production order created","orderId":"cmrxqxuqv0003zz1db868li7l","priorityScore":84.60633368055555}
+{"timestamp":"2026-07-24T06:45:06.983Z","service":"order-service","level":"info","message":"POST /orders"}
+{"timestamp":"2026-07-24T06:45:07.104Z","service":"order-service","level":"info","message":"Production order created","orderId":"cmryksjeo0004zz1dz3zh7tpi","priorityScore":0}
+{"timestamp":"2026-07-24T17:39:34.736Z","service":"order-service","level":"info","message":"POST /orders"}
+{"timestamp":"2026-07-24T17:39:34.778Z","service":"order-service","level":"info","message":"Production order created","orderId":"cmrz866l80005zz1dj0vgjxw0","priorityScore":0}

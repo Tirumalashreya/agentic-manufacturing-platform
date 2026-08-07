@@ -1,0 +1,2 @@
+{"timestamp":"2026-07-23T16:07:08.025Z","service":"erp-integration","level":"info","message":"erp-integration listening on :4018"}
+{"timestamp":"2026-07-23T16:07:11.313Z","service":"erp-integration","level":"info","message":"GET /health"}

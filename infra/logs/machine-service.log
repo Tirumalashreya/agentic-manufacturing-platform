@@ -1,0 +1,13 @@
+{"timestamp":"2026-07-23T15:39:04.324Z","service":"machine-service","level":"info","message":"machine-service listening on :4008"}
+{"timestamp":"2026-07-23T15:39:07.543Z","service":"machine-service","level":"info","message":"GET /health"}
+{"timestamp":"2026-07-23T15:40:48.180Z","service":"machine-service","level":"info","message":"POST /machines/cmrxognen0004xz1dz1f9nfp7/breakdown"}
+{"timestamp":"2026-07-23T15:40:48.644Z","service":"machine-service","level":"info","message":"Machine breakdown reported","machineId":"cmrxognen0004xz1dz1f9nfp7","faultCode":"E-501"}
+{"timestamp":"2026-07-23T15:58:27.695Z","service":"machine-service","level":"info","message":"POST /machines/notif-m1/breakdown"}
+{"timestamp":"2026-07-23T15:58:27.710Z","service":"machine-service","level":"info","message":"Machine breakdown reported","machineId":"notif-m1","faultCode":"NOTIF-TEST-1"}
+{"timestamp":"2026-07-23T15:59:10.901Z","service":"machine-service","level":"info","message":"POST /machines/notif-m1/breakdown"}
+{"timestamp":"2026-07-23T15:59:10.915Z","service":"machine-service","level":"info","message":"Machine breakdown reported","machineId":"notif-m1","faultCode":"NOTIF-TEST-2"}
+{"timestamp":"2026-07-23T16:00:33.204Z","service":"machine-service","level":"info","message":"POST /machines/notif-m1/breakdown"}
+{"timestamp":"2026-07-23T16:00:33.215Z","service":"machine-service","level":"info","message":"Machine breakdown reported","machineId":"notif-m1","faultCode":"NOTIF-TEST-3"}
+{"timestamp":"2026-07-23T16:01:21.447Z","service":"machine-service","level":"info","message":"POST /machines/notif-m1/breakdown"}
+{"timestamp":"2026-07-23T16:01:21.458Z","service":"machine-service","level":"info","message":"Machine breakdown reported","machineId":"notif-m1","faultCode":"NOTIF-TEST-4"}
+{"timestamp":"2026-07-23T16:07:11.299Z","service":"machine-service","level":"info","message":"GET /health"}

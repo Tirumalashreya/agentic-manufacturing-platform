@@ -1,0 +1,37 @@
+columns substreams version: 1
+14 columns:
+2 substreams for column `operation_id`:
+	operation_id.size
+	operation_id
+2 substreams for column `machine_id`:
+	machine_id.size
+	machine_id
+2 substreams for column `production_order_id`:
+	production_order_id.size
+	production_order_id
+1 substreams for column `scheduled_start`:
+	scheduled_start
+1 substreams for column `scheduled_end`:
+	scheduled_end
+2 substreams for column `actual_start`:
+	actual_start.null
+	actual_start
+2 substreams for column `actual_end`:
+	actual_end.null
+	actual_end
+1 substreams for column `good_units`:
+	good_units
+1 substreams for column `total_units`:
+	total_units
+2 substreams for column `scrap_units`:
+	scrap_units.sparse.idx
+	scrap_units
+1 substreams for column `setup_time_min`:
+	setup_time_min
+1 substreams for column `processing_time_min`:
+	processing_time_min
+2 substreams for column `downtime_min`:
+	downtime_min.sparse.idx
+	downtime_min
+1 substreams for column `event_date`:
+	event_date

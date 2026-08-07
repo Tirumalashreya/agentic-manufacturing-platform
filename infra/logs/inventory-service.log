@@ -1,0 +1,14 @@
+{"timestamp":"2026-07-23T15:39:04.320Z","service":"inventory-service","level":"info","message":"inventory-service listening on :4010"}
+{"timestamp":"2026-07-23T15:39:07.566Z","service":"inventory-service","level":"info","message":"GET /health"}
+{"timestamp":"2026-07-23T15:41:31.316Z","service":"inventory-service","level":"info","message":"POST /inventory/scan-shortages"}
+{"timestamp":"2026-07-23T15:41:31.401Z","service":"inventory-service","level":"info","message":"Shortage scan complete","shortageCount":0}
+{"timestamp":"2026-07-23T15:44:51.853Z","service":"inventory-service","level":"info","message":"GET /health"}
+{"timestamp":"2026-07-23T15:45:40.166Z","service":"inventory-service","level":"info","message":"inventory-service listening on :4010"}
+{"timestamp":"2026-07-23T15:45:43.383Z","service":"inventory-service","level":"info","message":"Subscribed to orders.production.created"}
+{"timestamp":"2026-07-23T15:45:43.643Z","service":"inventory-service","level":"info","message":"GET /health"}
+{"timestamp":"2026-07-23T15:49:25.992Z","service":"inventory-service","level":"info","message":"Reacted to orders.production.created","orderId":"cmrxosogj0000zz1d5oc8tr7g","productId":"cmrxop5n40005qw1d4fyie97a","shortageCount":1}
+{"timestamp":"2026-07-23T16:30:25.349Z","service":"inventory-service","level":"info","message":"Reacted to orders.production.created","orderId":"cmrxq9e780001zz1d2grd33b5","productId":"cmrxq7j9d000psm1dp8k67qze","shortageCount":1}
+{"timestamp":"2026-07-23T16:36:27.218Z","service":"inventory-service","level":"info","message":"Reacted to orders.production.created","orderId":"cmrxqh5fi0002zz1dhtgknxbc","productId":"cmrxq7j9d000psm1dp8k67qze","shortageCount":1}
+{"timestamp":"2026-07-23T16:49:26.539Z","service":"inventory-service","level":"info","message":"Reacted to orders.production.created","orderId":"cmrxqxuqv0003zz1db868li7l","productId":"cmrxq7j9d000psm1dp8k67qze","shortageCount":1}
+{"timestamp":"2026-07-24T06:45:07.125Z","service":"inventory-service","level":"info","message":"Reacted to orders.production.created","orderId":"cmryksjeo0004zz1dz3zh7tpi","productId":"cmrykq4le0007i71d98bskzs3","shortageCount":0}
+{"timestamp":"2026-07-24T17:39:34.845Z","service":"inventory-service","level":"info","message":"Reacted to orders.production.created","orderId":"cmrz866l80005zz1dj0vgjxw0","productId":"cmrylgm2s0008ps1dhkac7ajq","shortageCount":0}
