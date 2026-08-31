@@ -814,3 +814,34 @@ model ChangeoverMatrix {
 
   @@id([machineId, fromFamily, toFamily])
 }
+
+// Agentic pipeline (Python agent-orchestrator service) — one run through the
+// 12-stage Demand->Analytics chain. v1 runs straight through with no
+// approval gate; every stage still logs unconditionally (see AgentStageResult).
+model AgentPipelineRun {
+  id           String   @id @default(cuid())
+  status       String   @default("RUNNING") // RUNNING | COMPLETED | FAILED
+  currentStage String?
+  createdAt    DateTime @default(now())
+  finishedAt   DateTime?
+
+  stages AgentStageResult[]
+}
+
+// One row per stage per run, always written — this is the full trace, not
+// just an approval record. humanEdited is set only if someone edits and
+// replays from this stage later.
+model AgentStageResult {
+  id             String   @id @default(cuid())
+  runId          String
+  stage          String
+  agentOutput    Json
+  humanEdited    Json?
+  editedByUserId String?
+  editedAt       DateTime?
+  createdAt      DateTime @default(now())
+
+  run AgentPipelineRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+}

@@ -95,7 +95,9 @@ export const ModelName = {
   MachineEvent: 'MachineEvent',
   SensorReading: 'SensorReading',
   ScheduleAuditLog: 'ScheduleAuditLog',
-  ChangeoverMatrix: 'ChangeoverMatrix'
+  ChangeoverMatrix: 'ChangeoverMatrix',
+  AgentPipelineRun: 'AgentPipelineRun',
+  AgentStageResult: 'AgentStageResult'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -666,6 +668,31 @@ export const ChangeoverMatrixScalarFieldEnum = {
 export type ChangeoverMatrixScalarFieldEnum = (typeof ChangeoverMatrixScalarFieldEnum)[keyof typeof ChangeoverMatrixScalarFieldEnum]
 
 
+export const AgentPipelineRunScalarFieldEnum = {
+  id: 'id',
+  status: 'status',
+  currentStage: 'currentStage',
+  createdAt: 'createdAt',
+  finishedAt: 'finishedAt'
+} as const
+
+export type AgentPipelineRunScalarFieldEnum = (typeof AgentPipelineRunScalarFieldEnum)[keyof typeof AgentPipelineRunScalarFieldEnum]
+
+
+export const AgentStageResultScalarFieldEnum = {
+  id: 'id',
+  runId: 'runId',
+  stage: 'stage',
+  agentOutput: 'agentOutput',
+  humanEdited: 'humanEdited',
+  editedByUserId: 'editedByUserId',
+  editedAt: 'editedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type AgentStageResultScalarFieldEnum = (typeof AgentStageResultScalarFieldEnum)[keyof typeof AgentStageResultScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -680,6 +707,13 @@ export const NullableJsonNullValueInput = {
 } as const
 
 export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
+
+
+export const JsonNullValueInput = {
+  JsonNull: JsonNull
+} as const
+
+export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
 
 
 export const QueryMode = {

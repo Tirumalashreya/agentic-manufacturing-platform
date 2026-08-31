@@ -441,7 +441,9 @@ export const ModelName = {
   MachineEvent: 'MachineEvent',
   SensorReading: 'SensorReading',
   ScheduleAuditLog: 'ScheduleAuditLog',
-  ChangeoverMatrix: 'ChangeoverMatrix'
+  ChangeoverMatrix: 'ChangeoverMatrix',
+  AgentPipelineRun: 'AgentPipelineRun',
+  AgentStageResult: 'AgentStageResult'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -457,7 +459,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "verificationToken" | "passwordResetToken" | "enterprise" | "site" | "plant" | "productionLine" | "workCenter" | "machine" | "machineCapability" | "skill" | "operator" | "operatorSkill" | "shift" | "workCenterShift" | "operatorShift" | "factoryCalendar" | "factoryCalendarDay" | "holidayCalendar" | "holiday" | "product" | "bOM" | "bOMLine" | "routing" | "routingOperation" | "routingOpDependency" | "customer" | "salesOrder" | "productionOrder" | "productionOrderDependency" | "scheduledOperation" | "tool" | "toolUsage" | "inventory" | "vendor" | "purchaseOrder" | "maintenancePlan" | "maintenanceOrder" | "resourceReservation" | "schedule" | "scheduleRun" | "machineEvent" | "sensorReading" | "scheduleAuditLog" | "changeoverMatrix"
+    modelProps: "user" | "verificationToken" | "passwordResetToken" | "enterprise" | "site" | "plant" | "productionLine" | "workCenter" | "machine" | "machineCapability" | "skill" | "operator" | "operatorSkill" | "shift" | "workCenterShift" | "operatorShift" | "factoryCalendar" | "factoryCalendarDay" | "holidayCalendar" | "holiday" | "product" | "bOM" | "bOMLine" | "routing" | "routingOperation" | "routingOpDependency" | "customer" | "salesOrder" | "productionOrder" | "productionOrderDependency" | "scheduledOperation" | "tool" | "toolUsage" | "inventory" | "vendor" | "purchaseOrder" | "maintenancePlan" | "maintenanceOrder" | "resourceReservation" | "schedule" | "scheduleRun" | "machineEvent" | "sensorReading" | "scheduleAuditLog" | "changeoverMatrix" | "agentPipelineRun" | "agentStageResult"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -3791,6 +3793,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    AgentPipelineRun: {
+      payload: Prisma.$AgentPipelineRunPayload<ExtArgs>
+      fields: Prisma.AgentPipelineRunFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AgentPipelineRunFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentPipelineRunPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AgentPipelineRunFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentPipelineRunPayload>
+        }
+        findFirst: {
+          args: Prisma.AgentPipelineRunFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentPipelineRunPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AgentPipelineRunFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentPipelineRunPayload>
+        }
+        findMany: {
+          args: Prisma.AgentPipelineRunFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentPipelineRunPayload>[]
+        }
+        create: {
+          args: Prisma.AgentPipelineRunCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentPipelineRunPayload>
+        }
+        createMany: {
+          args: Prisma.AgentPipelineRunCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AgentPipelineRunCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentPipelineRunPayload>[]
+        }
+        delete: {
+          args: Prisma.AgentPipelineRunDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentPipelineRunPayload>
+        }
+        update: {
+          args: Prisma.AgentPipelineRunUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentPipelineRunPayload>
+        }
+        deleteMany: {
+          args: Prisma.AgentPipelineRunDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AgentPipelineRunUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AgentPipelineRunUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentPipelineRunPayload>[]
+        }
+        upsert: {
+          args: Prisma.AgentPipelineRunUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentPipelineRunPayload>
+        }
+        aggregate: {
+          args: Prisma.AgentPipelineRunAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAgentPipelineRun>
+        }
+        groupBy: {
+          args: Prisma.AgentPipelineRunGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AgentPipelineRunGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AgentPipelineRunCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AgentPipelineRunCountAggregateOutputType> | number
+        }
+      }
+    }
+    AgentStageResult: {
+      payload: Prisma.$AgentStageResultPayload<ExtArgs>
+      fields: Prisma.AgentStageResultFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AgentStageResultFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentStageResultPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AgentStageResultFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentStageResultPayload>
+        }
+        findFirst: {
+          args: Prisma.AgentStageResultFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentStageResultPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AgentStageResultFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentStageResultPayload>
+        }
+        findMany: {
+          args: Prisma.AgentStageResultFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentStageResultPayload>[]
+        }
+        create: {
+          args: Prisma.AgentStageResultCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentStageResultPayload>
+        }
+        createMany: {
+          args: Prisma.AgentStageResultCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AgentStageResultCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentStageResultPayload>[]
+        }
+        delete: {
+          args: Prisma.AgentStageResultDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentStageResultPayload>
+        }
+        update: {
+          args: Prisma.AgentStageResultUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentStageResultPayload>
+        }
+        deleteMany: {
+          args: Prisma.AgentStageResultDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AgentStageResultUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AgentStageResultUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentStageResultPayload>[]
+        }
+        upsert: {
+          args: Prisma.AgentStageResultUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AgentStageResultPayload>
+        }
+        aggregate: {
+          args: Prisma.AgentStageResultAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAgentStageResult>
+        }
+        groupBy: {
+          args: Prisma.AgentStageResultGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AgentStageResultGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AgentStageResultCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AgentStageResultCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -4382,6 +4532,31 @@ export const ChangeoverMatrixScalarFieldEnum = {
 export type ChangeoverMatrixScalarFieldEnum = (typeof ChangeoverMatrixScalarFieldEnum)[keyof typeof ChangeoverMatrixScalarFieldEnum]
 
 
+export const AgentPipelineRunScalarFieldEnum = {
+  id: 'id',
+  status: 'status',
+  currentStage: 'currentStage',
+  createdAt: 'createdAt',
+  finishedAt: 'finishedAt'
+} as const
+
+export type AgentPipelineRunScalarFieldEnum = (typeof AgentPipelineRunScalarFieldEnum)[keyof typeof AgentPipelineRunScalarFieldEnum]
+
+
+export const AgentStageResultScalarFieldEnum = {
+  id: 'id',
+  runId: 'runId',
+  stage: 'stage',
+  agentOutput: 'agentOutput',
+  humanEdited: 'humanEdited',
+  editedByUserId: 'editedByUserId',
+  editedAt: 'editedAt',
+  createdAt: 'createdAt'
+} as const
+
+export type AgentStageResultScalarFieldEnum = (typeof AgentStageResultScalarFieldEnum)[keyof typeof AgentStageResultScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -4396,6 +4571,13 @@ export const NullableJsonNullValueInput = {
 } as const
 
 export type NullableJsonNullValueInput = (typeof NullableJsonNullValueInput)[keyof typeof NullableJsonNullValueInput]
+
+
+export const JsonNullValueInput = {
+  JsonNull: JsonNull
+} as const
+
+export type JsonNullValueInput = (typeof JsonNullValueInput)[keyof typeof JsonNullValueInput]
 
 
 export const QueryMode = {
@@ -4925,6 +5107,8 @@ export type GlobalOmitConfig = {
   sensorReading?: Prisma.SensorReadingOmit
   scheduleAuditLog?: Prisma.ScheduleAuditLogOmit
   changeoverMatrix?: Prisma.ChangeoverMatrixOmit
+  agentPipelineRun?: Prisma.AgentPipelineRunOmit
+  agentStageResult?: Prisma.AgentStageResultOmit
 }
 
 /* Types for Logging */

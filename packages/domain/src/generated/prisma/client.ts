@@ -266,3 +266,13 @@ export type ScheduleAuditLog = Prisma.ScheduleAuditLogModel
  * 
  */
 export type ChangeoverMatrix = Prisma.ChangeoverMatrixModel
+/**
+ * Model AgentPipelineRun
+ * 
+ */
+export type AgentPipelineRun = Prisma.AgentPipelineRunModel
+/**
+ * Model AgentStageResult
+ * 
+ */
+export type AgentStageResult = Prisma.AgentStageResultModel
