@@ -1,0 +1,2 @@
+{"timestamp":"2026-07-23T15:44:48.458Z","service":"routing-service","level":"info","message":"routing-service listening on :4002"}
+{"timestamp":"2026-07-23T15:44:51.843Z","service":"routing-service","level":"info","message":"GET /health"}

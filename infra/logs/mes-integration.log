@@ -1,0 +1,9 @@
+{"timestamp":"2026-07-23T16:07:08.028Z","service":"mes-integration","level":"info","message":"mes-integration listening on :4019"}
+{"timestamp":"2026-07-23T16:07:11.149Z","service":"mes-integration","level":"info","message":"Subscribed to schedule.published"}
+{"timestamp":"2026-07-23T16:07:11.323Z","service":"mes-integration","level":"info","message":"GET /health"}
+{"timestamp":"2026-07-23T16:31:25.623Z","service":"mes-integration","level":"info","message":"Simulated work-order dispatch to shop-floor MES","plantId":"cmrxq7j8s0002sm1daclfom94","scheduleId":"cmrxqaoq6000hrh1d7jg5tx1w","versionNumber":1}
+{"timestamp":"2026-07-23T16:36:27.354Z","service":"mes-integration","level":"info","message":"Simulated work-order dispatch to shop-floor MES","plantId":"cmrxq7j8s0002sm1daclfom94","scheduleId":"cmrxqh5jq000vrh1dh93tuxwz","versionNumber":1}
+{"timestamp":"2026-07-23T16:49:26.820Z","service":"mes-integration","level":"info","message":"Simulated work-order dispatch to shop-floor MES","plantId":"cmrxq7j8s0002sm1daclfom94","scheduleId":"cmrxqxuz7000dxj1du0aw03am","versionNumber":1}
+{"timestamp":"2026-07-24T06:45:07.360Z","service":"mes-integration","level":"info","message":"Simulated work-order dispatch to shop-floor MES","plantId":"cmrykq4l60003i71dj8fb7f5f","scheduleId":"cmryksjo3000hxj1dlfq86rsk","versionNumber":1}
+{"timestamp":"2026-07-24T07:04:24.896Z","service":"mes-integration","level":"info","message":"Simulated work-order dispatch to shop-floor MES","plantId":"cmrylgm2i0002ps1docwcjhac","scheduleId":"cmrylhctp000jxj1dape0a657","versionNumber":1}
+{"timestamp":"2026-07-24T07:04:29.010Z","service":"mes-integration","level":"info","message":"Simulated work-order dispatch to shop-floor MES","plantId":"cmrylgm2i0002ps1docwcjhac","scheduleId":"cmrylhg0g000lxj1d3t5tqhlf","versionNumber":2}

@@ -1,0 +1,3 @@
+{"timestamp":"2026-07-23T15:39:04.324Z","service":"tool-service","level":"info","message":"tool-service listening on :4011"}
+{"timestamp":"2026-07-23T15:39:07.576Z","service":"tool-service","level":"info","message":"GET /health"}
+{"timestamp":"2026-07-23T15:41:31.112Z","service":"tool-service","level":"info","message":"GET /tools/available"}

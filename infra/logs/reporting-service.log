@@ -1,0 +1,4 @@
+{"timestamp":"2026-07-23T15:56:37.317Z","service":"reporting-service","level":"info","message":"reporting-service listening on :4016"}
+{"timestamp":"2026-07-23T15:56:40.792Z","service":"reporting-service","level":"info","message":"GET /health"}
+{"timestamp":"2026-07-23T16:03:08.308Z","service":"reporting-service","level":"info","message":"GET /reports/schedule-runs"}
+{"timestamp":"2026-07-23T16:03:08.397Z","service":"reporting-service","level":"info","message":"GET /reports/deviation-analysis"}
