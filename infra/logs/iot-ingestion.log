@@ -1,2 +1,0 @@
-{"timestamp":"2026-07-23T16:07:07.967Z","service":"iot-ingestion","level":"info","message":"iot-ingestion listening on :4020"}
-{"timestamp":"2026-07-23T16:07:11.334Z","service":"iot-ingestion","level":"info","message":"GET /health"}

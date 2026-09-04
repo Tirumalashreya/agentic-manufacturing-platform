@@ -1,4 +1,0 @@
-{"timestamp":"2026-07-23T15:39:04.324Z","service":"maintenance-service","level":"info","message":"maintenance-service listening on :4012"}
-{"timestamp":"2026-07-23T15:39:07.585Z","service":"maintenance-service","level":"info","message":"GET /health"}
-{"timestamp":"2026-07-24T17:28:41.081Z","service":"maintenance-service","level":"info","message":"GET /maintenance-orders"}
-{"timestamp":"2026-07-24T17:31:20.398Z","service":"maintenance-service","level":"info","message":"POST /maintenance-orders"}
