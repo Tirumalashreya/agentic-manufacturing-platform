@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: operator-service
+  namespace: aps-platform
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: operator-service } }
+  template:
+    metadata: { labels: { app: operator-service } }
+    spec:
+      containers:
+        - name: operator-service
+          image: aps/operator-service:latest
+          ports: [{ containerPort: 4009 }]
+          env:
+            - { name: SERVICE_NAME, value: "operator-service" }
+            - { name: PORT, value: "4009" }
+          envFrom:
+            - configMapRef: { name: aps-config }
+            - secretRef: { name: aps-secrets }
+          readinessProbe:
+            httpGet: { path: /health, port: 4009 }
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet: { path: /health, port: 4009 }
+            initialDelaySeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: operator-service
+  namespace: aps-platform
+spec:
+  selector: { app: operator-service }
+  ports: [{ port: 4009, targetPort: 4009 }]

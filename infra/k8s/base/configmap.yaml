@@ -1,0 +1,15 @@
+# Non-secret service discovery config, shared by every workload via envFrom.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: aps-config
+  namespace: aps-platform
+data:
+  REDIS_URL: "redis://redis:6379"
+  KAFKA_BROKER: "kafka:9092"
+  CLICKHOUSE_URL: "http://clickhouse:8123"
+  OPTIMIZATION_SERVICE_URL: "http://optimization-service:4006"
+  OPTIMIZATION_SOLVER_URL: "http://optimization-solver:4007"
+  ORDER_SERVICE_URL: "http://order-service:4001"
+  SCHEDULING_SERVICE_URL: "http://scheduling-service:4005"
+  ANALYTICS_SERVICE_URL: "http://analytics-service:4017"

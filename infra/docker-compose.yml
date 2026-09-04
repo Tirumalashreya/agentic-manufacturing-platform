@@ -1,0 +1,202 @@
+# Config-only reference orchestration — written to match the architecture
+# doc's containerized deployment shape (§14), but NOT built or run in this
+# environment: Docker is not installed on this machine. Every other piece of
+# this platform (Postgres, Redis, Kafka, ClickHouse, OR-Tools) was instead
+# genuinely installed via Homebrew and run/verified natively on the host —
+# see the individual service READMEs / commit history for that verification.
+#
+# Secrets (RESEND_API_KEY etc.) are pulled from a sibling `infra/.env` file
+# via variable substitution, never hardcoded here. Create one before running:
+#   RESEND_API_KEY=...
+#   EMAIL_FROM=...
+#   NOTIFICATION_EMAIL_TO=...
+#   NEXTAUTH_SECRET=...
+#
+# Usage (once Docker is available):
+#   cd infra && docker compose up -d postgres redis kafka clickhouse
+#   docker compose run --rm order-service npm run -w @aps/domain prisma:migrate
+#   docker compose up -d
+
+name: aps-platform
+
+x-node-env: &node-env
+  DATABASE_URL: postgresql://aps:aps@postgres:5432/aps_platform?schema=public
+  REDIS_URL: redis://redis:6379
+  KAFKA_BROKER: kafka:9092
+  CLICKHOUSE_URL: http://clickhouse:8123
+  OPTIMIZATION_SERVICE_URL: http://optimization-service:4006
+  OPTIMIZATION_SOLVER_URL: http://optimization-solver:4007
+  ORDER_SERVICE_URL: http://order-service:4001
+  SCHEDULING_SERVICE_URL: http://scheduling-service:4005
+  ANALYTICS_SERVICE_URL: http://analytics-service:4017
+
+services:
+  # ---- Polyglot persistence (§12, §14) ----
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: aps_platform
+      POSTGRES_USER: aps
+      POSTGRES_PASSWORD: aps
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports: ["5432:5432"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aps -d aps_platform"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 10
+
+  # KRaft mode (no Zookeeper), matching the local brew-installed Kafka 4.x setup.
+  kafka:
+    image: apache/kafka:3.9.0
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+    ports: ["9092:9092"]
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24-alpine
+    ports: ["8123:8123", "9000:9000"]
+    ulimits:
+      nofile: { soft: 262144, hard: 262144 }
+    volumes:
+      - chdata:/var/lib/clickhouse
+
+  # ---- §11 microservices ----
+  order-service:
+    build: { context: .., dockerfile: services/order-service/Dockerfile }
+    environment: { <<: *node-env, PORT: 4001, SERVICE_NAME: order-service }
+    ports: ["4001:4001"]
+    depends_on: [postgres, kafka]
+
+  routing-service:
+    build: { context: .., dockerfile: services/routing-service/Dockerfile }
+    environment: { <<: *node-env, PORT: 4002, SERVICE_NAME: routing-service }
+    ports: ["4002:4002"]
+    depends_on: [postgres]
+
+  scheduling-service:
+    build: { context: .., dockerfile: services/scheduling-service/Dockerfile }
+    environment: { <<: *node-env, PORT: 4005, SERVICE_NAME: scheduling-service }
+    ports: ["4005:4005"]
+    depends_on: [postgres, redis, kafka, optimization-service]
+
+  optimization-service:
+    build: { context: .., dockerfile: services/optimization-service/Dockerfile }
+    environment: { <<: *node-env, PORT: 4006, SERVICE_NAME: optimization-service }
+    ports: ["4006:4006"]
+    depends_on: [postgres, optimization-solver]
+
+  optimization-solver:
+    build: { context: ../services/optimization-solver }
+    ports: ["4007:4007"]
+
+  machine-service:
+    build: { context: .., dockerfile: services/machine-service/Dockerfile }
+    environment: { <<: *node-env, PORT: 4008, SERVICE_NAME: machine-service }
+    ports: ["4008:4008"]
+    depends_on: [postgres, kafka]
+
+  operator-service:
+    build: { context: .., dockerfile: services/operator-service/Dockerfile }
+    environment: { <<: *node-env, PORT: 4009, SERVICE_NAME: operator-service }
+    ports: ["4009:4009"]
+    depends_on: [postgres]
+
+  inventory-service:
+    build: { context: .., dockerfile: services/inventory-service/Dockerfile }
+    environment: { <<: *node-env, PORT: 4010, SERVICE_NAME: inventory-service }
+    ports: ["4010:4010"]
+    depends_on: [postgres, kafka]
+
+  tool-service:
+    build: { context: .., dockerfile: services/tool-service/Dockerfile }
+    environment: { <<: *node-env, PORT: 4011, SERVICE_NAME: tool-service }
+    ports: ["4011:4011"]
+    depends_on: [postgres]
+
+  maintenance-service:
+    build: { context: .., dockerfile: services/maintenance-service/Dockerfile }
+    environment: { <<: *node-env, PORT: 4012, SERVICE_NAME: maintenance-service }
+    ports: ["4012:4012"]
+    depends_on: [postgres]
+
+  calendar-service:
+    build: { context: .., dockerfile: services/calendar-service/Dockerfile }
+    environment: { <<: *node-env, PORT: 4013, SERVICE_NAME: calendar-service }
+    ports: ["4013:4013"]
+    depends_on: [postgres]
+
+  notification-service:
+    build: { context: .., dockerfile: services/notification-service/Dockerfile }
+    environment:
+      <<: *node-env
+      PORT: 4014
+      SERVICE_NAME: notification-service
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      EMAIL_FROM: ${EMAIL_FROM}
+      NOTIFICATION_EMAIL_TO: ${NOTIFICATION_EMAIL_TO}
+    ports: ["4014:4014"]
+    depends_on: [kafka]
+
+  reporting-service:
+    build: { context: .., dockerfile: services/reporting-service/Dockerfile }
+    environment: { <<: *node-env, PORT: 4016, SERVICE_NAME: reporting-service }
+    ports: ["4016:4016"]
+    depends_on: [postgres]
+
+  analytics-service:
+    build: { context: .., dockerfile: services/analytics-service/Dockerfile }
+    environment: { <<: *node-env, PORT: 4017, SERVICE_NAME: analytics-service }
+    ports: ["4017:4017"]
+    depends_on: [clickhouse]
+
+  erp-integration:
+    build: { context: .., dockerfile: services/erp-integration/Dockerfile }
+    environment: { <<: *node-env, PORT: 4018, SERVICE_NAME: erp-integration }
+    ports: ["4018:4018"]
+    depends_on: [postgres, kafka]
+
+  mes-integration:
+    build: { context: .., dockerfile: services/mes-integration/Dockerfile }
+    environment: { <<: *node-env, PORT: 4019, SERVICE_NAME: mes-integration }
+    ports: ["4019:4019"]
+    depends_on: [postgres, kafka]
+
+  iot-ingestion:
+    build: { context: .., dockerfile: services/iot-ingestion/Dockerfile }
+    environment: { <<: *node-env, PORT: 4020, SERVICE_NAME: iot-ingestion }
+    ports: ["4020:4020"]
+    depends_on: [kafka]
+
+  # ---- Minimal UI ----
+  web:
+    build: { context: .., dockerfile: web/Dockerfile }
+    environment:
+      <<: *node-env
+      PORT: 3000
+      NEXTAUTH_URL: http://localhost:3000
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      EMAIL_FROM: ${EMAIL_FROM}
+    ports: ["3000:3000"]
+    depends_on: [postgres, order-service, scheduling-service, analytics-service]
+
+volumes:
+  pgdata:
+  chdata:

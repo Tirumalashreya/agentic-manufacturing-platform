@@ -1,0 +1,88 @@
+@import "tailwindcss";
+
+:root {
+  /* Steel-blue theme: every "neutral" is tinted with the brand hue instead
+     of true achromatic grey/black — no grey or black shades anywhere in the
+     palette, by design. Components reference these tokens, not hardcoded
+     colors, so retheming stays a one-file edit. */
+  --background: #ffffff;
+  --foreground: #142433;
+  --surface: #f1f6fa;
+  --surface-muted: #e3edf5;
+  --border: #c3d5e3;
+  --muted: #4f7290;
+
+  --brand-50: #f0f5f9;
+  --brand-100: #dbe7f0;
+  --brand-200: #b8d0e3;
+  --brand-300: #8fb3d1;
+  --brand-400: #6b98bf;
+  --brand-500: #4a7ea8;
+  --brand-600: #3a6488;
+  --brand-700: #2f5170;
+  --brand-800: #274259;
+  --brand-900: #21374a;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0d1b28;
+    --foreground: #dceaf5;
+    --surface: #142a3d;
+    --surface-muted: #1b3448;
+    --border: #2b4863;
+    --muted: #8fadc4;
+  }
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal {
+  opacity: 0;
+}
+
+.reveal-visible {
+  animation: fade-in-up 0.6s ease-out forwards;
+}

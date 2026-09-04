@@ -1,0 +1,3 @@
+ortools
+fastapi
+uvicorn[standard]

@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: calendar-service
+  namespace: aps-platform
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: calendar-service } }
+  template:
+    metadata: { labels: { app: calendar-service } }
+    spec:
+      containers:
+        - name: calendar-service
+          image: aps/calendar-service:latest
+          ports: [{ containerPort: 4013 }]
+          env:
+            - { name: SERVICE_NAME, value: "calendar-service" }
+            - { name: PORT, value: "4013" }
+          envFrom:
+            - configMapRef: { name: aps-config }
+            - secretRef: { name: aps-secrets }
+          readinessProbe:
+            httpGet: { path: /health, port: 4013 }
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet: { path: /health, port: 4013 }
+            initialDelaySeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: calendar-service
+  namespace: aps-platform
+spec:
+  selector: { app: calendar-service }
+  ports: [{ port: 4013, targetPort: 4013 }]
