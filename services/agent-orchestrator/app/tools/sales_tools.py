@@ -2,6 +2,8 @@
 import datetime
 import openpyxl
 
+from app.tools.idempotency_tools import get_idempotent_result, record_idempotent_result
+
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
 QUOTATION_HEADERS = [
@@ -144,7 +146,12 @@ def create_sales_order(
     quantity: int | None,
     unit_price: float | None,
     requested_deadline: str | None,
+    idempotency_key: str | None = None,
 ) -> dict:
+    cached = get_idempotent_result(idempotency_key, "create_sales_order")
+    if cached is not None:
+        return cached
+
     # A Sales Order is a real commitment, not a pre-sales quote to a
     # prospect — unlike create_quotation(), it requires an actual,
     # active registered customer, not just a valid product/price.
@@ -188,12 +195,14 @@ def create_sales_order(
     ])
     wb.save(MOCK_ERP_PATH)
 
-    return {
+    result = {
         "created": True,
         "sales_order_id": sales_order_id,
         "total_amount": total_amount,
         "status": status,
     }
+    record_idempotent_result(idempotency_key, "create_sales_order", result)
+    return result
 
 
 # The persisted SalesOrders row must reflect reality — a credit hold means

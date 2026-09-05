@@ -1,5 +1,6 @@
 # app/agents/process_agent.py
 from groq import BadRequestError
+from langchain_core.exceptions import OutputParserException
 from langchain_groq import ChatGroq
 from langchain_core.messages import SystemMessage, HumanMessage
 from dotenv import load_dotenv
@@ -24,13 +25,17 @@ entry_type — the broad business category:
 - SUBSCRIPTION: a recurring/subscription commitment, not a one-off order.
 - SERVICE: a service engagement rather than a physical product sale.
 - PROJECT: a large, milestone-based engagement rather than a standard order.
+- EXPORT: an order that ships internationally, across a border.
+- CONSIGNMENT: stock is transferred to the customer to hold and sell on
+  our behalf — no sale/invoice for the transferred quantity itself yet.
 - FINANCIAL: a standalone financial adjustment not tied to a specific prior
   order (e.g. a general account credit with no referenced order).
 
 process — the specific process within that category. Pick the closest match:
 QUOTE_REQUEST, NEW_SALES_ORDER, PRODUCT_RETURN, REPLACEMENT,
 NEW_SUBSCRIPTION, SUBSCRIPTION_RENEWAL, SERVICE_REQUEST, PROJECT_ORDER,
-CREDIT_MEMO, DEBIT_MEMO, FINANCIAL_ADJUSTMENT.
+EXPORT_ORDER, CONSIGNMENT_TRANSFER, CREDIT_MEMO, DEBIT_MEMO,
+FINANCIAL_ADJUSTMENT.
 
 starting_stage — the lifecycle stage this request begins at (free text for
 now, e.g. "Lead", "Inquiry", "Quotation", "Sales Order", "Return", "Renewal",
@@ -42,6 +47,22 @@ intent=service_request always maps to entry_type=SERVICE,
 process=SERVICE_REQUEST, starting_stage="Service Request" — never
 DIRECT_SALES, even if a quantity or piece of equipment was mentioned;
 service_request means work is being requested, not a product purchased.
+
+intent=project_request always maps to entry_type=PROJECT,
+process=PROJECT_ORDER, starting_stage="Contract Award" — never
+DIRECT_SALES or SERVICE, regardless of whether a product/quantity was
+mentioned; the milestone/phased/contract framing is what makes it a
+project, and that call was already made upstream by intent_request.
+
+intent=export_request always maps to entry_type=EXPORT,
+process=EXPORT_ORDER, starting_stage="Order Confirmation" — never
+DIRECT_SALES, regardless of whether the product/quantity would otherwise
+look like a standard order; the cross-border framing is what makes it
+export, and that call was already made upstream by intent_agent.
+
+intent=consignment_request always maps to entry_type=CONSIGNMENT,
+process=CONSIGNMENT_TRANSFER, starting_stage="Stock Transfer" — never
+DIRECT_SALES, since no sale of the transferred quantity has happened yet.
 
 intent=subscription_request always maps to entry_type=SUBSCRIPTION,
 starting_stage="Renewal" if the request sounds like renewing/continuing
@@ -85,7 +106,15 @@ def _is_malformed_tool_call(err: BaseException) -> bool:
     # Groq's gpt-oss models occasionally emit a bogus "json" tool call
     # instead of the one real tool we registered — a known provider-side
     # flake, not a real bad request. Retry only that specific case.
-    return isinstance(err, BadRequestError) and "tool_use_failed" in str(err)
+    if isinstance(err, BadRequestError) and "tool_use_failed" in str(err):
+        return True
+    # A second, previously unseen shape of the same underlying flake:
+    # the model mangles the tool-call name into something like
+    # "processes=functions.ProcessResult" — syntactically valid enough
+    # that Groq's API accepts it (no BadRequestError at all), but
+    # langchain's own structured-output parser then can't recognize it
+    # as the one real registered tool and raises this instead.
+    return isinstance(err, OutputParserException) and "Unknown tool type" in str(err)
 
 
 @retry(

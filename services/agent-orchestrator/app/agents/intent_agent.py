@@ -11,7 +11,7 @@ load_dotenv()
 
 
 class IntentResult(BaseModel):
-    intent: Literal["request_quote", "create_order", "return", "credit_memo", "service_request", "subscription_request"]
+    intent: Literal["request_quote", "create_order", "return", "credit_memo", "service_request", "subscription_request", "project_request", "export_request", "consignment_request"]
     customer: str | None = None
     product: str | None = None
     quantity: int | None = None
@@ -41,11 +41,33 @@ Given the user's request, identify:
      mention of a subscription, plan, membership, or recurring
      service/support contract, whether new or a renewal, is
      subscription_request.
+   - project_request: a large, milestone-based engagement — a turnkey
+     installation, a big manufacturing contract, a multi-phase build —
+     rather than a standard one-off order or a single service call. Look
+     for signals like "project", "contract", "phases", "milestones", a
+     large scale/scope, or a stated contract value. A quantity alone
+     doesn't make something a project (100 laptops is still create_order);
+     it's the milestone/phased/contract framing that does.
+   - export_request: an order that ships internationally — mentions a
+     destination country, shipping/customs, an incoterm (FOB, CIF, EXW,
+     DAP, ...), or otherwise makes clear the goods are crossing a border.
+     A domestic order for the same product/quantity is still create_order;
+     it's the cross-border shipment that makes it export_request.
+   - consignment_request: stock is being SENT to this customer to hold and
+     sell on our behalf, not sold to them outright — look for "consign",
+     "on consignment", "sell on our behalf", "stock and pay as sold", or
+     similar language. This is not a purchase, so no invoice is expected
+     for the transferred quantity itself.
 2. customer
 3. product — for a service_request, this is what the service is being
    performed ON (e.g. "CNC machines"), not something being purchased. For
    a subscription_request, this is the plan/subscription name as the
-   customer described it (e.g. "annual software subscription").
+   customer described it (e.g. "annual software subscription"). For a
+   project_request, this is the product being built/installed if the
+   request names a real catalog item — null if the project is pure
+   engineering/consulting work with no catalog product involved. For an
+   export_request, this is the catalog product being shipped. For a
+   consignment_request, this is the catalog product being transferred.
 4. quantity
 5. requested_deadline
 

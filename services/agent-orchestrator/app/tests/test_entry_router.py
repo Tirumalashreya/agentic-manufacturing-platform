@@ -78,9 +78,8 @@ async def test_return_is_processed_by_post_sales():
 
 @pytest.mark.asyncio
 async def test_subscription_renewal_is_processed():
-    # Service and Subscription got real workflows later in this session —
-    # only PROJECT/EXPORT/CONSIGNMENT/FINANCIAL are still deliberately
-    # deferred now.
+    # Every entry_type category — Service, Subscription, Project, Export,
+    # Consignment, and Financial — got a real workflow this session.
     #
     # RENEWAL now correctly requires a real existing ACTIVE subscription to
     # act on (it extends renewal_date rather than creating a duplicate row)
@@ -109,17 +108,54 @@ async def test_subscription_renewal_is_processed():
 
 
 @pytest.mark.asyncio
-async def test_financial_still_routes_to_not_implemented():
-    # PROJECT/EXPORT/CONSIGNMENT can't even be reached yet — no intent
-    # value maps to them at all (same structural gap Service/Subscription
-    # had before they got dedicated intents), so testing "not implemented"
-    # against them would be testing something structurally impossible
-    # rather than a deliberate deferral. FINANCIAL is the one genuinely
-    # reachable-but-unbuilt entry_type left, via credit_memo with no
-    # order/product context at all.
+async def test_project_award_is_processed():
+    result = await graph.ainvoke({
+        "user_message": (
+            "ABC wants to award us a turnkey manufacturing project for a new "
+            "production line, contract value 1,000,000, delivered in phases."
+        )
+    })
+
+    assert result["entry_type"] == "PROJECT"
+    assert result["status"] == "IN_EXECUTION"
+    assert result["project_id"] is not None
+    assert result["project_id"].startswith("PRJ")
+
+
+@pytest.mark.asyncio
+async def test_export_order_is_processed():
+    result = await graph.ainvoke({
+        "user_message": "ABC wants to export 10 Wireless Mice to Germany, terms FOB."
+    })
+
+    assert result["entry_type"] == "EXPORT"
+    assert result["status"] == "CONFIRMED"
+    assert result["export_order_id"] is not None
+    assert result["export_order_id"].startswith("EXP")
+
+
+@pytest.mark.asyncio
+async def test_consignment_transfer_is_processed():
+    result = await graph.ainvoke({
+        "user_message": "ABC wants to send 5 Wireless Mice to our distributor to sell on consignment."
+    })
+
+    assert result["entry_type"] == "CONSIGNMENT"
+    assert result["status"] == "ACTIVE"
+    assert result["consignment_id"] is not None
+    assert result["consignment_id"].startswith("CNG")
+
+
+@pytest.mark.asyncio
+async def test_financial_adjustment_is_processed():
+    # Financial got a real workflow too — every entry_type this session
+    # set out to build now has one. Below the approval threshold, this
+    # posts immediately in the same turn.
     result = await graph.ainvoke({
         "user_message": "Coastal Electronics Group would like a general account credit of 5000, not tied to any specific order or product."
     })
 
     assert result["entry_type"] == "FINANCIAL"
-    assert result["status"] == "NOT_IMPLEMENTED"
+    assert result["status"] == "POSTED"
+    assert result["financial_adjustment_id"] is not None
+    assert result["financial_adjustment_id"].startswith("FA")

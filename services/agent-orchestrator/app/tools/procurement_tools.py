@@ -2,6 +2,8 @@
 import datetime
 import openpyxl
 
+from app.tools.idempotency_tools import get_idempotent_result, record_idempotent_result
+
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
 PURCHASE_ORDER_HEADERS = [
@@ -103,7 +105,12 @@ def create_purchase_order(
     quantity: int,
     unit_cost: float,
     lead_time_days: int,
+    idempotency_key: str | None = None,
 ) -> dict:
+    cached = get_idempotent_result(idempotency_key, "create_purchase_order")
+    if cached is not None:
+        return cached
+
     if quantity is None or quantity <= 0:
         return {
             "created": False,
@@ -136,10 +143,12 @@ def create_purchase_order(
     ])
     wb.save(MOCK_ERP_PATH)
 
-    return {
+    result = {
         "created": True,
         "purchase_order_id": purchase_order_id,
         "total_cost": total_cost,
         "expected_arrival": expected_arrival,
         "status": status,
     }
+    record_idempotent_result(idempotency_key, "create_purchase_order", result)
+    return result

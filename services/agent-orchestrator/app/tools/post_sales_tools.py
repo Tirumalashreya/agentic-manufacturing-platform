@@ -2,6 +2,9 @@
 import datetime
 import openpyxl
 
+from app.tools.audit_tools import record_audit_event
+from app.tools.idempotency_tools import get_idempotent_result, record_idempotent_result
+
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
 POST_SALES_HEADERS = [
@@ -92,7 +95,12 @@ def process_post_sales_action(
     quantity: int | None,
     unit_price: float | None,
     reason: str,
+    idempotency_key: str | None = None,
 ) -> dict:
+    cached = get_idempotent_result(idempotency_key, "process_post_sales_action")
+    if cached is not None:
+        return cached
+
     if product_id is None:
         return {
             "created": False,
@@ -115,6 +123,17 @@ def process_post_sales_action(
             return {
                 "created": False,
                 "reason": f"Referenced order {referenced_order_id} does not exist.",
+            }
+        # Checked before product/quantity — a customer has no standing to
+        # act on someone else's order at all, regardless of whether the
+        # product/quantity they named would otherwise line up.
+        if order["customer_id"] != customer_id:
+            return {
+                "created": False,
+                "reason": (
+                    f"Order {referenced_order_id} does not belong to customer "
+                    f"{customer_id} (it belongs to {order['customer_id']})."
+                ),
             }
         # Quantity validation is only meaningful against the right product
         # on that order — checking "quantity <= ordered" against the wrong
@@ -193,13 +212,18 @@ def process_post_sales_action(
         None,
     ])
     wb.save(MOCK_ERP_PATH)
+    record_audit_event("PostSalesAction", post_sales_id, f"POST_SALES_{action}_CREATED", {
+        "referenced_order_id": referenced_order_id, "amount": amount,
+    })
 
-    return {
+    result = {
         "created": True,
         "post_sales_id": post_sales_id,
         "amount": amount,
         "status": status,
     }
+    record_idempotent_result(idempotency_key, "process_post_sales_action", result)
+    return result
 
 
 def get_post_sales_action(post_sales_id: str) -> dict | None:
@@ -261,6 +285,7 @@ def resolve_return_inspection(post_sales_id: str, decision: str, inspected_by: s
                     break
 
         wb.save(MOCK_ERP_PATH)
+        record_audit_event("PostSalesAction", post_sales_id, f"POST_SALES_RETURN_{decision}", {"inspected_by": inspected_by})
         return {"resolved": True, "post_sales_id": post_sales_id, "status": decision}
 
     return {"resolved": False, "reason": f"No post-sales action found with id {post_sales_id}"}

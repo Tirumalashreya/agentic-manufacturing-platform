@@ -10,6 +10,8 @@ EntryType = Literal[
     "SUBSCRIPTION",
     "SERVICE",
     "PROJECT",
+    "EXPORT",
+    "CONSIGNMENT",
     "FINANCIAL",
 ]
 
@@ -22,6 +24,8 @@ ProcessType = Literal[
     "SUBSCRIPTION_RENEWAL",
     "SERVICE_REQUEST",
     "PROJECT_ORDER",
+    "EXPORT_ORDER",
+    "CONSIGNMENT_TRANSFER",
     "CREDIT_MEMO",
     "DEBIT_MEMO",
     "FINANCIAL_ADJUSTMENT",

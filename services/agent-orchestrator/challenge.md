@@ -192,3 +192,55 @@ named-code check, not a blanket retry-on-any-exception. Not applied
 speculatively to the other seven agents' identical wrappers; per the
 standing rule, that happens if/when each one is actually observed
 hitting this specific code too.
+
+**Update 9:** confirmed a ninth time, on a brand-new agent built this
+session. `project_agent.py` (Project workflow) hit `tool_use_failed`
+(bogus tool name `"JSON"`, capitalized this time — same underlying
+flake, just another arbitrary name) live during a full test-suite run.
+It was deliberately built *without* the wrapper at first, per the
+standing rule — added only once observed, exactly as it was here.
+`intent_agent.py`/`context_agent.py`'s fuzzy model remain the only two
+`with_structured_output` call sites in this codebase without it.
+
+**Update 10:** confirmed a tenth time, on another brand-new agent built
+this session. `export_agent.py` (Export workflow) hit `tool_use_failed`
+(bogus tool name `"json"`) live during a full test-suite run — same
+"built without it, added once observed" sequence as `project_agent.py`
+just above.
+
+**Update 11:** confirmed an eleventh time. `financial_agent.py` (Financial
+workflow, the last new agent built this session) hit `tool_use_failed`
+(bogus tool name `"json"`) live on its own test run — same sequence
+again. At this point every agent built this session that has actually
+been exercised (`project_agent.py`, `export_agent.py`,
+`financial_agent.py`) has hit this within its first few live runs;
+`consignment_agent.py` (smallest schema, one string field) hasn't yet,
+consistent with the pattern that a smaller schema flakes less often, not
+that it's exempt.
+
+**Update 12:** confirmed a twelfth time, and the first hit on a
+pre-existing (not this-session-built) agent. `procurement_agent.py` hit
+`tool_use_failed` (bogus tool name `"json"`) live during a full
+test-suite run. Wrapper added once observed, same as every other case —
+this one simply hadn't been exercised enough times before to have shown
+it yet, confirming again this is a property of the model/pattern, not of
+any specific agent's prompt.
+
+**Update 13:** a genuinely new *shape* of the flake, not just a new
+tool-name variant, hit live while driving the app manually through the
+new frontend (not a pytest run) — `process_agent.py` failed with
+`langchain_core.exceptions.OutputParserException: Unknown tool type:
+'processes=functions.ProcessResult'`. This one never reaches
+`groq.BadRequestError` at all: the mangled tool name
+("processes=functions.ProcessResult" instead of "ProcessResult") is
+syntactically acceptable to Groq's own API, so it returns normally, and
+it's langchain's structured-output parser that then can't match it to
+the one registered tool and raises `OutputParserException` instead.
+`process_agent.py`'s existing `_is_malformed_tool_call` predicate only
+checked `BadRequestError`, so this slipped through uncaught and crashed
+the request with no retry. Widened the predicate to also catch
+`OutputParserException` containing "Unknown tool type" — same narrow,
+named-condition approach, not a blanket catch. Only applied to
+`process_agent.py`, where it was actually observed; other agents get the
+same widening if/when they show this specific shape too, per the
+standing rule.

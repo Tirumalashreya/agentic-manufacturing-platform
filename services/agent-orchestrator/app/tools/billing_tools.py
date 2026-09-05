@@ -2,6 +2,8 @@
 import datetime
 import openpyxl
 
+from app.tools.idempotency_tools import get_idempotent_result, record_idempotent_result
+
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
 INVOICE_HEADERS = [
@@ -50,7 +52,12 @@ def create_invoice(
     unit_price: float,
     payment_terms_days: int,
     notes: str,
+    idempotency_key: str | None = None,
 ) -> dict:
+    cached = get_idempotent_result(idempotency_key, "create_invoice")
+    if cached is not None:
+        return cached
+
     if quantity_billed is None or quantity_billed <= 0 or unit_price is None:
         return {
             "created": False,
@@ -86,10 +93,52 @@ def create_invoice(
     ])
     wb.save(MOCK_ERP_PATH)
 
-    return {
+    result = {
         "created": True,
         "invoice_id": invoice_id,
         "invoice_amount": invoice_amount,
         "due_date": due_date,
         "status": status,
     }
+    record_idempotent_result(idempotency_key, "create_invoice", result)
+    return result
+
+
+def find_invoice(invoice_id: str) -> dict | None:
+    wb = openpyxl.load_workbook(MOCK_ERP_PATH)
+    if "Invoices" not in wb.sheetnames:
+        return None
+    sheet = wb["Invoices"]
+    for row in sheet.iter_rows(min_row=2, values_only=True):
+        if row[0] == invoice_id:
+            return dict(zip(INVOICE_HEADERS, row))
+    return None
+
+
+# The first real payment-tracking capability in this system — every
+# credit-exposure/billing comment up to now has explicitly flagged "no
+# payment tracking yet" as a known gap. Added narrowly here because
+# Export's own pipeline explicitly ends in "Payment Realisation -> Closed"
+# and needs a real signal to close against, not because every invoice
+# flow elsewhere is being retrofitted with payment reconciliation now.
+def mark_invoice_paid(invoice_id: str) -> dict:
+    wb = openpyxl.load_workbook(MOCK_ERP_PATH)
+    if "Invoices" not in wb.sheetnames:
+        return {"updated": False, "reason": f"No invoice found with id {invoice_id}"}
+    sheet = wb["Invoices"]
+    status_col = INVOICE_HEADERS.index("status") + 1
+
+    for row_idx, row in enumerate(sheet.iter_rows(min_row=2), start=2):
+        if row[0].value != invoice_id:
+            continue
+        current_status = row[status_col - 1].value
+        if current_status != "ISSUED":
+            return {
+                "updated": False,
+                "reason": f"Cannot mark {invoice_id} paid from status {current_status} (expected ISSUED).",
+            }
+        sheet.cell(row=row_idx, column=status_col, value="PAID")
+        wb.save(MOCK_ERP_PATH)
+        return {"updated": True, "invoice_id": invoice_id, "status": "PAID"}
+
+    return {"updated": False, "reason": f"No invoice found with id {invoice_id}"}

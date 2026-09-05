@@ -89,6 +89,18 @@ class SalesState(TypedDict, total=False):
     # Subscription workflow output
     subscription_id: str | None
 
+    # Project workflow output
+    project_id: str | None
+
+    # Export workflow output
+    export_order_id: str | None
+
+    # Consignment workflow output
+    consignment_id: str | None
+
+    # Financial workflow output
+    financial_adjustment_id: str | None
+
     # Workflow
     current_stage: str
 

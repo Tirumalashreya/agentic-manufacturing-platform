@@ -50,13 +50,40 @@ async def test_configurable_product_order_requires_configuration():
 
 @pytest.mark.asyncio
 async def test_no_stock_third_party_is_sourced_from_vendor():
-    # Webcam HD: not configurable, can_produce=False, only ~60 units of
-    # real stock. A request beyond that forces THIRD_PARTY — which now has
-    # a real execution path via ProductVendors (two vendors seeded for
-    # this product). Zenith Enterprises, not Titan (see note above) — kept
-    # small (100 units, ~220k-240k) so this stays under its credit_limit.
+    # Webcam HD: not configurable, can_produce=False — a request beyond
+    # real stock forces THIRD_PARTY, which now has a real execution path
+    # via ProductVendors (two vendors seeded for this product).
+    #
+    # The quantity is computed from *actual current* stock rather than a
+    # hardcoded number: mock_erp.xlsx is shared, ever-mutating state (this
+    # session's own Trading tests warehouse real stock into this exact
+    # product), so a fixed "100 units" silently stops forcing THIRD_PARTY
+    # once enough prior activity has pushed real stock past it — asserting
+    # MTS instead, which is genuinely correct given more stock, not a bug.
+    #
+    # Same reasoning applies to credit: check against real current
+    # headroom (existing exposure nets against nothing and only grows
+    # across this session's live tests), not the raw credit_limit, which
+    # this exact class of assumption has already gone stale on elsewhere
+    # (see test_credit_check_live.py).
+    from app.tools.credit_tools import check_credit
+    from app.tools.customer_tools import get_customer
+    from app.tools.inventory_tools import get_stock
+    from app.tools.product_tools import get_product
+
+    product = get_product("Webcam HD")
+    stock_total = sum(row["stock_qty"] for row in get_stock(product["product_id"]))
+    customer = get_customer("Zenith Enterprises")
+    exposure = check_credit(customer["customer_id"], customer["credit_limit"], 0)
+    headroom = exposure["credit_limit"] - exposure["existing_exposure"]
+
+    quantity = stock_total + 20
+    assert quantity * product["price"] < headroom, (
+        "test setup assumption broken: Zenith Enterprises has no real credit headroom for this order"
+    )
+
     result = await graph.ainvoke({
-        "user_message": "Zenith Enterprises wants to order 100 Webcam HD units now."
+        "user_message": f"Zenith Enterprises wants to order {quantity} Webcam HD units now."
     })
 
     assert result["entry_type"] == "DIRECT_SALES"

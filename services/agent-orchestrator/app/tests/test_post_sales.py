@@ -279,6 +279,36 @@ def test_process_post_sales_action_rejects_unknown_reference():
     assert "does not exist" in result["reason"]
 
 
+def test_process_post_sales_action_rejects_customer_mismatch():
+    order = create_sales_order(
+        customer_id="C001",
+        customer_name="ABC Corp",
+        customer_active=True,
+        product_id="P011",
+        product_name="Wireless Mouse",
+        quantity=5,
+        unit_price=800.0,
+        requested_deadline=None,
+    )
+
+    # Order belongs to C001 — a different customer has no standing to
+    # return against it, even with a matching product/quantity.
+    result = process_post_sales_action(
+        action="RETURN",
+        referenced_order_id=order["sales_order_id"],
+        customer_id="C002",
+        customer_name="Zenith Enterprises",
+        product_id="P011",
+        product_name="Wireless Mouse",
+        quantity=1,
+        unit_price=800.0,
+        reason="Not my order but trying anyway.",
+    )
+
+    assert result["created"] is False
+    assert "does not belong to customer" in result["reason"]
+
+
 def test_process_post_sales_action_rejects_product_not_on_order():
     order = create_sales_order(
         customer_id="C001",

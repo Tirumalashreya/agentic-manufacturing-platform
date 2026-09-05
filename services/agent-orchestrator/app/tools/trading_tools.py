@@ -2,6 +2,8 @@
 import datetime
 import openpyxl
 
+from app.tools.audit_tools import record_audit_event
+
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
 TRADING_ORDER_HEADERS = [
@@ -117,6 +119,7 @@ def create_trading_order(
         created_at,
     ])
     wb.save(MOCK_ERP_PATH)
+    record_audit_event("TradingOrder", trading_order_id, "TRADING_ORDER_CREATED", {"total_cost": total_cost})
 
     return {
         "created": True,
@@ -186,6 +189,7 @@ def update_trading_order_status(trading_order_id: str, new_status: str) -> dict:
                     break
 
         wb.save(MOCK_ERP_PATH)
+        record_audit_event("TradingOrder", trading_order_id, f"TRADING_ORDER_{new_status}")
         return {"updated": True, "trading_order_id": trading_order_id, "status": new_status}
 
     return {"updated": False, "reason": f"No trading order found with id {trading_order_id}"}
@@ -213,6 +217,7 @@ def mark_trading_order_dispatched(trading_order_id: str) -> dict:
             }
         sheet.cell(row=row_idx, column=status_col, value="DISPATCHED")
         wb.save(MOCK_ERP_PATH)
+        record_audit_event("TradingOrder", trading_order_id, "TRADING_ORDER_DISPATCHED")
         return {"updated": True, "trading_order_id": trading_order_id, "status": "DISPATCHED"}
 
     return {"updated": False, "reason": f"No trading order found with id {trading_order_id}"}

@@ -13,7 +13,12 @@ from app.agents.post_sales_agent import post_sales_agent
 from app.agents.procurement_agent import procurement_agent
 from app.agents.service_agent import service_agent
 from app.agents.subscription_agent import subscription_agent
-from app.tools.sales_tools import create_quotation, create_sales_order, update_sales_order_status
+from app.agents.project_agent import project_agent
+from app.agents.export_agent import export_agent
+from app.agents.consignment_agent import consignment_agent
+from app.agents.financial_agent import financial_agent
+from app.erp.mock_erp_adapter import default_erp_adapter as erp
+from app.tools.sales_tools import create_quotation, update_sales_order_status
 from app.tools.service_tools import create_service_order
 from app.tools.subscription_tools import (
     create_subscription,
@@ -23,21 +28,20 @@ from app.tools.subscription_tools import (
     cancel_subscription,
 )
 from app.tools.fulfillment_tools import compute_fulfillment_split
-from app.tools.production_tools import create_production_order, reserve_stock, compute_target_completion_date
-from app.tools.credit_tools import check_credit
-from app.tools.delivery_tools import create_delivery
-from app.tools.billing_tools import create_invoice
+from app.tools.production_tools import compute_target_completion_date
 from app.tools.post_sales_tools import process_post_sales_action, find_sales_order
 from app.tools.trading_tools import (
     create_trading_order,
-    get_vendors_for_product,
     find_trading_order,
     mark_trading_order_dispatched,
 )
-from app.tools.procurement_tools import (
-    check_material_availability,
-    create_purchase_order,
-    get_vendors_for_component,
+from app.tools.project_tools import attach_production_order, create_project
+from app.tools.export_tools import create_export_order, find_export_order, set_export_fulfillment
+from app.tools.consignment_tools import create_consignment
+from app.tools.financial_tools import (
+    FINANCIAL_APPROVAL_THRESHOLD,
+    create_financial_adjustment,
+    post_financial_adjustment,
 )
 
 
@@ -126,6 +130,14 @@ def entry_router(state: SalesState) -> str:
         return "service"
     if state["entry_type"] == "SUBSCRIPTION":
         return "subscription"
+    if state["entry_type"] == "PROJECT":
+        return "project"
+    if state["entry_type"] == "EXPORT":
+        return "export"
+    if state["entry_type"] == "CONSIGNMENT":
+        return "consignment"
+    if state["entry_type"] == "FINANCIAL":
+        return "financial"
     return "not_implemented"
 
 
@@ -299,6 +311,272 @@ async def subscription_node(state: SalesState):
     }
 
 
+# Project workflow. Reached directly from entry_router, same shape as
+# Service/Subscription. Material assessment and production creation reuse
+# the exact same _assess_materials()/_procure_shortages() helpers MTO/CTO
+# already use (defined further below in this module) — a Project doesn't
+# get its own copy of that logic, per the roadmap's own instruction not to
+# duplicate what Fulfillment already does. A project with no resolved
+# product/quantity (a pure-engineering/consulting engagement) still gets
+# created with real milestones — it just skips production entirely rather
+# than faking one, same honest-gap pattern as THIRD_PARTY with no vendor.
+async def project_node(state: SalesState):
+    decision = await project_agent(state["user_message"])
+
+    result = create_project(
+        customer_id=state["customer_id"],
+        customer_name=state["customer_name"],
+        product_id=state.get("product_id"),
+        product_name=state.get("product_name"),
+        quantity=state.get("quantity"),
+        project_type=decision.project_type,
+        scope_description=decision.scope_description,
+        contract_value=decision.contract_value,
+    )
+
+    if not result["created"]:
+        return {
+            "status": "REJECTED",
+            "response": result["reason"],
+        }
+
+    milestone_text = "; ".join(
+        f"{m['milestone_name']} {m['milestone_id']}"
+        + (f" ({m['amount']})" if m["amount"] is not None else " (amount TBD — no contract value stated)")
+        for m in result["milestones"]
+    )
+    response = (
+        f"Project {result['project_id']} ({decision.project_type}) awarded: "
+        f"{decision.scope_description}. Milestones: {milestone_text}."
+    )
+
+    production_note = ""
+    quantity = state.get("quantity")
+    product_id = state.get("product_id")
+    if product_id and quantity:
+        assessment = _assess_materials(product_id, quantity)
+        has_shortage = bool(assessment["shortages"])
+        production = erp.create_production_order(
+            sales_order_id=None,
+            product_id=product_id,
+            product_name=state.get("product_name"),
+            quantity=quantity,
+            lead_time_days=state.get("lead_time_days"),
+            initial_status="AWAITING_MATERIALS" if has_shortage else "PLANNED",
+        )
+        if production["created"]:
+            attach_production_order(result["project_id"], production["production_order_id"])
+            procurement_note = await _procure_shortages(
+                assessment, production["production_order_id"], production["target_completion_date"]
+            )
+            production_note = (
+                f" Production Order {production['production_order_id']} created "
+                f"({production['status']}), target completion {production['target_completion_date']}."
+            ) + procurement_note
+        else:
+            production_note = f" Production order failed: {production['reason']}"
+
+    return {
+        "project_id": result["project_id"],
+        "status": "IN_EXECUTION",
+        "response": response + production_note,
+    }
+
+
+# Export workflow. Reached directly from entry_router. Only creates the
+# order and its proforma invoice here — matches the Trading precedent
+# exactly: everything physically/operationally downstream (payment
+# verification, stock-vs-production allocation, documentation, freight,
+# shipment, invoicing, closing) happens through direct tool/operational
+# calls in export_tools.py (or allocate_or_produce_export_order() below),
+# not further chat messages. A real export starts with a confirmed order
+# and a proforma invoice — everything after that is triggered by real
+# events (a bank confirming an LC, a warehouse booking freight), not a
+# customer typing another sentence.
+async def export_node(state: SalesState):
+    decision = await export_agent(state["user_message"])
+
+    result = create_export_order(
+        customer_id=state["customer_id"],
+        customer_name=state["customer_name"],
+        product_id=state.get("product_id"),
+        product_name=state.get("product_name"),
+        quantity=state.get("quantity"),
+        unit_price=state.get("price"),
+        destination_country=decision.destination_country,
+        incoterm=decision.incoterm,
+    )
+
+    if not result["created"]:
+        return {
+            "status": "REJECTED",
+            "response": result["reason"],
+        }
+
+    return {
+        "export_order_id": result["export_order_id"],
+        "status": "CONFIRMED",
+        "response": (
+            f"Export Order {result['export_order_id']} confirmed for "
+            f"{state.get('quantity')} x {state.get('product_name')} to "
+            f"{decision.destination_country}"
+            + (f" ({decision.incoterm})" if decision.incoterm else "")
+            + f". Proforma invoice {result['proforma_invoice_id']} issued for {result['total_value']}. "
+            f"Awaiting payment/LC verification before fulfillment proceeds."
+        ),
+    }
+
+
+# The stock-vs-production allocation decision for a PAYMENT_VERIFIED
+# export order — an operational trigger, not part of the chat graph (same
+# reasoning as dispatch_trading_order). Reuses the exact same
+# _assess_materials()/_procure_shortages() helpers MTO/CTO/Project already
+# use, and erp.reserve_stock() when real stock covers the full quantity —
+# no separate copy of that decision logic for Export.
+async def allocate_or_produce_export_order(export_order_id: str) -> dict:
+    order = find_export_order(export_order_id)
+    if order is None:
+        return {"allocated": False, "reason": f"No export order found with id {export_order_id}"}
+    if order["status"] != "PAYMENT_VERIFIED":
+        return {
+            "allocated": False,
+            "reason": f"{export_order_id} must be PAYMENT_VERIFIED before allocation (status: {order['status']}).",
+        }
+
+    stock_total = sum(row["stock_qty"] for row in erp.get_stock(order["product_id"]))
+
+    if stock_total >= order["quantity"]:
+        reservation = erp.reserve_stock(
+            sales_order_id=None,
+            product_id=order["product_id"],
+            product_name=order["product_name"],
+            quantity=order["quantity"],
+        )
+        if not reservation["reserved"]:
+            return {"allocated": False, "reason": reservation["reason"]}
+        set_export_fulfillment(
+            export_order_id, fulfillment_source="STOCK", new_status="ALLOCATED",
+            reservation_id=reservation["reservation_id"],
+        )
+        return {"allocated": True, "export_order_id": export_order_id, "status": "ALLOCATED"}
+
+    assessment = _assess_materials(order["product_id"], order["quantity"])
+    has_shortage = bool(assessment["shortages"])
+    production = erp.create_production_order(
+        sales_order_id=None,
+        product_id=order["product_id"],
+        product_name=order["product_name"],
+        quantity=order["quantity"],
+        lead_time_days=None,
+        initial_status="AWAITING_MATERIALS" if has_shortage else "PLANNED",
+    )
+    if not production["created"]:
+        return {"allocated": False, "reason": production["reason"]}
+
+    procurement_note = await _procure_shortages(
+        assessment, production["production_order_id"], production["target_completion_date"]
+    )
+    set_export_fulfillment(
+        export_order_id, fulfillment_source="PRODUCTION", new_status="IN_PRODUCTION",
+        production_order_id=production["production_order_id"],
+    )
+    return {
+        "allocated": True,
+        "export_order_id": export_order_id,
+        "status": "IN_PRODUCTION",
+        "note": procurement_note,
+    }
+
+
+# Consignment workflow. Reached directly from entry_router. Only the
+# stock transfer happens here — same "chat graph handles the initial
+# commitment, everything physical/operational after that is a direct
+# tool call" split as Trading/Export. Sale reporting, unsold returns, and
+# closing are all real operational events (a consignee reporting what
+# they actually sold), not further chat messages, so they live as
+# directly-callable functions in consignment_tools.py, not graph nodes.
+async def consignment_node(state: SalesState):
+    decision = await consignment_agent(state["user_message"])
+
+    result = create_consignment(
+        customer_id=state["customer_id"],
+        customer_name=state["customer_name"],
+        product_id=state.get("product_id"),
+        product_name=state.get("product_name"),
+        quantity_sent=state.get("quantity"),
+        unit_price=state.get("price"),
+        notes=decision.notes,
+    )
+
+    if not result["created"]:
+        return {
+            "status": "REJECTED",
+            "response": result["reason"],
+        }
+
+    return {
+        "consignment_id": result["consignment_id"],
+        "status": "ACTIVE",
+        "response": (
+            f"Consignment {result['consignment_id']} created: "
+            f"{result['quantity_sent']} x {state.get('product_name')} transferred to "
+            f"{state['customer_name']}, no invoice issued yet. {decision.notes} "
+            f"Billing happens only as sell-through is reported."
+        ),
+    }
+
+
+# Financial workflow. Reached directly from entry_router — a standalone
+# account adjustment, not tied to any order/product (that case is
+# Post-Sales). The agent only extracts type/reference/reason; the amount
+# is either what the customer actually stated or the request is rejected
+# outright — never invented, never guessed downstream either. Below the
+# approval threshold, this posts immediately in the same turn (nothing
+# further needs a human); at/above it, resolve_financial_approval() and
+# post_financial_adjustment() are real operational triggers a human calls
+# later, same split as every other workflow's post-creation lifecycle.
+async def financial_node(state: SalesState):
+    decision = await financial_agent(state["user_message"])
+
+    result = create_financial_adjustment(
+        adjustment_type=decision.adjustment_type,
+        customer_id=state["customer_id"],
+        customer_name=state["customer_name"],
+        reference=decision.reference,
+        amount=decision.amount,
+        reason=decision.reason,
+    )
+
+    if not result["created"]:
+        return {
+            "status": "REJECTED",
+            "response": result["reason"],
+        }
+
+    financial_adjustment_id = result["financial_adjustment_id"]
+
+    if result["approval_required"]:
+        return {
+            "financial_adjustment_id": financial_adjustment_id,
+            "status": "PENDING_APPROVAL",
+            "response": (
+                f"Financial Adjustment {financial_adjustment_id} ({decision.adjustment_type}) "
+                f"for {decision.amount}: {decision.reason} Requires approval before posting "
+                f"(at/above the {FINANCIAL_APPROVAL_THRESHOLD} threshold)."
+            ),
+        }
+
+    post_financial_adjustment(financial_adjustment_id)
+    return {
+        "financial_adjustment_id": financial_adjustment_id,
+        "status": "POSTED",
+        "response": (
+            f"Financial Adjustment {financial_adjustment_id} ({decision.adjustment_type}) "
+            f"for {decision.amount} posted: {decision.reason}"
+        ),
+    }
+
+
 # Pre-Sales workflow (build-order step 6). Only QUOTE_REQUEST is reachable
 # today (the only intent that lands on PRE_SALES) — Lead/Inquiry stages have
 # no dedicated agent yet since nothing currently produces them.
@@ -355,7 +633,7 @@ async def pre_sales_node(state: SalesState):
 # the order is purely deterministic validation + a tool call, same
 # principle as approvals.
 async def direct_sales_node(state: SalesState):
-    created = create_sales_order(
+    created = erp.create_sales_order(
         customer_id=state["customer_id"],
         customer_name=state["customer_name"],
         customer_active=state["customer_active"],
@@ -401,10 +679,11 @@ def direct_sales_router(state: SalesState) -> str:
 # already passed in create_sales_order, but defensive), fail open rather
 # than block on a check with no data.
 async def credit_check_node(state: SalesState):
-    result = check_credit(
+    result = erp.check_credit(
         customer_id=state["customer_id"],
         credit_limit=state["customer_credit_limit"],
         new_order_amount=state["sales_order_total"],
+        exclude_sales_order_id=state["sales_order_id"],
     )
 
     if not result["checked"]:
@@ -491,11 +770,11 @@ def fulfillment_router(state: SalesState) -> str:
 
 
 # Shared by MTS (full quantity) and HYBRID (its stock leg only) — the
-# Billing Agent decides terms/notes, create_invoice() computes the amount
+# Billing Agent decides terms/notes, erp.create_invoice() computes the amount
 # deterministically. Only ever called for a quantity that's really been
 # delivered — MTO/CTO's produced quantity never reaches this.
 async def _deliver_and_bill(state: SalesState, quantity: int) -> dict:
-    delivery = create_delivery(
+    delivery = erp.create_delivery(
         sales_order_id=state["sales_order_id"],
         customer_id=state["customer_id"],
         customer_name=state["customer_name"],
@@ -518,7 +797,7 @@ async def _deliver_and_bill(state: SalesState, quantity: int) -> dict:
         quantity_ordered=state["quantity"],
         unit_price=state["price"],
     )
-    invoice = create_invoice(
+    invoice = erp.create_invoice(
         sales_order_id=state["sales_order_id"],
         delivery_id=delivery["delivery_id"],
         customer_id=state["customer_id"],
@@ -557,7 +836,7 @@ async def _deliver_and_bill(state: SalesState, quantity: int) -> dict:
 
 
 async def mts_node(state: SalesState):
-    result = reserve_stock(
+    result = erp.reserve_stock(
         sales_order_id=state["sales_order_id"],
         product_id=state["product_id"],
         product_name=state["product_name"],
@@ -589,7 +868,7 @@ async def mts_node(state: SalesState):
 # not find out afterward. Only acts when a real BOM exists (most products
 # have none — that's a legitimately empty result, not a skipped check).
 def _assess_materials(product_id: str, quantity: int) -> dict:
-    availability = check_material_availability(product_id, quantity)
+    availability = erp.check_material_availability(product_id, quantity)
     if not availability["has_bom"]:
         return {"has_bom": False, "shortages": []}
     shortages = [c for c in availability["components"] if c["shortage"] > 0]
@@ -607,7 +886,7 @@ async def _procure_shortages(assessment: dict, production_order_id: str, target_
         return " All required materials are in stock."
 
     shortage_inputs = [
-        {**s, "vendors": get_vendors_for_component(s["component_id"])}
+        {**s, "vendors": erp.get_vendors_for_component(s["component_id"])}
         for s in shortages
     ]
     decision = await procurement_agent(shortages=shortage_inputs, target_completion_date=target_completion_date)
@@ -616,12 +895,12 @@ async def _procure_shortages(assessment: dict, production_order_id: str, target_
     for choice in decision.choices:
         shortage = next((s for s in shortages if s["component_id"] == choice.component_id), None)
         vendor = next(
-            (v for v in get_vendors_for_component(choice.component_id) if v["vendor_id"] == choice.vendor_id),
+            (v for v in erp.get_vendors_for_component(choice.component_id) if v["vendor_id"] == choice.vendor_id),
             None,
         )
         if shortage is None or vendor is None:
             continue
-        po = create_purchase_order(
+        po = erp.create_purchase_order(
             production_order_id=production_order_id,
             component_id=choice.component_id,
             component_name=shortage["component_name"],
@@ -648,7 +927,7 @@ async def mto_node(state: SalesState):
     has_shortage = bool(assessment["shortages"])
     initial_status = "AWAITING_MATERIALS" if has_shortage else "PLANNED"
 
-    result = create_production_order(
+    result = erp.create_production_order(
         sales_order_id=state["sales_order_id"],
         product_id=state["product_id"],
         product_name=state["product_name"],
@@ -696,7 +975,7 @@ async def cto_node(state: SalesState):
     has_shortage = bool(assessment["shortages"])
     initial_status = "AWAITING_MATERIALS" if has_shortage else "PLANNED"
 
-    result = create_production_order(
+    result = erp.create_production_order(
         sales_order_id=state["sales_order_id"],
         product_id=state["product_id"],
         product_name=state["product_name"],
@@ -733,7 +1012,7 @@ async def cto_node(state: SalesState):
 async def hybrid_node(state: SalesState):
     reservation = {"reserved": True, "allocations": [], "reservation_id": None}
     if state["fulfillment_from_stock"] > 0:
-        reservation = reserve_stock(
+        reservation = erp.reserve_stock(
             sales_order_id=state["sales_order_id"],
             product_id=state["product_id"],
             product_name=state["product_name"],
@@ -742,7 +1021,7 @@ async def hybrid_node(state: SalesState):
 
     production = {"created": True, "production_order_id": None, "target_completion_date": None}
     if state["fulfillment_to_produce"] > 0:
-        production = create_production_order(
+        production = erp.create_production_order(
             sales_order_id=state["sales_order_id"],
             product_id=state["product_id"],
             product_name=state["product_name"],
@@ -795,7 +1074,7 @@ async def hybrid_node(state: SalesState):
 # most products have none (this company makes what it sells for those),
 # so it honestly falls back to manual handling rather than faking a source.
 async def third_party_node(state: SalesState):
-    vendors = get_vendors_for_product(state["product_id"])
+    vendors = erp.get_vendors_for_product(state["product_id"])
     if not vendors:
         return await unfulfillable_node(state)
 
@@ -921,6 +1200,10 @@ builder.add_node("direct_sales", direct_sales_node)
 builder.add_node("post_sales", post_sales_node)
 builder.add_node("service", service_node)
 builder.add_node("subscription", subscription_node)
+builder.add_node("project", project_node)
+builder.add_node("export", export_node)
+builder.add_node("consignment", consignment_node)
+builder.add_node("financial", financial_node)
 builder.add_node("credit_check", credit_check_node)
 builder.add_node("credit_hold", credit_hold_node)
 builder.add_node("fulfillment_decision", fulfillment_decision_node)
@@ -952,6 +1235,10 @@ builder.add_conditional_edges(
         "post_sales": "post_sales",
         "service": "service",
         "subscription": "subscription",
+        "project": "project",
+        "export": "export",
+        "consignment": "consignment",
+        "financial": "financial",
         "not_implemented": "not_implemented",
     },
 )
@@ -959,6 +1246,10 @@ builder.add_edge("pre_sales", END)
 builder.add_edge("post_sales", END)
 builder.add_edge("service", END)
 builder.add_edge("subscription", END)
+builder.add_edge("project", END)
+builder.add_edge("export", END)
+builder.add_edge("consignment", END)
+builder.add_edge("financial", END)
 builder.add_conditional_edges(
     "direct_sales",
     direct_sales_router,

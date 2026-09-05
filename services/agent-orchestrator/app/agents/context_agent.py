@@ -6,9 +6,7 @@ from dotenv import load_dotenv
 from app.config import GROQ_MODEL, groq_api_key
 
 load_dotenv()
-from app.tools.customer_tools import get_customer
-from app.tools.product_tools import get_product, get_all_product_names
-from app.tools.inventory_tools import get_stock
+from app.erp.mock_erp_adapter import default_erp_adapter as erp
 from app.schemas.context import ContextResult, StockByPlant, ProductMatch
 
 
@@ -20,7 +18,7 @@ def _fuzzy_model():
 
 
 async def resolve_product_name(raw_text: str) -> str | None:
-    catalog = get_all_product_names()
+    catalog = erp.get_all_product_names()
     prompt = (
         f"Real product names in our catalog: {catalog}\n\n"
         f"The user said: '{raw_text}'\n\n"
@@ -38,22 +36,22 @@ async def resolve_product_name(raw_text: str) -> str | None:
 
 
 async def context_agent(customer_name: str, product_name: str) -> ContextResult:
-    customer = get_customer(customer_name)
+    customer = erp.get_customer(customer_name)
 
     # Exact match first (fast, no LLM call needed for the common case) —
     # only fall back to fuzzy resolution if the exact name isn't found.
     # No fuzzy call at all when there's genuinely no product named (a
     # standalone financial adjustment, a service request) — nothing to
     # match against.
-    product = get_product(product_name)
+    product = erp.get_product(product_name)
     if product is None and product_name is not None:
         resolved_name = await resolve_product_name(product_name)
         if resolved_name:
-            product = get_product(resolved_name)
+            product = erp.get_product(resolved_name)
 
     stock: list[StockByPlant] = []
     if product:
-        stock = [StockByPlant(**row) for row in get_stock(product["product_id"])]
+        stock = [StockByPlant(**row) for row in erp.get_stock(product["product_id"])]
 
     return ContextResult(
         customer_id=customer["customer_id"] if customer else None,

@@ -6,13 +6,30 @@ from app.graph import graph
 
 @pytest.mark.asyncio
 async def test_order_within_credit_limit_proceeds_to_fulfillment():
-    # Coastal Electronics Group (C020) has a real credit_limit of
-    # 1,000,000 — a small mouse order should sail through credit check to
-    # fulfillment. (Nova Electronics was used here before, but its
-    # exposure from this session's extensive live testing has since grown
-    # past its own limit — swapped to a customer with real headroom.)
+    # check_credit() sums every confirmed Sales Order a customer has ever
+    # had, forever, with no netting against payment — and mock_erp.xlsx is
+    # shared, ever-growing state across this whole session's live tests.
+    # Any hardcoded "customer X has headroom" assumption eventually goes
+    # stale (this exact test already swapped Nova -> Coastal once for this
+    # reason, and by the time Project's tests were added, Coastal itself
+    # had also drifted past its limit). Compute real current headroom
+    # instead of hardcoding a customer/quantity pair that will just break
+    # again next session.
+    from app.tools.credit_tools import check_credit
+    from app.tools.customer_tools import get_customer
+    from app.tools.product_tools import get_product
+
+    customer = get_customer("Coastal Electronics Group")
+    product = get_product("Wireless Mouse")
+    exposure = check_credit(customer["customer_id"], customer["credit_limit"], 0)
+    headroom = exposure["credit_limit"] - exposure["existing_exposure"]
+    quantity = max(1, int((headroom * 0.1) // product["price"]))
+    assert quantity * product["price"] < headroom, (
+        "test setup assumption broken: Coastal Electronics Group has no real credit headroom left"
+    )
+
     result = await graph.ainvoke({
-        "user_message": "Coastal Electronics Group wants to order 5 wireless mice now."
+        "user_message": f"Coastal Electronics Group wants to order {quantity} wireless mice now."
     })
 
     assert result["entry_type"] == "DIRECT_SALES"
