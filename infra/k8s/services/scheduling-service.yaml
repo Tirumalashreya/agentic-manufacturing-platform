@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scheduling-service
+  namespace: aps-platform
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: scheduling-service } }
+  template:
+    metadata: { labels: { app: scheduling-service } }
+    spec:
+      containers:
+        - name: scheduling-service
+          image: aps/scheduling-service:latest
+          ports: [{ containerPort: 4005 }]
+          env:
+            - { name: SERVICE_NAME, value: "scheduling-service" }
+            - { name: PORT, value: "4005" }
+          envFrom:
+            - configMapRef: { name: aps-config }
+            - secretRef: { name: aps-secrets }
+          readinessProbe:
+            httpGet: { path: /health, port: 4005 }
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet: { path: /health, port: 4005 }
+            initialDelaySeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: scheduling-service
+  namespace: aps-platform
+spec:
+  selector: { app: scheduling-service }
+  ports: [{ port: 4005, targetPort: 4005 }]

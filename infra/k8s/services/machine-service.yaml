@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: machine-service
+  namespace: aps-platform
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: machine-service } }
+  template:
+    metadata: { labels: { app: machine-service } }
+    spec:
+      containers:
+        - name: machine-service
+          image: aps/machine-service:latest
+          ports: [{ containerPort: 4008 }]
+          env:
+            - { name: SERVICE_NAME, value: "machine-service" }
+            - { name: PORT, value: "4008" }
+          envFrom:
+            - configMapRef: { name: aps-config }
+            - secretRef: { name: aps-secrets }
+          readinessProbe:
+            httpGet: { path: /health, port: 4008 }
+            initialDelaySeconds: 5
+          livenessProbe:
+            httpGet: { path: /health, port: 4008 }
+            initialDelaySeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: machine-service
+  namespace: aps-platform
+spec:
+  selector: { app: machine-service }
+  ports: [{ port: 4008, targetPort: 4008 }]

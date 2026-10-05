@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: aps-platform
+spec:
+  replicas: 2
+  selector: { matchLabels: { app: web } }
+  template:
+    metadata: { labels: { app: web } }
+    spec:
+      containers:
+        - name: web
+          image: aps/web:latest
+          ports: [{ containerPort: 3000 }]
+          env:
+            - { name: PORT, value: "3000" }
+            - { name: NEXTAUTH_URL, value: "https://aps-platform.example.com" }
+          envFrom:
+            - configMapRef: { name: aps-config }
+            - secretRef: { name: aps-secrets }
+          readinessProbe:
+            httpGet: { path: /login, port: 3000 }
+            initialDelaySeconds: 10
+          livenessProbe:
+            httpGet: { path: /login, port: 3000 }
+            initialDelaySeconds: 15
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: aps-platform
+spec:
+  selector: { app: web }
+  ports: [{ port: 3000, targetPort: 3000 }]

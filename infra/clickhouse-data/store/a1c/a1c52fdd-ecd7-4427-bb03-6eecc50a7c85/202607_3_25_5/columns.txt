@@ -1,0 +1,16 @@
+columns format version: 1
+14 columns:
+`operation_id` String
+`machine_id` String
+`production_order_id` String
+`scheduled_start` DateTime
+`scheduled_end` DateTime
+`actual_start` Nullable(DateTime)
+`actual_end` Nullable(DateTime)
+`good_units` UInt32
+`total_units` UInt32
+`scrap_units` UInt32
+`setup_time_min` Float32
+`processing_time_min` Float32
+`downtime_min` Float32
+`event_date` Date

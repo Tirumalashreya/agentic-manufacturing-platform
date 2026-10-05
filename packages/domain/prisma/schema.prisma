@@ -1,0 +1,1172 @@
+// Enterprise Manufacturing APS Platform — shared domain schema.
+// Implements §4 (Manufacturing Domain Model) and the core tables from §12
+// (Database Design) against a single PostgreSQL instance — every service in
+// services/* points its own PrismaClient at this same schema/database, since
+// this machine runs one Postgres, not the doc's per-service polyglot split.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Auth (kept from the web app's login — operators/planners sign in as Users)
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  OWNER
+  ADMIN
+  PLANNER
+  VIEWER
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified DateTime?
+  passwordHash  String
+  image         String?
+  enterpriseId  String?
+  role          UserRole  @default(OWNER)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  enterprise          Enterprise?           @relation(fields: [enterpriseId], references: [id])
+  verificationTokens  VerificationToken[]
+  passwordResetTokens PasswordResetToken[]
+
+  @@index([enterpriseId])
+}
+
+model VerificationToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// §4 Manufacturing Domain Model
+// ---------------------------------------------------------------------------
+
+enum PlantType {
+  DISCRETE
+  PROCESS
+  HYBRID
+}
+
+enum SubscriptionTier {
+  STARTER
+  PRO
+  ENTERPRISE
+}
+
+model Enterprise {
+  id           String           @id @default(cuid())
+  name         String
+  timezone     String
+  currency     String
+  tier         SubscriptionTier @default(STARTER)
+  trialEndsAt  DateTime?
+  createdAt    DateTime         @default(now())
+
+  sites Site[]
+  users User[]
+}
+
+model Site {
+  id        String   @id @default(cuid())
+  enterpriseId String
+  name      String
+  address   String?
+  timezone  String
+  createdAt DateTime @default(now())
+
+  enterprise Enterprise @relation(fields: [enterpriseId], references: [id], onDelete: Cascade)
+  plants     Plant[]
+
+  @@index([enterpriseId])
+}
+
+model Plant {
+  id           String    @id @default(cuid())
+  siteId       String
+  code         String    @unique
+  type         PlantType
+  capacityUnit String
+  maxPowerKw   Float?
+  createdAt    DateTime  @default(now())
+
+  site            Site             @relation(fields: [siteId], references: [id], onDelete: Cascade)
+  workCenters     WorkCenter[]
+  productionLines ProductionLine[]
+  calendars       FactoryCalendar[]
+  productionOrders ProductionOrder[]
+  scheduleRuns     ScheduleRun[]
+  schedules        Schedule[]
+
+  @@index([siteId])
+}
+
+model ProductionLine {
+  id                String @id @default(cuid())
+  plantId           String
+  name              String
+  throughputRate    Float
+  productFamilyScope String?
+
+  plant       Plant        @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  workCenters WorkCenter[]
+
+  @@index([plantId])
+}
+
+enum WorkCenterType {
+  MACHINE
+  LABOR
+}
+
+model WorkCenter {
+  id              String         @id @default(cuid())
+  plantId         String
+  productionLineId String?
+  code            String
+  type            WorkCenterType
+  efficiencyFactor Float         @default(1.0)
+  // Real SAP-style multi-level Factory Calendar assignment (Plant, Work
+  // Center, Personnel Area) — a work center can run a different
+  // holiday/working-day pattern than its plant's default. Empty array is
+  // the sentinel for "no override, inherit the plant's FactoryCalendar
+  // pattern" — Prisma scalar-list fields can't be declared nullable, and a
+  // work center with zero working days ever isn't a meaningful
+  // configuration, so empty-as-unset is unambiguous in practice.
+  workingDaysOfWeek Int[]   @default([])
+  holidayCalendarId String?
+
+  plant          Plant           @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  productionLine ProductionLine? @relation(fields: [productionLineId], references: [id])
+  holidayCalendar HolidayCalendar? @relation(fields: [holidayCalendarId], references: [id])
+  machines       Machine[]
+  shifts         WorkCenterShift[]
+  routingOps     RoutingOperation[]
+
+  @@unique([plantId, code])
+  @@index([plantId])
+}
+
+enum MachineStatus {
+  AVAILABLE
+  RUNNING
+  DOWN
+  MAINTENANCE
+  OFFLINE
+}
+
+model Machine {
+  id             String        @id @default(cuid())
+  workCenterId   String
+  name           String
+  type           String
+  ratedCapacity  Float
+  minBatch       Int           @default(1)
+  maxBatch       Int?
+  setupTimeMin   Int           @default(0)
+  oeeTarget      Float         @default(0.85)
+  status         MachineStatus @default(AVAILABLE)
+  powerKw        Float         @default(0)
+  metadata       Json? // human-supplied extra fields from setup import, display-only — never read by scheduling logic
+  createdAt      DateTime      @default(now())
+
+  workCenter        WorkCenter          @relation(fields: [workCenterId], references: [id], onDelete: Cascade)
+  capabilities       MachineCapability[]
+  maintenanceOrders  MaintenanceOrder[]
+  scheduledOperations ScheduledOperation[]
+  events             MachineEvent[]
+  sensorReadings     SensorReading[]
+  reservations       ResourceReservation[] @relation("MachineReservations")
+
+  @@index([workCenterId])
+}
+
+model MachineCapability {
+  id            String @id @default(cuid())
+  machineId     String
+  operationType String
+  spec          Json?
+
+  machine Machine @relation(fields: [machineId], references: [id], onDelete: Cascade)
+
+  @@unique([machineId, operationType])
+}
+
+model Skill {
+  id               String @id @default(cuid())
+  name             String @unique
+  proficiencyLevels String[] @default(["TRAINEE", "STANDARD", "EXPERT"])
+
+  operatorSkills OperatorSkill[]
+  routingOperations RoutingOperation[]
+}
+
+enum EmploymentType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+}
+
+model Operator {
+  id             String         @id @default(cuid())
+  employeeId     String         @unique
+  name           String
+  department     String?
+  employmentType EmploymentType @default(FULL_TIME)
+  createdAt      DateTime       @default(now())
+
+  skills              OperatorSkill[]
+  shifts              OperatorShift[]
+  scheduledOperations ScheduledOperation[]
+  reservations        ResourceReservation[] @relation("OperatorReservations")
+}
+
+model OperatorSkill {
+  id           String @id @default(cuid())
+  operatorId   String
+  skillId      String
+  proficiency  String // TRAINEE | STANDARD | EXPERT
+  certifiedUntil DateTime?
+
+  operator Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  skill    Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([operatorId, skillId])
+}
+
+model Shift {
+  id            String   @id @default(cuid())
+  name          String
+  startTime     String // "HH:MM"
+  endTime       String // "HH:MM"
+  breakMinutes  Int      @default(0)
+  daysOfWeek    Int[] // 0=Sunday .. 6=Saturday
+
+  workCenters WorkCenterShift[]
+  operators   OperatorShift[]
+}
+
+model WorkCenterShift {
+  id           String @id @default(cuid())
+  workCenterId String
+  shiftId      String
+
+  workCenter WorkCenter @relation(fields: [workCenterId], references: [id], onDelete: Cascade)
+  shift      Shift      @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@unique([workCenterId, shiftId])
+}
+
+model OperatorShift {
+  id         String @id @default(cuid())
+  operatorId String
+  shiftId    String
+
+  operator Operator @relation(fields: [operatorId], references: [id], onDelete: Cascade)
+  shift    Shift    @relation(fields: [shiftId], references: [id], onDelete: Cascade)
+
+  @@unique([operatorId, shiftId])
+}
+
+model FactoryCalendar {
+  id       String @id @default(cuid())
+  plantId  String
+  year     Int
+  timezone String
+  // The general weekly pattern (0=Sunday..6=Saturday, same convention as
+  // Shift.daysOfWeek) — days NOT listed here are non-working every week
+  // (e.g. weekends), without needing a FactoryCalendarDay row for every
+  // single occurrence. Nullable holidayCalendarId lets this plant's
+  // calendar point at a REUSABLE named holiday set (e.g. "US Federal
+  // Holidays 2026") shared across multiple plants, on top of — not instead
+  // of — this calendar's own one-off FactoryCalendarDay exceptions.
+  workingDaysOfWeek Int[]   @default([1, 2, 3, 4, 5])
+  holidayCalendarId String?
+
+  plant           Plant             @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  holidayCalendar HolidayCalendar?  @relation(fields: [holidayCalendarId], references: [id])
+  days            FactoryCalendarDay[]
+
+  @@unique([plantId, year])
+}
+
+model FactoryCalendarDay {
+  id         String   @id @default(cuid())
+  calendarId String
+  date       DateTime @db.Date
+  isWorking  Boolean  @default(true)
+  isHoliday  Boolean  @default(false)
+  label      String?
+
+  calendar FactoryCalendar @relation(fields: [calendarId], references: [id], onDelete: Cascade)
+
+  @@unique([calendarId, date])
+}
+
+// A reusable, NOT plant-scoped set of holidays (like SAP's Public Holiday
+// Calendar) — the same "US Federal Holidays 2026" template can be
+// referenced by every plant's FactoryCalendar instead of each plant
+// re-declaring the same national holidays individually.
+model HolidayCalendar {
+  id   String @id @default(cuid())
+  name String @unique
+
+  holidays         Holiday[]
+  factoryCalendars FactoryCalendar[]
+  workCenters      WorkCenter[]
+}
+
+model Holiday {
+  id                String @id @default(cuid())
+  holidayCalendarId String
+  description       String
+  day               Int
+  month             Int
+  year              Int
+
+  holidayCalendar HolidayCalendar @relation(fields: [holidayCalendarId], references: [id], onDelete: Cascade)
+
+  @@unique([holidayCalendarId, day, month, year])
+}
+
+model Product {
+  id            String  @id @default(cuid())
+  sku           String  @unique
+  family        String
+  uom           String
+  lotSizeMin    Int     @default(1)
+  lotSizeMax    Int?
+  leadTimeDays  Int     @default(0)
+  batchManaged  Boolean @default(false)
+  standardCost  Float   @default(0)
+  // Nullable — a product with no default falls back to whatever mode the
+  // scheduling run itself was started with (pipeline.ts's `effectiveMode`),
+  // same additive/no-regression pattern as every other optional per-entity
+  // override in this schema. "FORWARD" | "BACKWARD" | "BOTTLENECK".
+  defaultSchedulingMode String?
+  metadata      Json? // human-supplied extra fields from setup import, display-only — never read by scheduling logic
+
+  boms               BOM[]
+  routings           Routing[]
+  productionOrders   ProductionOrder[]
+  inventory          Inventory[]
+  bomLines           BOMLine[]           @relation("ComponentProduct")
+  inventoryMovements InventoryMovement[]
+  vendorProducts     VendorProduct[]
+  orderLines         OrderLine[]
+
+  @@index([family])
+}
+
+model BOM {
+  id        String    @id @default(cuid())
+  productId String
+  version   String
+  lotSize   Int       @default(1)
+  validFrom DateTime  @default(now())
+  validTo   DateTime?
+
+  product Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  lines   BOMLine[]
+
+  @@unique([productId, version])
+}
+
+model BOMLine {
+  id            String @id @default(cuid())
+  bomId         String
+  componentId   String
+  quantityPer   Float
+
+  bom       BOM     @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  component Product @relation("ComponentProduct", fields: [componentId], references: [id])
+
+  @@index([bomId])
+}
+
+model Routing {
+  id        String    @id @default(cuid())
+  productId String
+  version   String
+  validFrom DateTime  @default(now())
+  validTo   DateTime?
+
+  product          Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+  operations       RoutingOperation[]
+  productionOrders ProductionOrder[]
+
+  @@unique([productId, version])
+}
+
+model RoutingOperation {
+  id             String  @id @default(cuid())
+  routingId      String
+  opNumber       Int
+  operation      String
+  workCenterId   String
+  processingTimeMin Float
+  setupTimeMin   Float   @default(0)
+  overlapPct     Float   @default(0)
+  requiresInspection Boolean @default(false)
+  // §7 "Alternative Machines (Resolution)": priority-ordered fallback work
+  // centers tried when every machine in workCenterId lacks capacity.
+  alternativeWorkCenterIds String[] @default([])
+  // Both optional: an operation with neither set needs no operator
+  // skill-matching, just any available, non-conflicting operator (once any
+  // exist for the plant — see pipeline.ts's operator-resolution guard).
+  requiredSkillId String?
+  minProficiency  String? // TRAINEE | STANDARD | EXPERT
+
+  routing            Routing              @relation(fields: [routingId], references: [id], onDelete: Cascade)
+  workCenter         WorkCenter           @relation(fields: [workCenterId], references: [id])
+  requiredSkill      Skill?               @relation(fields: [requiredSkillId], references: [id])
+  predecessors       RoutingOpDependency[] @relation("SuccessorOp")
+  successors         RoutingOpDependency[] @relation("PredecessorOp")
+  scheduledOperations ScheduledOperation[]
+
+  @@unique([routingId, opNumber])
+  @@index([workCenterId])
+}
+
+model RoutingOpDependency {
+  id            String @id @default(cuid())
+  predecessorId String
+  successorId   String
+
+  predecessor RoutingOperation @relation("PredecessorOp", fields: [predecessorId], references: [id], onDelete: Cascade)
+  successor   RoutingOperation @relation("SuccessorOp", fields: [successorId], references: [id], onDelete: Cascade)
+
+  @@unique([predecessorId, successorId])
+}
+
+enum CustomerTier {
+  PLATINUM
+  GOLD
+  SILVER
+  STANDARD
+}
+
+model Customer {
+  id            String       @id @default(cuid())
+  name          String
+  tier          CustomerTier @default(STANDARD)
+  slaDays       Int          @default(14)
+  penaltyPerDay Float        @default(0)
+
+  salesOrders SalesOrder[]
+}
+
+// COMPLETED is this schema's existing name for "FULFILLED" (kept, not
+// renamed — already used by real code/tests). PARTIALLY_FULFILLED and
+// ON_HOLD are new (fulfillment architecture hardening, agreed with the
+// user) — derived, never set directly by a client; see order-service's
+// deriveSalesOrderStatus for the exact precedence rule.
+enum SalesOrderStatus {
+  DRAFT
+  AWAITING_APPROVAL
+  APPROVED
+  IN_FULFILLMENT
+  PARTIALLY_FULFILLED
+  COMPLETED
+  ON_HOLD
+  CANCELLED
+}
+
+enum FulfillmentStrategy {
+  MTS
+  MTO
+  CTO
+  THIRD_PARTY
+  TRADING
+  INTERCOMPANY
+  HYBRID
+}
+
+model SalesOrder {
+  id        String   @id @default(cuid())
+  customerId String
+  dueDate   DateTime
+  priority  Int      @default(0)
+  value     Float    @default(0)
+  createdAt DateTime @default(now())
+
+  // Order-to-production Phase 1 additions — additive/nullable-or-defaulted
+  // so pre-existing rows (e.g. services/erp-integration's IDoc bridge,
+  // which only ever set the fields above) are completely unaffected.
+  orderNumber     String?              @unique
+  channel         String?
+  fulfillmentType FulfillmentStrategy?
+  status          SalesOrderStatus     @default(DRAFT)
+  currency        String               @default("INR")
+  createdBy       String?
+  updatedAt       DateTime             @updatedAt
+  revision        Int                  @default(1)
+  // The agent-orchestrator's own mock-ERP SalesOrders-sheet row id (e.g.
+  // "SO-1005") — this dual-write keeps that sheet as the system every
+  // existing channel page/read-path still uses, while this row becomes the
+  // real, relational source of truth for fulfillment tracking going
+  // forward. @unique (remediation): one real mock-ERP order must map to
+  // exactly one dual-written SalesOrder — Postgres unique constraints
+  // permit any number of NULLs, so legacy/erp-integration rows that never
+  // set this are unaffected.
+  externalOrderId String? @unique
+
+  customer         Customer          @relation(fields: [customerId], references: [id])
+  productionOrders ProductionOrder[]
+  orderLines       OrderLine[]
+
+  @@index([customerId])
+}
+
+enum ProductionOrderStatus {
+  DRAFT
+  PLANNED
+  RELEASED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+model ProductionOrder {
+  id              String                 @id @default(cuid())
+  plantId         String
+  salesOrderId    String?
+  productId       String
+  routingId       String?
+  bomId           String?
+  quantity        Float
+  scheduledStart  DateTime?
+  scheduledEnd    DateTime?
+  status          ProductionOrderStatus  @default(DRAFT)
+  priorityScore   Float                  @default(0)
+  manualOverride  Float                  @default(0)
+  metadata        Json? // human-supplied extra fields from setup import, display-only — never read by scheduling logic
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+
+  plant       Plant       @relation(fields: [plantId], references: [id], onDelete: Cascade)
+  salesOrder  SalesOrder? @relation(fields: [salesOrderId], references: [id])
+  product     Product     @relation(fields: [productId], references: [id])
+  routing     Routing?    @relation(fields: [routingId], references: [id])
+
+  scheduledOperations ScheduledOperation[]
+  dependsOn           ProductionOrderDependency[] @relation("ChildOrder")
+  blocks              ProductionOrderDependency[] @relation("ParentOrder")
+  inventoryMovements  InventoryMovement[]
+  fulfillmentLines    FulfillmentLine[]
+
+  @@index([plantId, status])
+  @@index([plantId, priorityScore])
+}
+
+// Order-to-production Phase 1: one Sales Order can split into multiple
+// fulfillment paths (stock/make/buy/transfer/drop-ship/hybrid) while the
+// customer still sees one order. Today's real order-creation flow is
+// single-product-per-order, so exactly one OrderLine is written per order —
+// the model already supports many for when that changes.
+model OrderLine {
+  id            String    @id @default(cuid())
+  orderId       String
+  // Nullable: only products seeded into this Product table (see
+  // app/config.py's MANUFACTURING_PRODUCT_IDS on the agent-orchestrator
+  // side) have a real row here. Most of the mock-ERP catalog does not, and
+  // this stays null rather than inventing a Product row for something that
+  // was never actually seeded as a real manufacturing product.
+  productId     String?
+  productName   String
+  quantity      Float
+  unitPrice     Float
+  requestedDate DateTime?
+  warehouse     String?
+  status        String    @default("PENDING")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  order           SalesOrder       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product         Product?         @relation(fields: [productId], references: [id])
+  fulfillmentPlan FulfillmentPlan?
+
+  @@index([orderId])
+}
+
+// Fulfillment architecture hardening (agreed with the user) — the Oracle-
+// style conceptual set (STOCK / MAKE / BUY / TRANSFER / DROP_SHIP), one
+// value per FulfillmentLine so HYBRID is never a special mechanism, just
+// >1 line with different sourceTypes. PRODUCTION is this schema's existing
+// name for "MAKE" — kept as-is (already used throughout tested code) rather
+// than renamed; BUY/DROP_SHIP are new and replace the generic VENDOR value
+// going forward (VENDOR itself is kept, unused by new writes, purely so any
+// pre-existing row/test referencing it stays valid — additive, no removal).
+// Both are real today only at the mock-ERP tier (a real Trading Order row,
+// see graph.py's create_trading_order) — there is no Postgres PurchaseOrder
+// for a customer-facing "buy the finished good from a vendor" fulfillment
+// (the real Postgres PurchaseOrder model exists but is used for a
+// different thing: BOM-component shortage procurement inside a MAKE
+// fulfillment — conflating the two would misrepresent what happened).
+// TRANSFER has zero execution infrastructure anywhere (no TransferOrder
+// model, mock-ERP or Postgres, and fulfillment_agent's own schema doesn't
+// even offer it as a choice) — kept as an architecturally-reserved value,
+// never actually producible today.
+enum FulfillmentSourceType {
+  STOCK
+  PRODUCTION
+  VENDOR
+  BUY
+  DROP_SHIP
+  TRANSFER
+}
+
+// PENDING (=PLANNED) -> ALLOCATED (STOCK: reservation made) /
+// EXECUTION_CREATED (MAKE: real ProductionOrder linked; BUY/DROP_SHIP: real
+// Trading Order created) -> IN_PROGRESS -> FULFILLED (=COMPLETED), with
+// CANCELLED/FAILED/ON_HOLD as terminal/exception states. Each FulfillmentLine
+// on one FulfillmentPlan carries its own value here independently — see
+// order-service's deriveSalesOrderStatus for how the parent SalesOrder's
+// status is rolled up from these, never the reverse.
+enum FulfillmentLineStatus {
+  PENDING
+  ALLOCATED
+  EXECUTION_CREATED
+  IN_PROGRESS
+  FULFILLED
+  CANCELLED
+  FAILED
+  ON_HOLD
+}
+
+model FulfillmentPlan {
+  id          String              @id @default(cuid())
+  orderLineId String              @unique
+  strategy    FulfillmentStrategy
+  reasoning   String?
+  createdAt   DateTime            @default(now())
+
+  orderLine OrderLine         @relation(fields: [orderLineId], references: [id], onDelete: Cascade)
+  lines     FulfillmentLine[]
+}
+
+// One row per fulfillment leg — HYBRID produces two (stock + production),
+// every other strategy produces exactly one today. This is the real
+// "fulfillment ≠ execution document" boundary: sourceType/quantity/status
+// here describe the demand this leg is responsible for; productionOrderId/
+// executionReference below point at whatever actually satisfies it.
+model FulfillmentLine {
+  id                String                @id @default(cuid())
+  fulfillmentPlanId String
+  sourceType        FulfillmentSourceType
+  quantity          Float
+  sourceLocation    String?
+  destination       String?
+  status            FulfillmentLineStatus @default(PENDING)
+  promisedDate      DateTime?
+  actualDate        DateTime?
+  // Real FK when this leg's supply is a real Prisma ProductionOrder
+  // (PRODUCTION legs only — enforced by order-service, not just by
+  // convention: a write setting this on a non-PRODUCTION line is rejected).
+  productionOrderId String?
+  // The execution document's identifier when no real Postgres FK exists for
+  // it — the mock-ERP reservation id for STOCK, or the mock-ERP trading
+  // order id for BUY/DROP_SHIP (see graph.py's create_trading_order).
+  // PRODUCTION legs use the real productionOrderId FK above instead and
+  // leave this null — exactly one of the two is ever populated, per line.
+  executionReference String?
+  vendorId          String?
+  vendorName        String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  fulfillmentPlan FulfillmentPlan  @relation(fields: [fulfillmentPlanId], references: [id], onDelete: Cascade)
+  productionOrder ProductionOrder? @relation(fields: [productionOrderId], references: [id])
+
+  @@index([fulfillmentPlanId])
+}
+
+// "component orders → parent assembly" DAG (§6 step 3: Dependency Resolution)
+model ProductionOrderDependency {
+  id         String @id @default(cuid())
+  parentId   String
+  childId    String
+
+  parent ProductionOrder @relation("ParentOrder", fields: [parentId], references: [id], onDelete: Cascade)
+  child  ProductionOrder @relation("ChildOrder", fields: [childId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, childId])
+}
+
+enum ScheduledOpStatus {
+  PLANNED
+  SCHEDULED
+  IN_PROGRESS
+  DONE
+  BLOCKED
+}
+
+model ScheduledOperation {
+  id                 String            @id @default(cuid())
+  productionOrderId  String
+  routingOperationId String?
+  machineId          String?
+  operatorId         String?
+  scheduledStart     DateTime
+  scheduledEnd       DateTime
+  actualStart        DateTime?
+  actualEnd          DateTime?
+  status             ScheduledOpStatus @default(PLANNED)
+  deviationMinutes   Int?
+  // Real scrap/rejection capture (agreed with the user — APS owns this,
+  // per the standing architecture principle, not Ledger). Only ever set
+  // alongside a real completion (see mes-integration's /mes/completions);
+  // null means either not yet completed, or completed with zero rejects.
+  rejectionReason    String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  productionOrder  ProductionOrder   @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+  routingOperation RoutingOperation? @relation(fields: [routingOperationId], references: [id])
+  machine          Machine?          @relation(fields: [machineId], references: [id])
+  operator         Operator?         @relation(fields: [operatorId], references: [id])
+  toolUsages         ToolUsage[]
+  reservations       ResourceReservation[]
+  exceptions         ProductionException[]
+  qualityInspections QualityInspection[]
+
+  @@index([machineId, scheduledStart])
+  @@index([productionOrderId])
+}
+
+// Real Quality (Phase 4, agreed with the user) — multiple rows per
+// operation are allowed on purpose (a real FAIL can be resolved by a real
+// re-inspection later, e.g. after rework); the QC-hold gate always reads
+// the LATEST row for a given operation. No row yet = PENDING (not yet
+// inspected) — matches constraint-engine.ts's checkQcHold's existing
+// "PENDING" input case exactly, which is why this finally gives that
+// function its first real caller with zero changes to it.
+enum QcResult {
+  PASS
+  FAIL
+}
+
+model QualityInspection {
+  id                   String   @id @default(cuid())
+  scheduledOperationId String
+  result               QcResult
+  note                 String?
+  inspectedAt          DateTime @default(now())
+
+  scheduledOperation ScheduledOperation @relation(fields: [scheduledOperationId], references: [id], onDelete: Cascade)
+
+  @@index([scheduledOperationId])
+}
+
+// Real production-exception capture (agreed with the user, Phase 1
+// completion). A separate log table, not a field on ScheduledOperation —
+// an operation can genuinely be blocked/resumed/blocked again over its
+// lifetime (the existing Block/Resume buttons already allow this), and a
+// single nullable field would silently overwrite that history. Only
+// MACHINE_BREAKDOWN reuses the existing real disruption chain
+// (reportMachineBreakdown → real MachineEvent → real Kafka
+// machines.breakdown.reported → scheduling-service's existing
+// blockCapacity + autoReschedule) — every other type is captured/
+// published for reporting only; no other type has a real, existing,
+// safe hook to trigger, so none is invented.
+enum ExceptionType {
+  MACHINE_BREAKDOWN
+  MATERIAL_SHORTAGE
+  OPERATOR_UNAVAILABLE
+  QUALITY_ISSUE
+  MAINTENANCE
+  BLOCKED
+  OTHER
+}
+
+model ProductionException {
+  id                   String        @id @default(cuid())
+  scheduledOperationId String
+  type                 ExceptionType
+  note                 String?
+  reportedAt           DateTime      @default(now())
+  // Real closed-interval end (agreed with the user, Phase 2) — set when the
+  // operation actually resumes (BLOCKED -> IN_PROGRESS), never guessed at
+  // report time. Null means still open. reportedAt..resolvedAt is what
+  // feeds real downtime_min into OEE instead of a hardcoded 0.
+  resolvedAt           DateTime?
+
+  scheduledOperation ScheduledOperation @relation(fields: [scheduledOperationId], references: [id], onDelete: Cascade)
+
+  @@index([scheduledOperationId])
+}
+
+enum ToolStatus {
+  AVAILABLE
+  IN_USE
+  MAINTENANCE
+  RETIRED
+}
+
+model Tool {
+  id               String     @id @default(cuid())
+  type             String
+  remainingLifePct Float      @default(100)
+  status           ToolStatus @default(AVAILABLE)
+  location         String?
+
+  usages ToolUsage[]
+}
+
+model ToolUsage {
+  id                   String @id @default(cuid())
+  toolId               String
+  scheduledOperationId String
+  quantity             Int    @default(1)
+
+  tool               Tool               @relation(fields: [toolId], references: [id], onDelete: Cascade)
+  scheduledOperation ScheduledOperation @relation(fields: [scheduledOperationId], references: [id], onDelete: Cascade)
+
+  @@unique([toolId, scheduledOperationId])
+}
+
+model Inventory {
+  id             String @id @default(cuid())
+  productId      String
+  location       String
+  qtyUnrestricted Float @default(0)
+  qtyReserved    Float  @default(0)
+  qtyInTransit   Float  @default(0)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, location])
+}
+
+model Vendor {
+  id               String  @id @default(cuid())
+  name             String
+  leadTimeDays     Int     @default(0)
+  reliabilityScore Float   @default(1.0)
+
+  purchaseOrders PurchaseOrder[]
+  vendorProducts VendorProduct[]
+}
+
+// Real per-component vendor data (Phase 7, agreed with the user) — the
+// real gap this closes: Vendor previously had no product/component
+// relation at all, so procurement always picked ONE globally-cheapest
+// vendor for every shortage line regardless of which component it
+// actually was. Vendor.leadTimeDays above is left exactly as-is (the real
+// fallback for a component with no link here yet), not replaced.
+model VendorProduct {
+  id           String @id @default(cuid())
+  vendorId     String
+  productId    String
+  leadTimeDays Int
+  unitCost     Float
+
+  vendor  Vendor  @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([vendorId, productId])
+}
+
+model PurchaseOrder {
+  id           String   @id @default(cuid())
+  vendorId     String
+  productSku   String
+  quantity     Float
+  expectedDate DateTime
+  confirmed    Boolean  @default(false)
+  // Real goods-receipt capture (Phase 3, agreed with the user) — mirrors
+  // ProductionException.resolvedAt's pattern: null = still open, set once
+  // when actually received (POST /purchase-orders/:id/receive), never
+  // guessed. MVP is full-receipt only, so this single timestamp is enough
+  // (no partial-quantity tracking this round).
+  receivedAt   DateTime?
+
+  vendor    Vendor              @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  movements InventoryMovement[]
+
+  @@index([vendorId])
+}
+
+// Real material-lifecycle ledger (Phase 3, agreed with the user) — one
+// table for both directions (same "one log table, not two" reasoning as
+// ProductionException): a Goods Receipt closes a PurchaseOrder into real
+// stock, a Goods Issue is real BOM-component consumption backflushed at
+// production-order completion. Every row is a real event that actually
+// happened, never a projection/estimate.
+enum InventoryMovementType {
+  GOODS_RECEIPT
+  GOODS_ISSUE
+}
+
+model InventoryMovement {
+  id                String                @id @default(cuid())
+  type              InventoryMovementType
+  productId         String
+  location          String
+  quantity          Float
+  purchaseOrderId   String?
+  productionOrderId String?
+  note              String?
+  createdAt         DateTime              @default(now())
+
+  product         Product          @relation(fields: [productId], references: [id])
+  purchaseOrder   PurchaseOrder?   @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  productionOrder ProductionOrder? @relation(fields: [productionOrderId], references: [id], onDelete: SetNull)
+
+  @@index([productId, location])
+  @@index([purchaseOrderId])
+  @@index([productionOrderId])
+}
+
+model MaintenancePlan {
+  id           String @id @default(cuid())
+  machineId    String
+  frequencyDays Int
+  durationMin  Int
+
+  orders MaintenanceOrder[]
+}
+
+enum MaintenanceType {
+  PREVENTIVE
+  CORRECTIVE
+}
+
+enum MaintenanceStatus {
+  PLANNED
+  BLOCKED_RESERVATION
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+model MaintenanceOrder {
+  id             String            @id @default(cuid())
+  machineId      String
+  planId         String?
+  type           MaintenanceType
+  scheduledStart DateTime
+  scheduledEnd   DateTime
+  status         MaintenanceStatus @default(PLANNED)
+  priority       Int               @default(0)
+
+  machine Machine          @relation(fields: [machineId], references: [id], onDelete: Cascade)
+  plan    MaintenancePlan? @relation(fields: [planId], references: [id])
+
+  @@index([machineId, scheduledStart])
+}
+
+// ---------------------------------------------------------------------------
+// §12 Core tables (scheduling engine's own working data)
+// ---------------------------------------------------------------------------
+
+enum ReservationType {
+  MACHINE
+  OPERATOR
+  TOOL
+  MAINTENANCE
+}
+
+enum ReservationState {
+  TENTATIVE
+  COMMITTED
+  RELEASED
+}
+
+// No two COMMITTED reservations may overlap on the same (resourceType,
+// resourceId) — enforced by a GiST exclusion constraint added via raw SQL in
+// a follow-up migration (btree_gist extension), matching §12's
+// "resource_reservations" table exactly.
+model ResourceReservation {
+  id           String            @id @default(cuid())
+  resourceType ReservationType
+  machineId    String?
+  operatorId   String?
+  scheduledOperationId String?
+  startTime    DateTime
+  endTime      DateTime
+  state        ReservationState  @default(TENTATIVE)
+  createdAt    DateTime          @default(now())
+
+  machine            Machine?            @relation("MachineReservations", fields: [machineId], references: [id])
+  operator            Operator?           @relation("OperatorReservations", fields: [operatorId], references: [id])
+  scheduledOperation  ScheduledOperation? @relation(fields: [scheduledOperationId], references: [id])
+
+  @@index([machineId, startTime])
+  @@index([operatorId, startTime])
+}
+
+model Schedule {
+  id            String    @id @default(cuid())
+  plantId       String
+  versionNumber Int
+  kpiOnTimePct  Float?
+  kpiUtilizationPct Float?
+  publishedAt   DateTime  @default(now())
+  supersededAt  DateTime?
+
+  plant Plant @relation(fields: [plantId], references: [id], onDelete: Cascade)
+
+  @@unique([plantId, versionNumber])
+}
+
+enum ScheduleRunScope {
+  ALL
+  AFFECTED
+  SINGLE
+}
+
+enum ScheduleRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model ScheduleRun {
+  id                String            @id @default(cuid())
+  plantId           String
+  scope             ScheduleRunScope  @default(ALL)
+  status            ScheduleRunStatus @default(RUNNING)
+  startedAt         DateTime          @default(now())
+  finishedAt        DateTime?
+  durationMs        Int?
+  conflictsDetected Int               @default(0)
+
+  plant Plant @relation(fields: [plantId], references: [id], onDelete: Cascade)
+
+  @@index([plantId, startedAt])
+}
+
+// TimescaleDB hypertable in §12; substituted here with a plain indexed
+// Postgres table — no local Timescale install path on this machine (see
+// build plan's feasibility check).
+model MachineEvent {
+  id              String   @id @default(cuid())
+  machineId       String
+  eventType       String
+  faultCode       String?
+  durationMinutes Int?
+  eventTimestamp  DateTime @default(now())
+
+  machine Machine @relation(fields: [machineId], references: [id], onDelete: Cascade)
+
+  @@index([machineId, eventTimestamp])
+}
+
+model SensorReading {
+  id         String   @id @default(cuid())
+  machineId  String
+  sensorType String
+  value      Float
+  readingTime DateTime @default(now())
+
+  machine Machine @relation(fields: [machineId], references: [id], onDelete: Cascade)
+
+  @@index([machineId, sensorType, readingTime])
+}
+
+// Elasticsearch in §12; substituted here with a plain Postgres table (see
+// build plan's feasibility check) — before/after stored as JSONB either way.
+model ScheduleAuditLog {
+  id         String   @id @default(cuid())
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  logTimestamp DateTime @default(now())
+
+  @@index([entityType, entityId, logTimestamp])
+}
+
+model ChangeoverMatrix {
+  machineId         String
+  fromFamily        String
+  toFamily          String
+  setupTimeMinutes  Float
+  cleaningRequired  Boolean @default(false)
+
+  @@id([machineId, fromFamily, toFamily])
+}
+
+// Agentic pipeline (Python agent-orchestrator service) — one run through the
+// 12-stage Demand->Analytics chain. v1 runs straight through with no
+// approval gate; every stage still logs unconditionally (see AgentStageResult).
+model AgentPipelineRun {
+  id           String   @id @default(cuid())
+  status       String   @default("RUNNING") // RUNNING | COMPLETED | FAILED
+  currentStage String?
+  createdAt    DateTime @default(now())
+  finishedAt   DateTime?
+
+  // Approval State hardening (agreed with the user) — the durable,
+  // server-authoritative counterpart to the approval gate this run may
+  // pause at (composed_execution_node's create_order gate, or
+  // reschedule_request_node's RESCHEDULE_PRODUCTION gate — see graph.py).
+  // A run reaches at most one such gate, so these live directly on the
+  // run rather than as a separate one-to-many model — the 1:1 reality of
+  // "one graph, one human decision point" doesn't need a join table.
+  // Null on every run that never reached a gate (the overwhelming
+  // majority — most requests are read/quote-shaped, not order-creation).
+  requestedBy       String? // the real forwarded user id who started this run (see app/security.py)
+  approvalAction    String? // "create_order" | "RESCHEDULE_PRODUCTION"
+  approvalStatus    String? // PENDING | APPROVED | REJECTED | EXPIRED | CONSUMED
+  approvalPayload   Json? // the exact pending_approval.context the human saw — server-stored, never re-trusted from the client at resolve time
+  approvalExpiresAt DateTime?
+  approvedAt        DateTime?
+  approvedBy        String?
+  rejectedAt        DateTime?
+  rejectedBy        String?
+  executedAt        DateTime? // set only once the real business mutation (e.g. erp.create_sales_order) actually succeeded
+  executionResult   Json? // real outcome reference (sales_order_id, error, ...) for the audit trail — never a second source of truth, just a record of what already happened
+
+  stages AgentStageResult[]
+
+  @@index([approvalStatus])
+}
+
+// One row per stage per run, always written — this is the full trace, not
+// just an approval record. humanEdited is set only if someone edits and
+// replays from this stage later.
+model AgentStageResult {
+  id             String   @id @default(cuid())
+  runId          String
+  stage          String
+  agentOutput    Json
+  humanEdited    Json?
+  editedByUserId String?
+  editedAt       DateTime?
+  createdAt      DateTime @default(now())
+
+  run AgentPipelineRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+}

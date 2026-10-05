@@ -1,0 +1,9 @@
+# Config-only (§14/§15 of the architecture doc): no Kubernetes cluster is
+# available in this environment (no Docker/kind/minikube installed), so
+# these manifests have not been applied or validated against a real API
+# server. They're written to be structurally correct and consistent with
+# infra/docker-compose.yml, not verified with `kubectl apply --dry-run=server`.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: aps-platform

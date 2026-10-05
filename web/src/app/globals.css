@@ -1,0 +1,123 @@
+@import "tailwindcss";
+
+:root {
+  /* Premium light enterprise theme (agreed with the user, complete redesign
+     pass) — replaces the prior steel-blue-tinted ramp with a warm-neutral
+     surface and a muted-indigo primary. Token NAMES are unchanged from the
+     prior theme on purpose (background/foreground/surface/surface-muted/
+     border/muted/brand-*) so every existing component that already
+     references var(--color-*) repaints correctly with zero code changes —
+     only the values moved. success/warning/danger/info are new: the app
+     previously had no semantic-color tokens at all, just raw Tailwind
+     colors (red-300, green-300, amber-300...) scattered inline per
+     component — those call sites still work today and get migrated to
+     these tokens incrementally, not as a single mass find-replace.
+     Ledger (frontend/) uses these exact same values in its own globals.css
+     — one shared palette expressed once per app, per the plan's Phase 1. */
+  --background: #fafaf9;
+  --foreground: #1e2333;
+  --surface: #ffffff;
+  --surface-muted: #f4f5f9;
+  --border: #e4e4ec;
+  --muted: #6b7280;
+
+  --brand-50: #f1f1fc;
+  --brand-100: #e2e2f9;
+  --brand-200: #c7c6f2;
+  --brand-300: #a6a4ea;
+  --brand-400: #8280e2;
+  --brand-500: #5b5fe0;
+  --brand-600: #4a4dc4;
+  --brand-700: #3c3ea3;
+  --brand-800: #2f3180;
+  --brand-900: #262861;
+
+  --secondary: #b8acf6;
+  --secondary-soft: #f1eefe;
+
+  --success: #3fae7b;
+  --success-soft: #eaf7f1;
+  --warning: #c98a2e;
+  --warning-soft: #fbf0dc;
+  --danger: #d0645a;
+  --danger-soft: #fbeae8;
+  --info: #3e92c9;
+  --info-soft: #e8f3fa;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-surface: var(--surface);
+  --color-surface-muted: var(--surface-muted);
+  --color-border: var(--border);
+  --color-muted: var(--muted);
+
+  --color-brand-50: var(--brand-50);
+  --color-brand-100: var(--brand-100);
+  --color-brand-200: var(--brand-200);
+  --color-brand-300: var(--brand-300);
+  --color-brand-400: var(--brand-400);
+  --color-brand-500: var(--brand-500);
+  --color-brand-600: var(--brand-600);
+  --color-brand-700: var(--brand-700);
+  --color-brand-800: var(--brand-800);
+  --color-brand-900: var(--brand-900);
+
+  --color-secondary: var(--secondary);
+  --color-secondary-soft: var(--secondary-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+/* Dark mode kept only as the existing OS-preference courtesy (agreed with
+   the user — light is the product's real, promoted theme; dark is not
+   redesigned or promoted this round, only kept from breaking outright). */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0d1b28;
+    --foreground: #dceaf5;
+    --surface: #142a3d;
+    --surface-muted: #1b3448;
+    --border: #2b4863;
+    --muted: #8fadc4;
+  }
+}
+
+* {
+  border-color: var(--border);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.reveal {
+  opacity: 0;
+}
+
+.reveal-visible {
+  animation: fade-in-up 0.6s ease-out forwards;
+}

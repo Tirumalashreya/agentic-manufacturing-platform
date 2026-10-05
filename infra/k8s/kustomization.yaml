@@ -1,0 +1,38 @@
+# Config-only (see base/namespace.yaml). Apply once Docker/K8s is available:
+#   cp infra/k8s/base/secret.example.yaml infra/k8s/base/secret.yaml
+#   # fill in real values in secret.yaml — it's gitignored, never commit it
+#   kubectl apply -k infra/k8s
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: aps-platform
+
+resources:
+  - base/namespace.yaml
+  - base/configmap.yaml
+  - base/secret.yaml
+
+  - infra/postgres.yaml
+  - infra/redis.yaml
+  - infra/kafka.yaml
+  - infra/clickhouse.yaml
+
+  - services/order-service.yaml
+  - services/routing-service.yaml
+  - services/scheduling-service.yaml
+  - services/optimization-service.yaml
+  - services/optimization-service-hpa.yaml
+  - services/optimization-solver.yaml
+  - services/machine-service.yaml
+  - services/operator-service.yaml
+  - services/inventory-service.yaml
+  - services/tool-service.yaml
+  - services/maintenance-service.yaml
+  - services/calendar-service.yaml
+  - services/notification-service.yaml
+  - services/reporting-service.yaml
+  - services/analytics-service.yaml
+  - services/erp-integration.yaml
+  - services/mes-integration.yaml
+  - services/iot-ingestion.yaml
+  - services/web.yaml
