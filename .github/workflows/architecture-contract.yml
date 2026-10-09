@@ -1,0 +1,24 @@
+# Stage 09 (Architecture Contract and CI Enforcement). This repository
+# had no CI pipeline at all before this — not a replacement for an
+# existing one. Deliberately minimal: two npm scripts already defined in
+# the root package.json, not a new platform or framework.
+name: Architecture Contract
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - name: Run the architecture contract's own self-tests (checks must prove they catch violations)
+        run: npm run test:architecture
+      - name: Check the real repository against the architecture contract
+        run: npm run check:architecture

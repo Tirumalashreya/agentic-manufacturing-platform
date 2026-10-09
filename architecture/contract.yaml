@@ -1,0 +1,200 @@
+# Architecture Contract (Stage 09)
+#
+# This describes the REAL architecture of this repository as it exists
+# today, verified against the current code (not an aspirational target).
+# Each invariant below is either machine-checked by check-contract.mjs
+# (run via `npm run check:architecture` / CI) or explicitly marked as
+# manually-verified debt — never silently unknown.
+#
+# Do not add an invariant here that encodes a function name, an
+# implementation detail with no architectural significance, or a
+# temporary migration-in-progress path. Known, deliberate exceptions to
+# an invariant go in `known_exceptions` below, not silently around it.
+
+version: 1
+
+invariants:
+  # --- A. Order Ownership ---
+  - id: A1_canonical_sales_order_creation
+    category: Order Ownership
+    statement: >
+      There is exactly one canonical path that creates SalesOrder rows via
+      Prisma: order-service's POST /sales-orders. The one documented
+      exception is erp-integration's POST /erp/idocs/orders05, which is the
+      ERP-sourced ingestion boundary (Stage 08) — not a second, accidental
+      creation path.
+    automated_check: no_unexpected_sales_order_writers
+    evidence: services/order-service/src/app.ts, services/erp-integration/src/app.ts
+
+  - id: A2_order_relational_ownership
+    category: Order Ownership
+    statement: >
+      SalesOrder creation that includes a fulfillment plan creates
+      SalesOrder + OrderLine + FulfillmentPlan + FulfillmentLine(s) in one
+      transaction, owned entirely by order-service.
+    automated_check: null
+    evidence: services/order-service/src/app.ts (POST /sales-orders, prisma.$transaction)
+    manual_verification: Stage 03/06 test suite (app.test.ts) exercises this transaction end-to-end.
+
+  # --- B. Scheduling ---
+  - id: B1_single_scheduling_implementation
+    category: Scheduling
+    statement: >
+      There is exactly one authoritative scheduling implementation —
+      scheduling-service's pipeline.ts — not reimplemented elsewhere.
+    automated_check: null
+    evidence: services/scheduling-service/src/pipeline.ts
+    manual_verification: Stage 06 service inventory found no second scheduling implementation.
+
+  - id: B2_no_llm_under_scheduling
+    category: LLM Boundaries
+    statement: >
+      No LLM SDK (Groq/OpenAI/Anthropic) is imported anywhere under a TS
+      service other than the agent-orchestrator's own Python code — in
+      particular, scheduling-service contains no LLM calls.
+    automated_check: no_llm_outside_agent_orchestrator
+    evidence: grep for groq/openai/anthropic imports outside services/agent-orchestrator
+
+  # --- C. LLM Boundaries ---
+  - id: C1_llm_cannot_commit_mutations
+    category: LLM Boundaries
+    statement: >
+      The LLM itself never directly writes to Postgres or commits a domain
+      mutation — every mutation goes through a deterministic tool function
+      that calls a domain service's HTTP API (or agent-orchestrator's own
+      raw-SQL approval-state tables, which it genuinely owns).
+    automated_check: null
+    evidence: services/agent-orchestrator/app/tools/*.py (every tool is a typed function, never raw LLM output executed)
+    manual_verification: Stage 04's approval_proposal.py explicitly excludes LLM prose from the executable payload/hash.
+
+  - id: C2_deterministic_inventory_rules
+    category: LLM Boundaries
+    statement: Inventory/business-rule calculations (stock checks, shortages) are deterministic TS/Python code, never LLM output.
+    automated_check: null
+    evidence: services/inventory-service/src/app.ts, services/agent-orchestrator/app/tools/inventory_tools.py
+
+  - id: C3_deterministic_machine_eligibility
+    category: LLM Boundaries
+    statement: Machine eligibility for an operation is computed by deterministic scheduling code, never an LLM.
+    automated_check: null
+    evidence: services/scheduling-service/src/pipeline.ts (machine eligibility/capability matching)
+
+  # --- D. Approval ---
+  - id: D1_approval_bound_to_exact_proposal
+    category: Approval
+    statement: >
+      An approval commit requires the correct run/proposal: claim_approval
+      performs an atomic CAS (UPDATE ... WHERE approvalStatus='PENDING'),
+      and execution revalidates the proposal hash + current business state
+      immediately before executing (Stage 04), flipping to STALE rather
+      than silently executing a modified or outdated proposal.
+    automated_check: approval_claim_is_atomic_cas
+    evidence: services/agent-orchestrator/app/db.py (claim_approval), app/approval_proposal.py
+
+  # --- E. Idempotency ---
+  - id: E1_idempotency_on_mutating_commands
+    category: Idempotency
+    statement: >
+      Important mutating commands (order creation, production order
+      creation, scheduling runs) have a real IdempotencyKey mechanism —
+      not merely documented, but schema-backed with a request-hash
+      mismatch check.
+    automated_check: idempotency_key_schema_present
+    evidence: packages/domain/prisma/schema.prisma (IdempotencyKey model), services/order-service/src/app.ts (withIdempotency)
+
+  # --- F. Data Ownership ---
+  - id: F1_enterprise_scoped_tenant_data
+    category: Data Ownership
+    statement: >
+      Tenant-owned commercial/operational data carries a real enterpriseId
+      column, server-set from verified identity, never from client input.
+    automated_check: required_enterprise_id_columns_present
+    evidence: packages/domain/prisma/schema.prisma
+
+  - id: F2_reservation_exclusion_constraint
+    category: Data Ownership
+    statement: >
+      ResourceReservation retains its Postgres EXCLUDE USING gist
+      constraint preventing overlapping reservations at the database
+      level — not merely enforced in application code.
+    automated_check: exclusion_constraint_present
+    evidence: packages/domain/prisma/migrations/20260723143338_resource_reservation_exclusion/migration.sql
+
+  - id: F3_ordered_lock_discipline
+    category: Data Ownership
+    statement: >
+      The scheduling pipeline acquires/releases its per-plant lock in a
+      consistent order (acquirePlantLock/releasePlantLock), preventing
+      deadlock between concurrent scheduling runs.
+    automated_check: null
+    evidence: services/scheduling-service/src/pipeline.ts (acquirePlantLock/releasePlantLock/renewPlantLock)
+
+  # --- G. Integrations ---
+  - id: G1_no_cross_domain_writes
+    category: Integrations
+    statement: >
+      No service writes another domain's owned tables directly via
+      Prisma, bypassing that domain's own HTTP API — e.g. mes-integration
+      must not write Inventory/InventoryMovement directly (Stage 06 fixed
+      this exact violation; this check guards the regression).
+    automated_check: no_cross_domain_inventory_writes
+    evidence: services/mes-integration/src/index.ts (internalFetchAsEnterprise -> inventory-service HTTP API)
+
+  - id: G2_adapters_isolated_from_domain_logic
+    category: Integrations
+    statement: >
+      External integration adapters (erp-integration, mes-integration) sit
+      between the external contract shape and the same shared Prisma
+      domain layer every other service uses — no vendor-specific API is
+      scattered through core domain logic.
+    automated_check: null
+    evidence: services/erp-integration/src/app.ts, services/mes-integration/src/index.ts
+
+  # --- H. Auditability ---
+  - id: H1_workflow_trace_correlation
+    category: Auditability
+    statement: >
+      Important workflow actions carry a correlation identifier (x-trace-id
+      / run_id) propagated across service boundaries, so an operator can
+      trace one workflow end-to-end.
+    automated_check: null
+    evidence: packages/shared/src/http.ts, services/agent-orchestrator/app/trace_context.py
+    manual_verification: Stage 07 tests (order-service app.test.ts "Stage 07 — correlation + audit trail").
+
+  - id: H2_contract_file_exists
+    category: Auditability
+    statement: This contract file itself exists and is checked by CI — an architecture contract that isn't enforced is just documentation.
+    automated_check: contract_file_exists
+    evidence: architecture/contract.yaml
+
+# Known, deliberate exceptions — documented rather than silently violating
+# the invariant above or silently working around it.
+known_exceptions:
+  - invariant: A1_canonical_sales_order_creation
+    exception: erp-integration's POST /erp/idocs/orders05 also creates SalesOrder rows.
+    reason: >
+      This is the ERP-sourced order-ingestion boundary (Stage 08) — ERP is
+      the system of record for externally-originated orders, so this is a
+      second legitimate *source*, not an accidental second implementation
+      of order creation. Both paths key on (enterpriseId, externalOrderId)
+      and share the same uniqueness/idempotency guarantee.
+    owner: order-service / erp-integration
+    expected_removal_stage: n/a — permanent, documented dual-source design
+
+  - invariant: F1_enterprise_scoped_tenant_data
+    exception: Customer is also written by erp-integration directly (not only order-service).
+    reason: Same as above — ERP is Customer master data's system of record for ERP-sourced customers.
+    owner: erp-integration
+    expected_removal_stage: n/a
+
+  - invariant: H1_workflow_trace_correlation
+    exception: >
+      Kafka publish-failure audit records (ScheduleAuditLog rows written on
+      a DownstreamSyncError) do not carry traceId.
+    reason: >
+      Stage 07 found this gap but did not fix it — threading traceId
+      through runSchedulingPipeline's signature touches ~15 existing call
+      sites across 4 test files, which is more churn than one log field
+      justifies under this stage's own anti-redesign instruction.
+    owner: scheduling-service
+    expected_removal_stage: a future stage scoped specifically to this fix
