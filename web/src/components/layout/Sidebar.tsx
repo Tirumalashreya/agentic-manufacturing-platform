@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { LayoutDashboard, ClipboardList, CalendarClock, Gauge as GaugeIcon, Settings, Upload, Users, ListChecks, Cog, CalendarDays, Boxes, LineChart, LifeBuoy } from "lucide-react";
 import { Badge } from "@/components/ui/Badge";
 
@@ -52,6 +55,8 @@ const NAV_GROUPS: { label: string | null; items: { href: string; label: string; 
 ];
 
 export function Sidebar({ orgName, tier }: { orgName: string; tier: string }) {
+  const pathname = usePathname();
+
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-border bg-surface">
       <div className="flex flex-col gap-1 border-b border-border px-4 py-4">
@@ -69,16 +74,31 @@ export function Sidebar({ orgName, tier }: { orgName: string; tier: string }) {
                 {group.label}
               </span>
             )}
-            {group.items.map(({ href, label, icon: Icon }) => (
-              <Link
-                key={href}
-                href={href}
-                className="flex items-center gap-2.5 rounded-md px-3 py-2 font-medium text-muted transition-colors duration-100 hover:bg-surface-muted hover:text-foreground"
-              >
-                <Icon size={16} />
-                {label}
-              </Link>
-            ))}
+            {group.items.map(({ href, label, icon: Icon }) => {
+              // Real gap found (Phase 18): this nav never checked the
+              // current route at all — every link looked identical
+              // regardless of which page was open. "/orders" vs
+              // "/orders/[id]" both count as active under /orders; every
+              // other route requires an exact match (prevents "/" from
+              // lighting up every page, though no route here collides
+              // today).
+              const isActive = href === "/orders" ? pathname === href || pathname.startsWith("/orders/") : pathname === href;
+              return (
+                <Link
+                  key={href}
+                  href={href}
+                  aria-current={isActive ? "page" : undefined}
+                  className={`flex items-center gap-2.5 rounded-md border-l-2 px-3 py-2 font-medium transition-colors duration-100 ${
+                    isActive
+                      ? "border-brand-500 bg-brand-50 text-brand-700"
+                      : "border-transparent text-muted hover:bg-surface-muted hover:text-foreground"
+                  }`}
+                >
+                  <Icon size={16} />
+                  {label}
+                </Link>
+              );
+            })}
           </div>
         ))}
       </nav>

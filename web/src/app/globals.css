@@ -121,3 +121,27 @@ body {
 .reveal-visible {
   animation: fade-in-up 0.6s ease-out forwards;
 }
+
+/* Phase 18 (Frontend UX & Visual Polish) — real gap found: no rule in
+   this stylesheet gave a keyboard user a visible focus indicator at all
+   (grep confirmed zero :focus rules before this). :focus-visible only
+   (keyboard/programmatic focus, never a mouse click) so it never fights
+   the existing hover states. */
+a:focus-visible, button:focus-visible, input:focus-visible,
+select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--brand-500);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Phase 18 — respects the OS-level "reduce motion" preference. The one
+   real decorative animation in this app is .reveal-visible above (page-
+   section fade-in-up); this makes it resolve instantly to its end state
+   instead of skipping it with the opacity:0 start state stuck forever. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

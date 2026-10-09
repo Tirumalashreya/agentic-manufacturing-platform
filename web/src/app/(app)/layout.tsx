@@ -21,7 +21,17 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex min-h-full">
       <Sidebar orgName={enterprise?.name ?? ""} tier={tier} />
-      <div className="flex min-h-full flex-1 flex-col">
+      {/* Phase 18 (Frontend UX & Visual Polish) — real gap found: this
+          flex child had no min-w-0, so a flex item's default min-width
+          (auto, i.e. "as wide as my widest descendant needs") let a wide
+          inner element (the Schedule page's Gantt chart) stretch this
+          whole column — and the page itself — well past the viewport,
+          confirmed live at a 390px width (document.scrollWidth: 1362).
+          min-w-0 is the standard fix: it lets this column actually
+          shrink to the space the sidebar leaves it, so an individual
+          page's own overflow-x:auto container (MachineGanttChart already
+          has one) is what scrolls, not the whole layout. */}
+      <div className="flex min-h-full min-w-0 flex-1 flex-col">
         <Topbar email={session?.user?.email ?? ""} tier={tier} />
         <LiveConnectivityBanner />
         <TrialBanner trialEndsAt={enterprise?.trialEndsAt?.toISOString() ?? null} />
