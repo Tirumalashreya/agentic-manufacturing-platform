@@ -39,6 +39,12 @@ type SalesOrderDetail = {
     bottlenecks: { machineId: string; machineName: string; loadPct: number }[];
     bottleneck_threshold_pct: number;
   } | null;
+  // Order Control Center (Phase 3, agreed with the user): real delivery/
+  // invoice, looked up independently of whether a production order
+  // exists — the most common case (a pure-stock MTS order) has real
+  // delivery/invoice too, but used to get none here at all.
+  delivery: { delivery_id: string; status: string; confirmed_delivery_date: string | null; quantity: number } | null;
+  invoice: { invoice_id: string; status: string; invoice_amount: number; due_date: string | null; payment_terms_days: number } | null;
   work_centers: { id: string; code: string }[];
   missing: string[];
 };
@@ -67,6 +73,7 @@ type FulfillmentDetail =
           vendor_name: string | null;
           promised_date?: string | null;
           execution_reference?: string | null;
+          reason?: string | null;
         }[];
       } | null;
     };
@@ -127,7 +134,7 @@ export default async function SalesOrderDetailPage({
   }
 
   const detail = (await res.json()) as SalesOrderDetail;
-  const { sales_order, production_plan, schedule, capacity, work_centers, missing } = detail;
+  const { sales_order, production_plan, schedule, capacity, delivery, invoice, work_centers, missing } = detail;
 
   const fulfillmentRes = await fetch(
     `${API_BASE_URL}/sales-orders/${encodeURIComponent(salesOrderId)}/fulfillment`,
@@ -197,7 +204,7 @@ export default async function SalesOrderDetailPage({
             </p>
             <table className="grid">
               <thead>
-                <tr><th>Source</th><th>Qty</th><th>Status</th><th>Promised</th><th>Execution</th></tr>
+                <tr><th>Source</th><th>Qty</th><th>Status</th><th>Promised</th><th>Execution</th><th>Reason</th></tr>
               </thead>
               <tbody>
                 {fulfillment.fulfillment_plan.lines.map((line, i) => (
@@ -213,6 +220,7 @@ export default async function SalesOrderDetailPage({
                           ? `${line.vendor_name ? `${line.vendor_name} — ` : ""}${line.execution_reference}`
                           : "—"}
                     </td>
+                    <td style={{ color: line.reason ? "var(--text-soft)" : undefined }}>{line.reason ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>
@@ -291,6 +299,42 @@ export default async function SalesOrderDetailPage({
                     <td><StatusBadge tone="neutral">{op.status}</StatusBadge></td>
                   </tr>
                 ))
+              )}
+            </tbody>
+          </table>
+        )}
+      </Panel>
+
+      {/* Billing & Shipment — Order Control Center (Phase 3, agreed with
+          the user): real delivery/invoice data that already existed for
+          every fulfilled order (via _deliver_and_bill) but was never
+          surfaced anywhere — the detail endpoint used to only fetch it as
+          a side effect of a production order existing, so pure-stock MTS
+          orders (the most common case) showed nothing at all. */}
+      <Panel title="Billing & Shipment">
+        {!delivery && !invoice ? (
+          <p style={{ fontSize: 12.5, color: "var(--text-soft)" }}>
+            No delivery or invoice recorded yet — nothing has shipped or been billed for this order.
+          </p>
+        ) : (
+          <table className="grid">
+            <tbody>
+              {delivery && (
+                <>
+                  <tr><td className="mono">Delivery</td><td>{delivery.delivery_id} <StatusBadge tone="success">{delivery.status}</StatusBadge></td></tr>
+                  <tr><td className="mono">Quantity shipped</td><td>{delivery.quantity}</td></tr>
+                  <tr><td className="mono">Confirmed delivery date</td><td>{delivery.confirmed_delivery_date ?? "—"}</td></tr>
+                </>
+              )}
+              {invoice && (
+                <>
+                  <tr>
+                    <td className="mono">Invoice</td>
+                    <td>{invoice.invoice_id} <StatusBadge tone={invoice.status === "PAID" ? "success" : "warning"}>{invoice.status}</StatusBadge></td>
+                  </tr>
+                  <tr><td className="mono">Amount</td><td>{invoice.invoice_amount.toLocaleString()}</td></tr>
+                  <tr><td className="mono">Payment terms</td><td>{invoice.payment_terms_days} days{invoice.due_date ? ` — due ${invoice.due_date}` : ""}</td></tr>
+                </>
               )}
             </tbody>
           </table>
