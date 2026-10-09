@@ -1,6 +1,7 @@
 process.env.SERVICE_NAME = "scheduling-service";
 
-import { createApp, registerErrorHandler, logger, subscribe, ensureTopics, publish, TOPICS, redis, internalServiceHeaders } from "@aps/shared";
+import { createApp, registerErrorHandler, logger, subscribe, ensureTopics, TOPICS, redis, internalServiceHeaders } from "@aps/shared";
+import { EXCEPTION_TYPES, QC_RESULTS, reportProductionException, recordQualityInspection } from "./exception-reporting";
 import {
   prisma,
   blockCapacity,
@@ -16,15 +17,35 @@ import {
   type CapacityAdjustment,
 } from "@aps/domain";
 import { randomUUID } from "node:crypto";
-import { runSchedulingPipeline, computeLeadTimePreview, resolveScopedOrderIds, type SchedulingMode } from "./pipeline";
+import {
+  runSchedulingPipeline,
+  computeLeadTimePreview,
+  resolveScopedOrderIds,
+  checkPromiseImpact,
+  StaleScheduleVersionError,
+  ScheduleValidationError,
+  type SchedulingMode,
+  type DisruptionType,
+} from "./pipeline";
+import { withIdempotency, resolveEnterpriseId } from "./idempotency";
 
-const app = createApp();
+// Phase 17 — readiness checks both real dependencies this service can't
+// function without: Postgres (ScheduledOperation/ScheduleRun writes) and
+// Redis (capacity reservations — blockCapacity/unblockCapacity above).
+// A Redis outage alone would otherwise look identical to "healthy" on
+// plain /health while every real scheduling run actually fails.
+const app = createApp({
+  readinessCheck: async () => {
+    await Promise.all([prisma.$queryRaw`SELECT 1`, redis.ping()]);
+    return true;
+  },
+});
 const PORT = Number(process.env.PORT ?? 4005);
 
 // §11: "Scheduling Service — Core scheduling pipeline, priority queue,
 // resource assignment, versioning — POST /scheduling/runs · schedule.*"
 app.post("/scheduling/runs", async (req, res) => {
-  const { plantId, scope, mode, productionOrderId } = req.body as {
+  const { plantId, scope, mode, productionOrderId, expectedScheduleVersion } = req.body as {
     plantId?: string;
     scope?: "ALL" | "AFFECTED" | "SINGLE";
     mode?: SchedulingMode;
@@ -32,6 +53,11 @@ app.post("/scheduling/runs", async (req, res) => {
     // doc comment) — required to actually narrow SINGLE/AFFECTED;
     // rejected below rather than silently falling through to ALL.
     productionOrderId?: string;
+    // Stage 05 (§3 Stale Commit Protection) — optional. A caller that
+    // read a schedule version and wants to act on exactly that version
+    // (not whatever it happens to be by the time this runs) supplies it;
+    // omitted, this behaves exactly as before.
+    expectedScheduleVersion?: number;
   };
   if (!plantId) {
     res.status(400).json({ error: "plantId is required" });
@@ -41,13 +67,39 @@ app.post("/scheduling/runs", async (req, res) => {
     res.status(400).json({ error: `productionOrderId is required when scope is ${scope}` });
     return;
   }
-  try {
-    const result = await runSchedulingPipeline(plantId, scope ?? "ALL", mode ?? "FORWARD", undefined, productionOrderId, "Manual reschedule");
-    res.json(result);
-  } catch (error) {
-    logger.error("Scheduling run failed", { plantId, error: String(error) });
-    res.status(500).json({ error: String(error) });
+  const runOnce = async (): Promise<{ status: number; body: unknown }> => {
+    try {
+      const result = await runSchedulingPipeline(
+        plantId,
+        scope ?? "ALL",
+        mode ?? "FORWARD",
+        undefined,
+        productionOrderId,
+        "Manual reschedule",
+        undefined,
+        expectedScheduleVersion
+      );
+      return { status: 200, body: result };
+    } catch (error) {
+      if (error instanceof StaleScheduleVersionError) {
+        return {
+          status: 409,
+          body: { error: error.message, code: "STALE_SCHEDULE_VERSION", expectedVersion: error.expectedVersion, currentVersion: error.currentVersion },
+        };
+      }
+      if (error instanceof ScheduleValidationError) {
+        return { status: 422, body: { error: error.message, code: "VALIDATION_FAILED", violations: error.violations } };
+      }
+      logger.error("Scheduling run failed", { plantId, error: String(error) });
+      return { status: 500, body: { error: String(error) } };
+    }
+  };
+  const enterpriseId = await resolveEnterpriseId(plantId);
+  if (!enterpriseId) {
+    res.status(404).json({ error: `No Plant found with id ${plantId}` });
+    return;
   }
+  await withIdempotency(req, res, enterpriseId, "scheduling_run", runOnce);
 });
 
 // Real, read-only preview of what SINGLE/AFFECTED would actually touch —
@@ -183,16 +235,6 @@ app.patch("/scheduling/operations/:id/status", async (req, res) => {
   }
 });
 
-const EXCEPTION_TYPES = [
-  "MACHINE_BREAKDOWN",
-  "MATERIAL_SHORTAGE",
-  "OPERATOR_UNAVAILABLE",
-  "QUALITY_ISSUE",
-  "MAINTENANCE",
-  "BLOCKED",
-  "OTHER",
-] as const;
-
 // Real production-exception capture (agreed with the user, Phase 1
 // completion) — a real log row + a real Kafka publish, so this is
 // genuinely event-driven, not a silent DB write. Deliberately does NOT
@@ -202,27 +244,44 @@ const EXCEPTION_TYPES = [
 // this route only ever persists+publishes, never reaches into
 // scheduling's own capacity engine directly for this feature, keeping
 // the one real breakdown trigger path singular.
+//
+// reportProductionException itself now lives in exception-reporting.ts
+// (Stage 01 — see that file's own doc comment for why).
 app.post("/scheduling/operations/:id/exceptions", async (req, res) => {
   const { type, note } = req.body as { type?: string; note?: string | null };
   if (!type || !EXCEPTION_TYPES.includes(type as (typeof EXCEPTION_TYPES)[number])) {
     res.status(400).json({ error: `type must be one of ${EXCEPTION_TYPES.join(", ")}` });
     return;
   }
+  let created, syncError;
   try {
-    const created = await prisma.productionException.create({
-      data: { scheduledOperationId: req.params.id, type: type as (typeof EXCEPTION_TYPES)[number], note: note || null },
-    });
-    await publish(TOPICS.OPERATIONS_EXCEPTION_REPORTED, {
-      exceptionId: created.id,
-      scheduledOperationId: req.params.id,
-      type: created.type,
-      note: created.note,
-    });
-    res.status(201).json(created);
+    ({ created, syncError } = await reportProductionException(
+      req.params.id,
+      type as (typeof EXCEPTION_TYPES)[number],
+      note || null
+    ));
   } catch (error) {
     logger.error("Production exception create failed", { operationId: req.params.id, error: String(error) });
     res.status(404).json({ error: "Scheduled operation not found" });
+    return;
   }
+
+  // Before this fix, a publish failure here fell into the same catch as
+  // the create above and was misreported as 404 "Scheduled operation not
+  // found" — actively wrong, since the operation was found (its exception
+  // row was just created from it). A sync failure is now reported as
+  // exactly that, on top of a normal 201 — the create already committed.
+  if (syncError) {
+    logger.error("Downstream sync failed after commit", {
+      operation: syncError.operation,
+      target: syncError.target,
+      entityId: syncError.entityId,
+      cause: String(syncError.cause),
+    });
+    res.status(201).json({ ...created, syncWarning: syncError.message });
+    return;
+  }
+  res.status(201).json(created);
 });
 
 // Real, read-only — recent exceptions for a plant, joined to their real
@@ -262,8 +321,6 @@ app.get("/scheduling/operations/exceptions", async (req, res) => {
   });
 });
 
-const QC_RESULTS = ["PASS", "FAIL"] as const;
-
 // Real Quality (Phase 4, agreed with the user) — a standalone action, not
 // folded into Complete, since inspection can genuinely happen after
 // completion (or be redone after rework). Only meaningful on an operation
@@ -295,27 +352,28 @@ app.post("/scheduling/operations/:id/quality-inspections", async (req, res) => {
     return;
   }
 
-  const created = await prisma.qualityInspection.create({
-    data: { scheduledOperationId: op.id, result: result as (typeof QC_RESULTS)[number], note: note || null },
-  });
-  if (created.result === "FAIL") {
-    const exception = await prisma.productionException.create({
-      data: { scheduledOperationId: op.id, type: "QUALITY_ISSUE", note: note || null },
-    });
-    await publish(TOPICS.OPERATIONS_EXCEPTION_REPORTED, {
-      exceptionId: exception.id,
-      scheduledOperationId: op.id,
-      type: exception.type,
-      note: exception.note,
+  const { created, syncErrors } = await recordQualityInspection(
+    op.id,
+    result as (typeof QC_RESULTS)[number],
+    note || null
+  );
+  // Stage 01 (Fail Loud, Fail Closed): both rows recorded above already
+  // commit before their publish — previously neither publish() call here
+  // had any try/catch at all, so a broker hiccup turned an
+  // already-committed QualityInspection (and, on FAIL, ProductionException)
+  // into an HTTP 500 the caller could read as "nothing happened." Each
+  // sync failure is logged in full and collected instead, never thrown.
+  for (const syncError of syncErrors) {
+    logger.error("Downstream sync failed after commit", {
+      operation: syncError.operation,
+      target: syncError.target,
+      entityId: syncError.entityId,
+      cause: String(syncError.cause),
     });
   }
-  await publish(TOPICS.QUALITY_INSPECTION_RECORDED, {
-    inspectionId: created.id,
-    scheduledOperationId: op.id,
-    result: created.result,
-    note: created.note,
-  });
-  res.status(201).json(created);
+  res.status(201).json(
+    syncErrors.length > 0 ? { ...created, syncWarnings: syncErrors.map((e) => e.message) } : created
+  );
 });
 
 // Real, read-only — recent inspections for a plant, same shape as the
@@ -551,7 +609,14 @@ app.post("/scheduling/what-if", async (req, res) => {
 // (either a real orderId already carried on the event, or one derived from
 // the disrupted machine's work center via findSeedOrderForWorkCenter) and
 // passes it through as seedProductionOrderId.
-async function autoReschedule(plantId: string, reason: string, slaSeconds: number, seedProductionOrderId?: string) {
+async function autoReschedule(
+  plantId: string,
+  reason: string,
+  slaSeconds: number,
+  seedProductionOrderId: string | undefined,
+  disruptionType: DisruptionType,
+  affectedResourceId?: string
+) {
   const startedAt = Date.now();
   try {
     const result = await runSchedulingPipeline(plantId, "AFFECTED", "FORWARD", undefined, seedProductionOrderId, reason);
@@ -564,7 +629,29 @@ async function autoReschedule(plantId: string, reason: string, slaSeconds: numbe
       withinSla,
       operationsScheduled: result.operationsScheduled,
       conflictsDetected: result.conflictsDetected,
+      // Stage 01 HIGH-risk debt closure: this path has no HTTP response to
+      // carry a syncWarning on, so it's the one place this consumer-
+      // triggered reschedule can make a schedule-publish sync failure
+      // observable at all.
+      ...(result.syncWarning ? { syncWarning: result.syncWarning } : {}),
     });
+
+    // Phase 11: a SEPARATE, additional deterministic check — never gates
+    // or delays the real reschedule above, which has already committed
+    // by this point. autoReschedule's own existing job (replan the plant
+    // immediately, no human wait) is completely unchanged; this only asks
+    // a question the old code never asked at all: did that replan just
+    // break a real customer promise for any order it touched. Best-effort
+    // — a failure here is logged and never allowed to look like the
+    // reschedule itself failed, since it didn't.
+    if (result.scopedOrderIds && result.scopedOrderIds.length > 0) {
+      await checkPromiseImpact(plantId, result.scopedOrderIds, result.runId, disruptionType, affectedResourceId, reason).catch((error) => {
+        logger.error("[PROMISE-IMPACT] check failed — the reschedule above already succeeded and is unaffected", {
+          plantId,
+          error: String(error),
+        });
+      });
+    }
   } catch (error) {
     logger.error(`[AUTO-RESCHEDULE] ${reason} failed`, { plantId, error: String(error) });
   }
@@ -586,9 +673,9 @@ async function startOrderUpdateConsumer() {
     };
     if (!plantId) return;
     if (status === "CANCELLED") {
-      await autoReschedule(plantId, "Order cancelled", 60, orderId);
+      await autoReschedule(plantId, "Order cancelled", 60, orderId, "ORDER_CANCELLED");
     } else if (quantityChanged) {
-      await autoReschedule(plantId, "Order quantity changed", 60, orderId);
+      await autoReschedule(plantId, "Order quantity changed", 60, orderId, "ORDER_QTY_CHANGED");
     }
   });
   logger.info("Subscribed to orders.production.updated (auto-reschedule on cancellation/qty change)");
@@ -651,7 +738,7 @@ async function startBreakdownConsumer() {
 
     const seedOrderId = await findSeedOrderForWorkCenter(machine.workCenter.plantId, machine.workCenterId);
     if (seedOrderId) {
-      await autoReschedule(machine.workCenter.plantId, `Machine breakdown (${machineId})`, 60, seedOrderId);
+      await autoReschedule(machine.workCenter.plantId, `Machine breakdown (${machineId})`, 60, seedOrderId, "MACHINE_BREAKDOWN", machineId);
     } else {
       logger.info("No open production order touches the broken machine's work center — nothing to reschedule", { machineId, workCenterId: machine.workCenterId });
     }
@@ -679,7 +766,7 @@ async function startMachineAvailableConsumer() {
     await unblockCapacity(redis, machineId, { start: now, end: new Date(now.getTime() + HORIZON_WEEKS * 7 * 86_400_000) });
     const seedOrderId = await findSeedOrderForWorkCenter(machine.workCenter.plantId, machine.workCenterId);
     if (seedOrderId) {
-      await autoReschedule(machine.workCenter.plantId, `Machine repaired (${machineId})`, 60, seedOrderId);
+      await autoReschedule(machine.workCenter.plantId, `Machine repaired (${machineId})`, 60, seedOrderId, "MACHINE_REPAIRED", machineId);
     } else {
       logger.info("No open production order touches the repaired machine's work center — nothing to reschedule", { machineId, workCenterId: machine.workCenterId });
     }
@@ -746,7 +833,7 @@ async function startMaintenanceConsumer() {
     logger.info("Capacity blocked for maintenance order", { maintenanceOrderId, machineId: order.machineId });
     const seedOrderId = await findSeedOrderForWorkCenter(order.machine.workCenter.plantId, order.machine.workCenterId);
     if (seedOrderId) {
-      await autoReschedule(order.machine.workCenter.plantId, `Maintenance order added (${maintenanceOrderId})`, 120, seedOrderId);
+      await autoReschedule(order.machine.workCenter.plantId, `Maintenance order added (${maintenanceOrderId})`, 120, seedOrderId, "MAINTENANCE_SCHEDULED", order.machineId);
     } else {
       logger.info("No open production order touches the maintenance machine's work center — nothing to reschedule", { maintenanceOrderId, workCenterId: order.machine.workCenterId });
     }

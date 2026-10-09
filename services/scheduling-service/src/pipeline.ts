@@ -16,8 +16,11 @@ import {
   type Prisma,
 } from "@aps/domain";
 import { getAvailableWindows, reserveCapacity, releaseCapacity, initBucket, getBucket, seedNamespaceFromReal, BUCKET_MINUTES } from "@aps/domain";
-import { acquirePlantLock, releasePlantLock, renewPlantLock, PLANT_LOCK_RENEWAL_INTERVAL_MS, publish, TOPICS, logger, redis, internalServiceHeaders } from "@aps/shared";
+import { acquirePlantLock, releasePlantLock, renewPlantLock, PLANT_LOCK_RENEWAL_INTERVAL_MS, publishTracked, TOPICS, logger, redis, internalServiceHeaders } from "@aps/shared";
 import { computeCriticalPath, type CpmNode } from "./cpm";
+import { validateScheduleFeasibility } from "./schedule-validator";
+import { resolveEnterpriseId } from "./idempotency";
+import { randomUUID } from "node:crypto";
 
 const REFERENCE_MAX_ORDER_VALUE = 100_000;
 const REFERENCE_MAX_PENALTY_EXPOSURE = 5_000;
@@ -73,6 +76,11 @@ export type PipelineResult = {
   scope: "ALL" | "AFFECTED" | "SINGLE";
   targetOrderId?: string;
   scopedOrderIds?: string[];
+  // Stage 01 HIGH-risk debt closure: present only when the real,
+  // already-committed Schedule above was successfully computed but the
+  // SCHEDULE_PUBLISHED Kafka publish itself failed — never means the run
+  // failed (status is still COMPLETED when this is set).
+  syncWarning?: string;
 };
 
 // Real SINGLE/AFFECTED resolution (agreed with the user, replacing a
@@ -136,6 +144,167 @@ export async function resolveScopedOrderIds(
   return { scopedOrderIds: [...affectedIds], targetOrderId: seedOrder.id };
 }
 
+// Phase 11 (Promise Monitoring & Agentic Recovery) — the exact disruption
+// taxonomy every autoReschedule call site (index.ts) already names in its
+// own free-text `reason` string, now a real typed value instead of
+// something checkPromiseImpact would have to re-parse out of prose.
+export type DisruptionType = "ORDER_CANCELLED" | "ORDER_QTY_CHANGED" | "MACHINE_BREAKDOWN" | "MACHINE_REPAIRED" | "MAINTENANCE_SCHEDULED";
+
+// Kept here (not index.ts, which starts real Kafka/Redis consumers as a
+// side effect of being imported at all — confirmed by every existing test
+// in this file's own test suite importing ONLY from pipeline.ts, never
+// index.ts) so this function is directly unit-testable the same way
+// resolveScopedOrderIds/runSchedulingPipeline already are.
+//
+// Scheduling-service remains fully deterministic — it never calls an LLM
+// itself (the architecture contract's own no_llm_outside_agent_orchestrator
+// check guards this). This is a plain service-to-service dispatch, same
+// convention mes-integration's own AGENT_ORCHESTRATOR_URL call already
+// established for the reverse (TS -> Python) direction.
+const AGENT_ORCHESTRATOR_URL = process.env.AGENT_ORCHESTRATOR_URL ?? "http://localhost:8000";
+
+// Deterministic only. For each order a reschedule run actually touched,
+// checks whether a real, already-committed customer promise is still
+// satisfied by the NEW schedule.
+//
+// The promise itself is read from FulfillmentLine.promisedDate — the real,
+// persisted field agent-orchestrator's _execute_production_plan already
+// writes at approval time (see graph.py) — not something invented for
+// this phase. An order with no promisedDate (most orders today — not
+// every order routes through the Phase 10 approval flow yet) has nothing
+// to protect and is silently skipped, never reported as "safe" (that
+// would be fabricating a promise that was never made).
+export async function checkPromiseImpact(
+  plantId: string,
+  scopedOrderIds: string[],
+  scheduleRunId: string,
+  disruptionType: DisruptionType,
+  affectedResourceId: string | undefined,
+  reason: string
+): Promise<void> {
+  const traceId = randomUUID();
+  for (const productionOrderId of scopedOrderIds) {
+    const fulfillmentLine = await prisma.fulfillmentLine.findFirst({
+      where: { productionOrderId, promisedDate: { not: null } },
+      orderBy: { updatedAt: "desc" },
+    });
+    if (!fulfillmentLine || !fulfillmentLine.promisedDate) continue;
+
+    const productionOrder = await prisma.productionOrder.findUnique({
+      where: { id: productionOrderId },
+      include: { salesOrder: { include: { customer: true } } },
+    });
+    if (!productionOrder) continue;
+
+    const newOps = await prisma.scheduledOperation.findMany({
+      where: { productionOrderId },
+      select: { scheduledEnd: true },
+    });
+    const currentPromisedDate = newOps.length > 0 ? new Date(Math.max(...newOps.map((o) => o.scheduledEnd.getTime()))) : null;
+
+    const originalPromisedDate = fulfillmentLine.promisedDate;
+    const satisfied = currentPromisedDate !== null && currentPromisedDate.getTime() <= originalPromisedDate.getTime();
+
+    if (satisfied) {
+      // §4/§10/§13: the LLM is never called just to say an order is still
+      // on time — this is the entire check, and it stops right here.
+      await prisma.scheduleAuditLog.create({
+        data: {
+          entityType: "ProductionOrder",
+          entityId: productionOrderId,
+          after: {
+            event: "PROMISE_REMAINS_SAFE",
+            disruptionType,
+            reason,
+            scheduleRunId,
+            originalPromisedDate: originalPromisedDate.toISOString(),
+            currentPromisedDate: currentPromisedDate?.toISOString() ?? null,
+          },
+        },
+      });
+      continue;
+    }
+
+    // Promise breached. Idempotent dispatch — reuses the EXACT same
+    // IdempotencyKey table/claim semantics Stage 03C/Stage 05 already
+    // established (see idempotency.ts), not a second mechanism. Keyed on
+    // this specific schedule run + order: the real risk this guards
+    // against is a retried/duplicated dispatch call below (e.g. a Kafka
+    // redelivery re-entering this whole function), never a double-charge
+    // of recovery reasoning for the same breach.
+    const enterpriseId = await resolveEnterpriseId(plantId);
+    const eventId = `${scheduleRunId}:${productionOrderId}`;
+    if (enterpriseId) {
+      try {
+        await prisma.idempotencyKey.create({
+          data: { enterpriseId, key: eventId, operation: "disruption_promise_recovery", requestHash: "n/a", resultJson: {}, statusCode: 0 },
+        });
+      } catch (err) {
+        if ((err as { code?: string }).code === "P2002") {
+          logger.info("[PROMISE-IMPACT] recovery already dispatched for this event — skipping duplicate", { eventId });
+          continue;
+        }
+        throw err;
+      }
+    }
+
+    const disruptionEvent = {
+      event_id: eventId,
+      trace_id: traceId,
+      disruption_type: disruptionType,
+      plant_id: plantId,
+      affected_resource_id: affectedResourceId ?? null,
+      production_order_id: productionOrderId,
+      product_id: productionOrder.productId,
+      customer_name: productionOrder.salesOrder?.customer.name ?? null,
+      requested_quantity: productionOrder.quantity,
+      requested_date: productionOrder.salesOrder?.dueDate.toISOString() ?? originalPromisedDate.toISOString(),
+      original_promised_date: originalPromisedDate.toISOString(),
+      current_promised_date: currentPromisedDate?.toISOString() ?? null,
+      occurred_at: new Date().toISOString(),
+    };
+
+    try {
+      const response = await fetch(`${AGENT_ORCHESTRATOR_URL}/disruptions/evaluate`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-trace-id": traceId, ...internalServiceHeaders() },
+        body: JSON.stringify(disruptionEvent),
+      });
+      if (!response.ok) {
+        throw new Error(`agent-orchestrator returned ${response.status}`);
+      }
+      logger.info("[PROMISE-IMPACT] promise breach dispatched for agentic recovery", { eventId, productionOrderId });
+    } catch (error) {
+      // Stage 01 (Fail Loud, Fail Closed), applied here: the reschedule
+      // already committed and is NOT undone by this failure — but a
+      // failed dispatch must never be silently treated as "promise
+      // handled." §13: if agent-orchestrator is unavailable, this is an
+      // explicit, honest, recorded failure state, never a fabricated
+      // success and never a consequential decision made on its behalf.
+      logger.error("[PROMISE-IMPACT] failed to dispatch promise-breach event to agent-orchestrator", {
+        eventId,
+        productionOrderId,
+        error: String(error),
+      });
+      await prisma.scheduleAuditLog.create({
+        data: {
+          entityType: "ProductionOrder",
+          entityId: productionOrderId,
+          after: {
+            event: "PROMISE_RECOVERY_DISPATCH_FAILED",
+            disruptionType,
+            reason,
+            scheduleRunId,
+            originalPromisedDate: originalPromisedDate.toISOString(),
+            currentPromisedDate: currentPromisedDate?.toISOString() ?? null,
+            error: String(error),
+          },
+        },
+      });
+    }
+  }
+}
+
 export type WhatIfOptions = { namespace: string; capacityAdjustments: CapacityAdjustment[] };
 
 // Threaded through every capacity call and the two placement loops when
@@ -144,6 +313,33 @@ export type WhatIfOptions = { namespace: string; capacityAdjustments: CapacityAd
 type DryRunCtx = { namespace: string; simulatedOperations: SimulatedOperation[]; capacityAdjustments: CapacityAdjustment[] };
 
 export type { SchedulingMode };
+
+// Stage 05 (Schedule Versioning): thrown before any work starts (before
+// even the plant lock) when a caller supplies expectedScheduleVersion and
+// it no longer matches the plant's real current PUBLISHED version — the
+// caller computed/decided against a version that's already been
+// superseded by someone else's run. A deterministic, typed rejection
+// (index.ts maps this to a stable 409 shape), never a generic throw.
+export class StaleScheduleVersionError extends Error {
+  constructor(public readonly plantId: string, public readonly expectedVersion: number, public readonly currentVersion: number) {
+    super(
+      `Schedule for plant ${plantId} is at version ${currentVersion}, not the expected ${expectedVersion} — ` +
+        `recompute against the current version and retry.`
+    );
+    this.name = "StaleScheduleVersionError";
+  }
+}
+
+// Stage 05: thrown when the independent feasibility validator rejects a
+// freshly-computed candidate before it's ever published — the plant's
+// previous PUBLISHED schedule remains active untouched. Carries the
+// validator's own concrete violations, not a vague "invalid".
+export class ScheduleValidationError extends Error {
+  constructor(public readonly plantId: string, public readonly violations: string[]) {
+    super(`Independent feasibility validation rejected the computed schedule for plant ${plantId}: ${violations.join("; ")}`);
+    this.name = "ScheduleValidationError";
+  }
+}
 
 // Real ScheduleAuditLog wiring (Phase 6, agreed with the user) — the model
 // already existed with exactly this before/after shape but nothing ever
@@ -198,13 +394,38 @@ export async function runSchedulingPipeline(
   // saturating ~91 days of real Redis capacity buckets (≈9,600 15-minute
   // buckets) just to prove the same two-attempt logic a 2-vs-5-day horizon
   // exercises identically and in milliseconds.
-  horizonOverrideDays?: { normal: number; extended: number }
+  horizonOverrideDays?: { normal: number; extended: number },
+  // Stage 05 (optimistic concurrency, §3): when a caller supplies this,
+  // the run is rejected with StaleScheduleVersionError BEFORE anything
+  // else happens (before the plant lock, before any write) unless it
+  // matches the plant's real current PUBLISHED version. Optional and
+  // additive — every existing caller (Kafka autoReschedule, the Manual
+  // Reschedule route, What-If) omits it and behaves exactly as before,
+  // since the plant lock already serializes real runs for one plant; this
+  // is for a caller that read a version, decided to act on it, and wants
+  // that compare-and-swap enforced explicitly rather than merely implied.
+  expectedScheduleVersion?: number
 ): Promise<PipelineResult> {
   const planningHorizonDays = horizonOverrideDays?.normal ?? PLANNING_HORIZON_DAYS;
   const extendedHorizonDays = horizonOverrideDays?.extended ?? EXTENDED_HORIZON_DAYS;
   const dryRunCtx: DryRunCtx | null = whatIf
     ? { namespace: whatIf.namespace, simulatedOperations: [], capacityAdjustments: whatIf.capacityAdjustments }
     : null;
+
+  // Stage 05 (§3 Stale Commit Protection) — the cheapest possible check,
+  // deliberately done before the plant lock/ScheduleRun row/any write:
+  // a stale caller should fail fast, not wait in line for a lock only to
+  // be rejected afterward. Skipped for What-If (never publishes a
+  // version at all, so "stale" has no meaning for it).
+  const activeScheduleBefore = dryRunCtx
+    ? null
+    : await prisma.schedule.findFirst({ where: { plantId, status: "PUBLISHED" }, orderBy: { versionNumber: "desc" } });
+  if (!dryRunCtx && expectedScheduleVersion !== undefined) {
+    const currentVersion = activeScheduleBefore?.versionNumber ?? 0;
+    if (currentVersion !== expectedScheduleVersion) {
+      throw new StaleScheduleVersionError(plantId, expectedScheduleVersion, currentVersion);
+    }
+  }
 
   // Step 1: Run Initialisation — skipped for a dry run: no real schedule run
   // is happening, and a scratch-namespaced what-if shouldn't need to block
@@ -229,6 +450,23 @@ export async function runSchedulingPipeline(
       : null;
 
   const run = dryRunCtx ? null : await prisma.scheduleRun.create({ data: { plantId, scope, status: "RUNNING" } });
+  // Stage 05 (§1 Schedule Versioning): the candidate version this run is
+  // building, created now — not at the end — so every placement made
+  // below can be tagged with it as it's written, rather than retrofitted
+  // after the fact. Nothing about this candidate is "the" schedule yet:
+  // it only becomes active (status PUBLISHED) at the very end, and only
+  // if the independent validator (§4) accepts it.
+  const candidateSchedule = dryRunCtx
+    ? null
+    : await prisma.schedule.create({
+        data: { plantId, versionNumber: (activeScheduleBefore?.versionNumber ?? 0) + 1, status: "DRAFT" },
+      });
+  // Stage 05: every id soft-superseded this run (Planning Time Fence
+  // release, across every order processed) — accumulated here so a
+  // validation failure at the end can compensate by un-superseding
+  // exactly these rows, restoring the previous PUBLISHED version to
+  // exactly its prior state.
+  const supersededOperationIds: string[] = [];
   const startedAt = Date.now();
   let conflictsDetected = 0;
   let operationsScheduled = 0;
@@ -527,8 +765,19 @@ export async function runSchedulingPipeline(
             });
           }
         }
-        await prisma.resourceReservation.deleteMany({ where: { scheduledOperationId: { in: releaseIds } } });
-        await prisma.scheduledOperation.deleteMany({ where: { id: { in: releaseIds } } });
+        // Stage 05 (§1/§6 — no silent mutation, preserve history): this
+        // used to hard-delete both rows. A rerun now soft-supersedes them
+        // instead — the exact same rows stay in the table forever, just
+        // excluded from "current" queries (supersededAt/state), so the
+        // previous schedule version remains a complete, real, queryable
+        // historical record instead of being destroyed the moment it's
+        // replaced. Reuses ReservationState's existing, previously-never-
+        // set RELEASED value — the GiST exclusion constraint is scoped to
+        // state = 'COMMITTED', so this also removes it from that
+        // constraint's concern automatically, with no new enum value.
+        await prisma.resourceReservation.updateMany({ where: { scheduledOperationId: { in: releaseIds } }, data: { state: "RELEASED" } });
+        await prisma.scheduledOperation.updateMany({ where: { id: { in: releaseIds } }, data: { supersededAt: new Date() } });
+        supersededOperationIds.push(...releaseIds);
         for (const old of toRelease) {
           if (!old.machineId) continue;
           const oldDurationMin = (old.scheduledEnd.getTime() - old.scheduledStart.getTime()) / 60_000;
@@ -644,6 +893,7 @@ export async function runSchedulingPipeline(
                     scheduledStart,
                     scheduledEnd,
                     status: "SCHEDULED",
+                    scheduleVersionId: candidateSchedule!.id,
                   },
                 });
                 await tx.resourceReservation.create({
@@ -654,6 +904,7 @@ export async function runSchedulingPipeline(
                     startTime: scheduledStart,
                     endTime: scheduledEnd,
                     state: "COMMITTED",
+                    scheduleVersionId: candidateSchedule!.id,
                   },
                 });
                 return created;
@@ -665,7 +916,8 @@ export async function runSchedulingPipeline(
                   op.requiredSkillId,
                   op.minProficiency,
                   operators,
-                  operatorShiftWindows
+                  operatorShiftWindows,
+                  candidateSchedule!.id
                 );
               }
               const releasedSnapshot = releasedByRoutingOpId.get(op.id);
@@ -702,6 +954,7 @@ export async function runSchedulingPipeline(
               latestAllowedEnd,
               true,
               dryRunCtx,
+              candidateSchedule?.id ?? null,
               releasedByRoutingOpId.get(op.id),
               auditReason
             );
@@ -901,6 +1154,7 @@ export async function runSchedulingPipeline(
                       scheduledStart,
                       scheduledEnd,
                       status: "SCHEDULED",
+                      scheduleVersionId: candidateSchedule!.id,
                     },
                   });
                   // Step 9: Conflict Detection — the GiST exclusion constraint
@@ -915,6 +1169,7 @@ export async function runSchedulingPipeline(
                       startTime: scheduledStart,
                       endTime: scheduledEnd,
                       state: "COMMITTED",
+                      scheduleVersionId: candidateSchedule!.id,
                     },
                   });
                   return created;
@@ -926,7 +1181,8 @@ export async function runSchedulingPipeline(
                     op.requiredSkillId,
                     op.minProficiency,
                     operators,
-                    operatorShiftWindows
+                    operatorShiftWindows,
+                    candidateSchedule!.id
                   );
                 }
                 if (consumeReleasedSnapshot) {
@@ -962,6 +1218,7 @@ export async function runSchedulingPipeline(
               searchEnd,
               false,
               dryRunCtx,
+              candidateSchedule?.id ?? null,
               consumeReleasedSnapshot ? releasedByRoutingOpId.get(op.id) : undefined,
               auditReason
             );
@@ -1065,14 +1322,95 @@ export async function runSchedulingPipeline(
     // failing the whole run.
     await tryOptimizationPass(plantId);
 
-    // Step 11: Schedule Publishing
-    const latestSchedule = await prisma.schedule.findFirst({ where: { plantId }, orderBy: { versionNumber: "desc" } });
-    const nextVersion = (latestSchedule?.versionNumber ?? 0) + 1;
-    const schedule = await prisma.schedule.create({
-      data: { plantId, versionNumber: nextVersion, kpiOnTimePct: null, kpiUtilizationPct: null },
-    });
+    // Stage 05 (§4 Independent Feasibility Validator) — the candidate
+    // built above is NOT trusted on the placement loop's own say-so. This
+    // re-derives feasibility from the real rows just written (precedence,
+    // overlap, machine eligibility, operator skill, shift/calendar
+    // boundaries, reservation consistency, order dependencies) before it
+    // is ever allowed to become the active schedule.
+    const validation = await validateScheduleFeasibility(plantId);
+    if (!validation.valid) {
+      // Rejected: compensate exactly — restore whatever this run
+      // soft-superseded back to active, and mark everything this
+      // candidate wrote as dead-on-arrival, so the plant's previous
+      // PUBLISHED schedule (if any) is left exactly as it was. Nothing is
+      // deleted either way — the rejected candidate and its rows remain
+      // real, inspectable history (Schedule.status = REJECTED), not
+      // silently discarded.
+      if (supersededOperationIds.length > 0) {
+        await prisma.scheduledOperation.updateMany({ where: { id: { in: supersededOperationIds } }, data: { supersededAt: null } });
+        await prisma.resourceReservation.updateMany({ where: { scheduledOperationId: { in: supersededOperationIds } }, data: { state: "COMMITTED" } });
+      }
+      await prisma.scheduledOperation.updateMany({ where: { scheduleVersionId: candidateSchedule!.id }, data: { supersededAt: new Date() } });
+      await prisma.resourceReservation.updateMany({ where: { scheduleVersionId: candidateSchedule!.id }, data: { state: "RELEASED" } });
+      await prisma.schedule.update({ where: { id: candidateSchedule!.id }, data: { status: "REJECTED" } });
+      const failureReason = `VALIDATION_FAILED: ${validation.violations.join("; ")}`;
+      await prisma.scheduleRun.update({
+        where: { id: run!.id },
+        data: { status: "FAILED", finishedAt: new Date(), durationMs: Date.now() - startedAt, failureReason },
+      });
+      throw new ScheduleValidationError(plantId, validation.violations);
+    }
 
-    await publish(TOPICS.SCHEDULE_PUBLISHED, { plantId, scheduleId: schedule.id, versionNumber: nextVersion });
+    // Step 11: Schedule Publishing — validated above, this candidate now
+    // becomes the plant's one active schedule. The previous PUBLISHED
+    // version (if any) is explicitly superseded in the same step, never
+    // silently replaced — at most one PUBLISHED Schedule per plant holds
+    // at all times.
+    if (activeScheduleBefore) {
+      await prisma.schedule.update({ where: { id: activeScheduleBefore.id }, data: { status: "SUPERSEDED", supersededAt: new Date() } });
+    }
+    const schedule = await prisma.schedule.update({ where: { id: candidateSchedule!.id }, data: { status: "PUBLISHED" } });
+    const nextVersion = schedule.versionNumber;
+
+    // Stage 01 HIGH-risk debt closure: the Schedule row above (the real,
+    // already-computed output of this whole run — every ScheduledOperation
+    // placed by Steps 1-9 already committed earlier) is genuinely done at
+    // this point. Before this fix, a publish failure here was caught by
+    // this function's own outer catch below, which marked the ScheduleRun
+    // FAILED — actively wrong, since nothing about the scheduling run
+    // itself failed, only the notification of its completion. publishTracked
+    // never throws, so a sync failure no longer reaches that catch at all;
+    // it's logged with full context, recorded on the real ScheduleAuditLog
+    // table (reusing recordScheduleAudit's own table, not a new one) so the
+    // failure is durably visible, and the run still finishes COMPLETED —
+    // the one truthful status given what actually happened.
+    const syncError = await publishTracked(
+      TOPICS.SCHEDULE_PUBLISHED,
+      { plantId, scheduleId: schedule.id, versionNumber: nextVersion },
+      { operation: "schedulingPipeline.schedulePublished", entityId: schedule.id }
+    );
+    if (syncError) {
+      logger.error("Downstream sync failed after commit — mes-integration's shop-floor dispatch log and notification-service's dashboard relay will NOT see this schedule version", {
+        operation: syncError.operation,
+        target: syncError.target,
+        entityId: syncError.entityId,
+        plantId,
+        versionNumber: nextVersion,
+        cause: String(syncError.cause),
+      });
+      try {
+        await prisma.scheduleAuditLog.create({
+          data: {
+            entityType: "ScheduleRun",
+            entityId: run!.id,
+            after: {
+              event: "SCHEDULE_PUBLISHED_SYNC_FAILED",
+              scheduleId: schedule.id,
+              versionNumber: nextVersion,
+              error: syncError.message,
+            },
+          },
+        });
+      } catch (auditError) {
+        // Same defensive shape as recordScheduleAudit itself — this is a
+        // secondary record of an already-logged failure; its own failure
+        // must never mask the real schedule result below.
+        logger.warn("Failed to write ScheduleAuditLog row for a schedule-publish sync failure", {
+          runId: run!.id, error: String(auditError),
+        });
+      }
+    }
 
     await prisma.scheduleRun.update({
       where: { id: run!.id },
@@ -1093,6 +1431,7 @@ export async function runSchedulingPipeline(
       scope,
       targetOrderId,
       scopedOrderIds: scopedOrderIds ?? undefined,
+      ...(syncError ? { syncWarning: syncError.message } : {}),
     };
   } catch (error) {
     if (!dryRunCtx) {
@@ -1283,7 +1622,8 @@ async function resolveAndAssignOperator(
   requiredSkillId: string | null,
   minProficiency: string | null,
   operators: OperatorCandidate[],
-  operatorShiftWindows: Map<string, TimeWindow[] | null>
+  operatorShiftWindows: Map<string, TimeWindow[] | null>,
+  scheduleVersionId: string
 ): Promise<void> {
   const now = new Date();
   for (const operator of operators) {
@@ -1329,6 +1669,7 @@ async function resolveAndAssignOperator(
             startTime: window.start,
             endTime: window.end,
             state: "COMMITTED",
+            scheduleVersionId,
           },
         });
       });
@@ -1405,6 +1746,10 @@ async function tryAlternativeWorkCenters(
   searchEnd: Date,
   pickLatest: boolean,
   dryRunCtx: DryRunCtx | null = null,
+  // Stage 05: the candidate version a real (non-dry-run) placement made
+  // here gets tagged with — null for What-If, where this function
+  // returns before ever reaching a real write anyway.
+  scheduleVersionId: string | null = null,
   // Real ScheduleAuditLog capture (Phase 6) — the real "before" snapshot
   // for this routing operation, if a prior placement was just released for
   // it, so the alternate-work-center fallback path is audited exactly the
@@ -1479,6 +1824,7 @@ async function tryAlternativeWorkCenters(
             scheduledStart: start,
             scheduledEnd: end,
             status: "SCHEDULED",
+            scheduleVersionId,
           },
         });
         await tx.resourceReservation.create({
@@ -1489,6 +1835,7 @@ async function tryAlternativeWorkCenters(
             startTime: start,
             endTime: end,
             state: "COMMITTED",
+            scheduleVersionId,
           },
         });
         return createdOp;

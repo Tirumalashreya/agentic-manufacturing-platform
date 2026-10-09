@@ -59,10 +59,10 @@ describe("AFFECTED-scope correctness", () => {
     await prisma.routingOperation.create({ data: { routingId: routingOther.id, opNumber: 10, operation: "Op", workCenterId: wcC.id, processingTimeMin: 5, setupTimeMin: 5 } });
     routingOtherId = routingOther.id;
 
-    const a = await prisma.productionOrder.create({ data: { plantId, productId: prodShared.id, routingId: routingShared.id, quantity: 1, status: "PLANNED", priorityScore: 0 } });
-    const b = await prisma.productionOrder.create({ data: { plantId, productId: prodShared.id, routingId: routingShared.id, quantity: 1, status: "PLANNED", priorityScore: 0 } });
-    const c = await prisma.productionOrder.create({ data: { plantId, productId: prodOther.id, routingId: routingOther.id, quantity: 1, status: "PLANNED", priorityScore: 0 } });
-    const d = await prisma.productionOrder.create({ data: { plantId, productId: prodOther.id, routingId: routingOther.id, quantity: 1, status: "PLANNED", priorityScore: 0 } });
+    const a = await prisma.productionOrder.create({ data: { plantId, enterpriseId, productId: prodShared.id, routingId: routingShared.id, quantity: 1, status: "PLANNED", priorityScore: 0 } });
+    const b = await prisma.productionOrder.create({ data: { plantId, enterpriseId, productId: prodShared.id, routingId: routingShared.id, quantity: 1, status: "PLANNED", priorityScore: 0 } });
+    const c = await prisma.productionOrder.create({ data: { plantId, enterpriseId, productId: prodOther.id, routingId: routingOther.id, quantity: 1, status: "PLANNED", priorityScore: 0 } });
+    const d = await prisma.productionOrder.create({ data: { plantId, enterpriseId, productId: prodOther.id, routingId: routingOther.id, quantity: 1, status: "PLANNED", priorityScore: 0 } });
     orderA = a.id; orderB = b.id; orderC = c.id; orderD = d.id;
 
     // A -> D dependency edge, deliberately NOT sharing a work center with A —

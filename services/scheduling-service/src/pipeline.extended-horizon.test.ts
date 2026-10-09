@@ -77,7 +77,7 @@ describe("Bounded future-slot lookahead (Phase 2)", () => {
 
   async function makeOrder() {
     const order = await prisma.productionOrder.create({
-      data: { plantId, productId, routingId, quantity: 1, status: "PLANNED", priorityScore: 0 },
+      data: { plantId, enterpriseId, productId, routingId, quantity: 1, status: "PLANNED", priorityScore: 0 },
     });
     return order.id;
   }
