@@ -168,10 +168,73 @@ export type WorkflowResult = {
       target_order_id?: string;
       affected_order_ids?: string[];
       affected_count?: number;
+
+      // Phase 10/11 (Agentic Order Promise & Promise Recovery) — present
+      // only when this proposal was produced by promise_reasoning_node
+      // (either goal_type). Additive: every field above this point keeps
+      // working exactly as before for a plain composed_execution_node or
+      // reschedule_request_node proposal, which never sets any of these.
+      goal_type?: "ORDER_PROMISE" | "PROMISE_RECOVERY";
+      // Only set for a PROMISE_RECOVERY proposal — the real disruption
+      // that triggered this reasoning episode (see checkPromiseImpact,
+      // scheduling-service/src/pipeline.ts).
+      disruption?: { type: string; resource: string | null } | null;
+      original_promised_date?: string | null;
+      current_promised_date?: string | null;
+      recommended_scenario?: PromiseScenario | null;
+      alternatives_considered?: PromiseScenario[];
+      recommendation_reasoning?: string;
     };
   };
 
   [key: string]: unknown;
+};
+
+// Phase 10/11 — mirrors app/capabilities/schemas.py's PromiseScenario
+// exactly. `feasible` is a real three-state value, not a boolean default:
+// true/false come from a real deterministic simulation; null means no
+// non-committing simulation exists for this action at all (e.g. a
+// bottleneck-mode reschedule of an already-disrupted order) — its real
+// outcome is only knowable by executing it. The UI must render null as
+// "unknown until execution," never coerce it to either true or false.
+export type PromiseScenario = {
+  scenario_id: string;
+  label: string;
+  quantity_from_stock: number;
+  quantity_to_make: number;
+  quantity_from_vendor: number;
+  requested_delivery_date: string | null;
+  projected_delivery_date: string | null;
+  feasible: boolean | null;
+  production_status: string | null;
+  risk_flags: string[];
+  evidence?: Record<string, unknown>;
+  assumptions?: string[];
+  // Phase 13 — distinct from `feasible` on purpose: a reschedule can be
+  // feasible (the scheduler placed every operation somewhere) while
+  // still missing the ORIGINAL promise date. null means no original
+  // promise applies to this scenario (e.g. a fresh ORDER_PROMISE
+  // request, not a recovery) — never render null as "not restored."
+  promise_restored?: boolean | null;
+  // A real, already-computed reason, set only when feasible or
+  // promise_restored is false — never fabricated in the UI.
+  failure_reason?: string | null;
+};
+
+// Phase 10/11 (brief §11 "do not mark success from an HTTP 200") — the
+// deterministic post-execution check (approvals.py's
+// _evaluate_goal_satisfaction / _evaluate_reschedule_goal_satisfaction).
+// null means this approval wasn't a promise-bearing proposal at all (a
+// plain chat reschedule, say) — there was no promise to verify, which is
+// different from "satisfied: false" and must be rendered differently.
+export type GoalSatisfaction = {
+  requested_quantity: number | null;
+  fulfilled_quantity: number | null;
+  requested_date: string | null;
+  promised_date: string | null;
+  quantity_satisfied?: boolean;
+  date_satisfied?: boolean | null;
+  satisfied: boolean;
 };
 
 export type SalesOrderApprovalResult = {
@@ -199,6 +262,8 @@ export type SalesOrderApprovalResult = {
   production_order_id?: string | null;
   scheduled_operations?: { routingOperationId: string; machineId: string; scheduledStart: string; scheduledEnd: string }[] | null;
   purchase_orders?: { purchase_order_id: string; component_name: string; quantity: number; vendor_name: string; expected_date: string }[] | null;
+  // Phase 10 — see GoalSatisfaction's own doc comment above.
+  goal_satisfaction?: GoalSatisfaction | null;
 };
 
 export type TimelineStepState = "done" | "current" | "blocked" | "pending";

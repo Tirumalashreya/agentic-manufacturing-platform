@@ -57,6 +57,16 @@ export const NODE_META: Record<string, NodeMeta> = {
   // its raw node id wherever it ran.
   reschedule_request: { icon: "🏭", label: "APS Agent — Reschedule / Optimize", category: "agent" },
   inventory_quality_request: { icon: "📦", label: "Inventory / Quality Agent", category: "agent" },
+  // Phase 10/11 — the bounded capability-selection/scenario-comparison
+  // reasoning loop (promise_reasoning_node) and its disruption-recovery
+  // counterpart (same function, a different goal_type — see graph.py).
+  // Genuinely agent work (LLM-driven capability selection + recommendation
+  // over deterministic facts), not deterministic calculation — mislabeling
+  // it the other way (as this map's own fallback default would, before
+  // this entry existed) is exactly the "AI theatre" miscategorization this
+  // file's own header warns against.
+  promise_reasoning: { icon: "🧭", label: "Promise Reasoning Agent", category: "agent" },
+  promise_reasoning_recovery: { icon: "🧭", label: "Promise Recovery Reasoning Agent", category: "agent" },
 };
 
 export function nodeMeta(nodeId: string): NodeMeta {

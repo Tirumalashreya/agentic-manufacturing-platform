@@ -27,23 +27,31 @@ export function DataTable<T>({
     return <EmptyState title={emptyTitle} />;
   }
   return (
-    <table className="grid">
-      <thead>
-        <tr>
-          {columns.map((col) => (
-            <th key={col.key}>{col.header}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row) => (
-          <tr key={rowKey(row)}>
+    // Phase 18 (Frontend UX & Visual Polish) — real gap found: a dense
+    // operational table (the Promise Inbox renders 11 columns) had no
+    // scroll container at all, so a narrow viewport either crushed every
+    // column unreadably or broke the page's own layout by overflowing
+    // it. A horizontal-scroll container keeps every column at a readable
+    // width and scopes the scrollbar to the table, not the whole page.
+    <div style={{ overflowX: "auto" }}>
+      <table className="grid">
+        <thead>
+          <tr>
             {columns.map((col) => (
-              <td key={col.key}>{col.render(row)}</td>
+              <th key={col.key}>{col.header}</th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={rowKey(row)}>
+              {columns.map((col) => (
+                <td key={col.key}>{col.render(row)}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

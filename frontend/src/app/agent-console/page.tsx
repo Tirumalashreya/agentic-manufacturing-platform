@@ -23,7 +23,12 @@ import {
 import { nodeMeta, type NodeCategory } from "@/lib/graphNodes";
 import { ExecutionTimeline } from "@/components/agent-console/ExecutionTimeline";
 import { ArchitecturePanel } from "@/components/agent-console/ArchitecturePanel";
-import { PageHeader, Button } from "@/components/ui";
+import { ScenarioComparison } from "@/components/agent-console/ScenarioComparison";
+import { RecommendationCard } from "@/components/agent-console/RecommendationCard";
+import { GoalSatisfactionCard } from "@/components/agent-console/GoalSatisfactionCard";
+import { ExecutionStatus } from "@/components/agent-console/ExecutionStatus";
+import { DisruptionImpact } from "@/components/agent-console/DisruptionImpact";
+import { PageHeader } from "@/components/ui";
 import { RESUME_HANDOFF_KEY } from "@/app/pending-decisions/page";
 
 const EXAMPLE =
@@ -144,6 +149,12 @@ type Conversation = {
   // when result.pending_approval.action === "RESCHEDULE_PRODUCTION".
   rescheduleResult: RescheduleApprovalResult | null;
   rescheduleBusy: boolean;
+  // Phase 18 (Frontend UX & Visual Polish) — rescheduleBusy alone can't
+  // distinguish "approving" from "rejecting" while a decision is in
+  // flight (decideReschedule sets it for both). Only ever meaningful for
+  // "APPROVED" — rendered via ExecutionStatus below; a reject has no
+  // "executing a commit" phase of its own to show.
+  rescheduleDecisionInFlight: "APPROVED" | "REJECTED" | null;
 };
 
 function makeConversation(): Conversation {
@@ -168,12 +179,21 @@ function makeConversation(): Conversation {
     approvalBusy: false,
     rescheduleResult: null,
     rescheduleBusy: false,
+    rescheduleDecisionInFlight: null,
   };
 }
 
 function pendingLabel(entry: PendingApprovalEntry): string {
   const p = entry.pending_approval?.preview;
   if (!p) return "Pending decision";
+  // Phase 11/12 — same recovery-aware branch as pending-decisions/page.tsx's
+  // own label() (kept as two small, independent copies rather than a
+  // shared import, matching this pair's existing pre-Phase-12 duplication —
+  // see that function's own comment for why a PROMISE_RECOVERY proposal
+  // needs this instead of falling through to "Pending decision").
+  if (p.goal_type === "PROMISE_RECOVERY") {
+    return `⚠ Promise Recovery — ${p.sales_order_id ?? "order"}`;
+  }
   const parts = [p.customer_name, p.quantity ? `${p.quantity} × ${p.product_name ?? "item"}` : p.product_name].filter(Boolean);
   return parts.join(" — ") || "Pending decision";
 }
@@ -734,6 +754,7 @@ export default function AgentConsolePage() {
       revealedCount: 0,
       rescheduleResult: null,
       rescheduleBusy: false,
+      rescheduleDecisionInFlight: null,
     }));
     try {
       const data = await runWorkflow(text);
@@ -825,7 +846,7 @@ export default function AgentConsolePage() {
       patchConversation(conversationId, { error: "This run has no recorded id — cannot approve." });
       return;
     }
-    patchConversation(conversationId, { rescheduleBusy: true });
+    patchConversation(conversationId, { rescheduleBusy: true, rescheduleDecisionInFlight: newDecision });
     try {
       const outcome = await resolveRescheduleApproval(conv.result.run_id, newDecision);
       const summary =
@@ -839,7 +860,7 @@ export default function AgentConsolePage() {
     } catch (err) {
       patchConversation(conversationId, { error: describeError(err, "Reschedule failed.") });
     } finally {
-      patchConversation(conversationId, { rescheduleBusy: false });
+      patchConversation(conversationId, { rescheduleBusy: false, rescheduleDecisionInFlight: null });
     }
   }
 
@@ -1109,6 +1130,23 @@ export default function AgentConsolePage() {
                 <p className="panel-sub" style={{ marginBottom: 10 }}>
                   Real and committing once approved. Nothing has changed yet.
                 </p>
+
+                {/* Phase 11/12 — a disruption-recovery proposal (triggered by
+                    scheduling-service's checkPromiseImpact, never by a chat
+                    message) gets its own impact + comparison framing, ahead
+                    of the plain reschedule fields below. A chat-driven
+                    "reschedule SO-1045" / Ledger-button reschedule has
+                    neither field set and renders exactly as before. */}
+                {result.pending_approval.preview.goal_type === "PROMISE_RECOVERY" && (
+                  <DisruptionImpact
+                    disruptionType={result.pending_approval.preview.disruption?.type}
+                    affectedResource={result.pending_approval.preview.disruption?.resource}
+                    salesOrderId={result.pending_approval.preview.sales_order_id}
+                    originalPromisedDate={result.pending_approval.preview.original_promised_date}
+                    currentPromisedDate={result.pending_approval.preview.current_promised_date}
+                  />
+                )}
+
                 <div className="kv-grid" style={{ marginBottom: 14 }}>
                   <div className="kv">
                     <div className="kv-label">SALES ORDER</div>
@@ -1127,6 +1165,41 @@ export default function AgentConsolePage() {
                     </div>
                   </div>
                 </div>
+
+                {result.pending_approval.preview.alternatives_considered && (
+                  <div style={{ marginBottom: 14 }}>
+                    <div className="kv-label" style={{ marginBottom: 8 }}>RECOVERY OPTIONS INVESTIGATED</div>
+                    <ScenarioComparison
+                      scenarios={result.pending_approval.preview.alternatives_considered}
+                      recommendedScenarioId={result.pending_approval.preview.recommended_scenario?.scenario_id ?? null}
+                    />
+                  </div>
+                )}
+                {result.pending_approval.preview.recommended_scenario !== undefined && (
+                  <div style={{ marginBottom: 14 }}>
+                    <RecommendationCard
+                      scenario={result.pending_approval.preview.recommended_scenario ?? null}
+                      reasoning={result.pending_approval.preview.recommendation_reasoning}
+                    />
+                  </div>
+                )}
+
+                {/* Phase 18 — real gap found: ExecutionStatus existed,
+                    tested, and unused anywhere in the real app. The gap
+                    between clicking Approve and the result panel
+                    appearing had no visible state of its own beyond a
+                    disabled button — a planner had no way to tell
+                    "request sent, waiting on the real reschedule" apart
+                    from "nothing happened yet." Only shown for an
+                    in-flight APPROVE (a reject has no commit phase to
+                    show); cleared once rescheduleResult replaces this
+                    whole card. */}
+                {activeConversation.rescheduleDecisionInFlight === "APPROVED" && (
+                  <div style={{ marginBottom: 12 }}>
+                    <ExecutionStatus state="executing" />
+                  </div>
+                )}
+
                 <div className="btn-row" style={{ marginTop: 0 }}>
                   <button
                     type="button"
@@ -1167,6 +1240,27 @@ export default function AgentConsolePage() {
               <p className="panel-sub" style={{ marginBottom: 10 }}>
                 The AI has completed validation. Nothing has been created yet.
               </p>
+
+              {/* Phase 10/12 — only present for a promise_reasoning_node-
+                  sourced proposal ("Can we deliver X by Friday?"); a plain
+                  composed_execution_node order (the fixed credit->stock->
+                  create_order sequence) never sets these and renders
+                  exactly as before this phase. */}
+              {preview?.alternatives_considered && (
+                <div style={{ marginBottom: 14 }}>
+                  <div className="kv-label" style={{ marginBottom: 8 }}>DELIVERY OPTIONS INVESTIGATED</div>
+                  <ScenarioComparison
+                    scenarios={preview.alternatives_considered}
+                    recommendedScenarioId={preview.recommended_scenario?.scenario_id ?? null}
+                  />
+                </div>
+              )}
+              {preview?.recommended_scenario !== undefined && (
+                <div style={{ marginBottom: 14 }}>
+                  <RecommendationCard scenario={preview.recommended_scenario ?? null} reasoning={preview.recommendation_reasoning} />
+                </div>
+              )}
+
               <div className="kv-grid" style={{ marginBottom: 14 }}>
                 <div className="kv">
                   <div className="kv-label">CUSTOMER</div>
@@ -1427,6 +1521,16 @@ export default function AgentConsolePage() {
                   </tbody>
                 </table>
               )}
+              {/* Phase 11/12 — only set for a PROMISE_RECOVERY-originated
+                  reschedule (see _evaluate_reschedule_goal_satisfaction);
+                  null/absent for a plain chat/Ledger-button reschedule,
+                  which GoalSatisfactionCard itself renders as "not
+                  determined," never as success or failure. */}
+              {activeConversation.rescheduleResult.status !== "REJECTED" && (
+                <div style={{ marginTop: 12 }}>
+                  <GoalSatisfactionCard goalSatisfaction={activeConversation.rescheduleResult.goal_satisfaction} />
+                </div>
+              )}
             </div>
           )}
 
@@ -1444,6 +1548,18 @@ export default function AgentConsolePage() {
               {/* Fulfillment + billing outcomes now render as their own
                   Fulfillment Agent / Billing Agent stage rows above (see
                   buildPostApprovalStages) instead of being duplicated here. */}
+
+              {/* Phase 10/12 — only meaningfully populated for a
+                  promise_reasoning_node-sourced order (requested_deadline
+                  was a real goal, not just an optional field); a plain
+                  composed_execution_node order without a requested_deadline
+                  still gets a goal_satisfaction block, rendered honestly
+                  via its own quantity_satisfied/date_satisfied facts. */}
+              {activeConversation.orderApproval?.outcome.goal_satisfaction !== undefined && (
+                <div style={{ marginTop: 12 }}>
+                  <GoalSatisfactionCard goalSatisfaction={activeConversation.orderApproval.outcome.goal_satisfaction} />
+                </div>
+              )}
 
               {activeConversation.orderApproval && (
                 <button

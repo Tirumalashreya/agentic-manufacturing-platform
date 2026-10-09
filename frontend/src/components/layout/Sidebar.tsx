@@ -38,6 +38,7 @@ const NAV_GROUPS: NavGroup[] = [
       { code: "AI", label: "Agent Console", href: "/agent-console" },
       { code: "WFL", label: "Active Workflows", href: "/workflows" },
       { code: "PND", label: "Pending Decisions", href: "/pending-decisions" },
+      { code: "RSK", label: "Promise Risk Inbox", href: "/promise-inbox" },
       { code: "APR", label: "Approvals", href: "/approvals" },
     ],
   },
@@ -123,6 +124,7 @@ export function Sidebar() {
         type="button"
         onClick={toggle}
         title={collapsed ? "Expand navigation" : "Collapse navigation"}
+        aria-label={collapsed ? "Expand navigation" : "Collapse navigation"}
         style={{
           alignSelf: collapsed ? "center" : "flex-end",
           margin: "10px 10px 0",

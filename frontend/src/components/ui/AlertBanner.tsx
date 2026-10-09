@@ -5,12 +5,18 @@ import type { ReactNode } from "react";
 // treatment is real and reusable for any "needs your attention" banner
 // (design-system pass, agreed with the user). tone maps to the same
 // semantic colors StatusBadge uses.
-export type AlertTone = "warning" | "danger" | "info";
+export type AlertTone = "warning" | "danger" | "info" | "success";
 
 const TONE_STYLE: Record<AlertTone, { border: string; background: string }> = {
   warning: { border: "var(--gold)", background: "var(--gold-soft)" },
   danger: { border: "var(--alert)", background: "var(--alert-soft)" },
   info: { border: "var(--accent)", background: "var(--accent-soft)" },
+  // Phase 12 — the one tone this component didn't have yet: a real
+  // positive outcome banner (e.g. "GOAL SATISFIED"), not merely
+  // informational. Same --money color StatusBadge's "success" tone and
+  // .chip.ok already use, so a success state reads consistently whether
+  // it's shown as a banner or a chip.
+  success: { border: "var(--money)", background: "var(--money-soft)" },
 };
 
 export function AlertBanner({

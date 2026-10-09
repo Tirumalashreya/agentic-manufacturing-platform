@@ -11,7 +11,7 @@ import type {
   ServiceOrder,
   TradingOrder,
 } from "@/types/channels";
-import type { SalesOrderApprovalResult, WorkflowResult } from "@/types/workflow";
+import type { GoalSatisfaction, SalesOrderApprovalResult, WorkflowResult } from "@/types/workflow";
 import type { ActiveWorkflowItem } from "@/types/workflows";
 
 // Auth/Authz hardening, Phase 1 (Finding 1.2): this used to point directly
@@ -149,6 +149,11 @@ export type RescheduleApprovalResult = {
   scope?: string;
   targetOrderId?: string;
   scopedOrderIds?: string[];
+  // Phase 11 — only present for a PROMISE_RECOVERY-originated reschedule
+  // (see approvals.py's _evaluate_reschedule_goal_satisfaction); null for
+  // the plain chat/Ledger-button reschedule path, which has no promise to
+  // verify against.
+  goal_satisfaction?: GoalSatisfaction | null;
 };
 // Same reasoning as resolveSalesOrderApproval above — runId only, no
 // client-supplied context. Reschedule has no analogous edit-before-
@@ -317,3 +322,83 @@ export const getOrderTracking = (productionOrderId: string, salesOrderId: string
   request<OrderTracking>(
     `/production-orders/${productionOrderId}/tracking${salesOrderId ? `?sales_order_id=${encodeURIComponent(salesOrderId)}` : ""}`
   );
+
+// Phase 14 (Promise Risk & Decision Inbox) — thin passthrough chain:
+// this call -> Ledger's own /api/orchestrator proxy -> agent-orchestrator's
+// GET /sales-orders/promises -> order-service's real aggregation endpoint
+// (src/promise-inbox.ts), which classifies every active promise via
+// @aps/domain's classifyPromiseRisk. No reasoning happens in any of these
+// hops — riskStatus/workflowStatus/explanation are already fully computed
+// by the time this type sees them. Fetched once with a generous limit;
+// search/sort/filter happen client-side on the already-fetched set (same
+// convention as every other channel page in this app — none of them
+// filter server-side either), so `summary` always reflects the true,
+// unfiltered population, never the narrowed table.
+export type PromiseRiskStatus = "BREACHED" | "AT_RISK" | "SAFE" | "UNKNOWN";
+export type PromiseWorkflowStatus = "NONE" | "AWAITING_APPROVAL" | "RECOVERY_VERIFIED_RESTORED" | "RECOVERY_VERIFIED_FAILED";
+
+// Phase 15 (Promise Intelligence & Evidence Quality) — a short, stable
+// code alongside `explanation`, one per classification branch in
+// @aps/domain's classifyPromiseRisk. Kept as a plain string here (not a
+// union) since this app doesn't depend on @aps/domain directly and a
+// union would need to be hand-kept in sync; the backend is the single
+// source of truth for which codes exist.
+export type PromiseRiskReasonCode = string;
+
+export type PromiseInboxLine = {
+  fulfillmentLineId: string;
+  sourceType: string;
+  quantity: number;
+  productionOrderId: string | null;
+  promisedDate: string;
+  projectedDeliveryDate: string | null;
+  riskStatus: PromiseRiskStatus;
+  workflowStatus: PromiseWorkflowStatus;
+  explanation: string;
+  reasonCode: PromiseRiskReasonCode;
+  scheduleAsOf: string | null;
+  delayHours: number | null;
+  pendingApprovalRunId: string | null;
+};
+
+export type PromiseInboxItem = {
+  salesOrderId: string;
+  orderNumber: string | null;
+  externalOrderId: string | null;
+  customerId: string;
+  customerName: string;
+  productSummary: string;
+  promisedDate: string;
+  projectedDeliveryDate: string | null;
+  delayHours: number | null;
+  riskStatus: PromiseRiskStatus;
+  workflowStatus: PromiseWorkflowStatus;
+  explanation: string;
+  reasonCode: PromiseRiskReasonCode;
+  scheduleAsOf: string | null;
+  recommendedAction: string;
+  productionOrderId: string | null;
+  pendingApprovalRunId: string | null;
+  lines: PromiseInboxLine[];
+};
+
+export type PromiseInboxSummary = {
+  breached: number;
+  atRisk: number;
+  unknown: number;
+  safe: number;
+  awaitingApproval: number;
+  restoredAfterRecovery: number;
+  recoveryFailed: number;
+};
+
+export type PromiseInboxResponse = {
+  items: PromiseInboxItem[];
+  total: number;
+  limit: number;
+  offset: number;
+  summary: PromiseInboxSummary;
+  generatedAt: string;
+};
+
+export const listPromiseInbox = () => request<PromiseInboxResponse>("/sales-orders/promises?limit=200");

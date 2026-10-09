@@ -21,6 +21,15 @@ export const RESUME_HANDOFF_KEY = "ledger-resume-pending-decision";
 function label(entry: PendingApprovalEntry): string {
   const p = entry.pending_approval?.preview;
   if (!p) return "Pending decision";
+  // Phase 11/12 — a disruption-recovery proposal (goal_type
+  // PROMISE_RECOVERY) has no customer_name/product_name at all (it's a
+  // reschedule of an existing order, not an order-creation preview) —
+  // without this branch it would silently fall through to "Pending
+  // decision," hiding exactly the kind of entry a planner most needs to
+  // notice here.
+  if (p.goal_type === "PROMISE_RECOVERY") {
+    return `⚠ Promise Recovery — ${p.sales_order_id ?? "order"}`;
+  }
   const parts = [
     p.customer_name,
     p.quantity ? `${p.quantity} × ${p.product_name ?? "item"}` : p.product_name,
@@ -80,7 +89,11 @@ export default function PendingDecisionsPage() {
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>{label(entry)}</div>
                   <div style={{ fontSize: 11.5, color: "var(--text-faint)", marginTop: 2 }}>
-                    {entry.pending_approval?.action === "RESCHEDULE_PRODUCTION" ? "Reschedule/Optimize" : "Order creation"}
+                    {entry.pending_approval?.preview?.goal_type === "PROMISE_RECOVERY"
+                      ? "Disruption Recovery"
+                      : entry.pending_approval?.action === "RESCHEDULE_PRODUCTION"
+                      ? "Reschedule/Optimize"
+                      : "Order creation"}
                     {" · "}
                     {new Date(entry.created_at).toLocaleString()}
                   </div>

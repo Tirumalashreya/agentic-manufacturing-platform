@@ -49,6 +49,34 @@ body{
 a{color:inherit;}
 ::selection{background:var(--accent-soft);}
 
+/* Phase 18 (Frontend UX & Visual Polish) — real gap found: nothing in
+   this stylesheet gave a keyboard user a visible focus indicator except
+   the one .field input/select/textarea rule below. Every button, link,
+   nav item, and checkbox was keyboard-focusable (the browser default
+   outline still applied) but visually silent once any component set its
+   own `outline` or the browser's UA style got overridden — a real
+   WCAG 2.4.7 gap, not a cosmetic one. One rule, applied via
+   :focus-visible (keyboard/programmatic focus only — never shows on a
+   mouse click, so it doesn't fight the existing hover styles). */
+a:focus-visible, button:focus-visible, input:focus-visible,
+select:focus-visible, textarea:focus-visible, [tabindex]:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Phase 18 — respects the OS-level "reduce motion" preference. This app
+   has no decorative animation (confirmed: the only transitions are
+   functional — button/hover state changes, the sidebar's collapse
+   width) so this only shortens those, never removes feedback entirely. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* ---- Shell bar — light chrome now, matching APS Platform's own real
    sidebar/topbar (both apps share the same light look, not one dark one
    light). Every color below is a real value chosen for this palette, not
@@ -115,6 +143,24 @@ nav#navlist::-webkit-scrollbar-thumb:hover{background:var(--text-faint);}
 .nav-code{font-family:var(--font-mono); font-size:10px; color:var(--text-faint); width:38px; flex:none; letter-spacing:0.3px;}
 .nav-item.active .nav-code{color:var(--accent);}
 .nav-soon{font-family:var(--font-mono); font-size:9px; color:var(--text-faint); margin-left:auto;}
+
+/* Phase 18 (Frontend UX & Visual Polish) — real gap found: #sidebar had
+   no responsive behavior at all (fixed 224px, every width), and #main's
+   own fixed 40px side padding assumed that width was available. On a
+   390px phone that left ~85px of real content width, overflowing the
+   whole page horizontally (confirmed live: document.scrollWidth > 390).
+   The existing manual collapse-to-icon-rail mode (.collapsed, 56px,
+   triggered by Sidebar.tsx's own toggle) already IS the correct narrow
+   treatment — this reuses those exact declarations unprefixed so they
+   apply automatically below the breakpoint regardless of the JS toggle
+   state, without touching any component logic. Desktop/tablet behavior
+   (above the breakpoint) is completely unchanged. */
+@media (max-width: 680px) {
+  #sidebar{width:56px;}
+  #sidebar .nav-item{justify-content:center; padding:9px 0;}
+  #sidebar .nav-code{width:auto; text-align:center;}
+  #main{padding:20px 14px 60px;}
+}
 .sidebar-foot{padding:16px 22px; border-top:1px solid var(--line); font-family:var(--font-mono); font-size:10.5px; color:var(--text-faint); line-height:1.6;}
 
 #main{flex:1; min-width:0; padding:32px 40px 80px;}
