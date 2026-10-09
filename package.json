@@ -10,10 +10,13 @@
   ],
   "scripts": {
     "db:migrate": "npm run -w @aps/domain prisma:migrate",
-    "db:generate": "npm run -w @aps/domain prisma:generate"
+    "db:generate": "npm run -w @aps/domain prisma:generate",
+    "check:architecture": "node architecture/check-contract.mjs",
+    "test:architecture": "node --test architecture/check-contract.test.mjs"
   },
   "devDependencies": {
     "concurrently": "^9.1.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "js-yaml": "^4.1.0"
   }
 }
