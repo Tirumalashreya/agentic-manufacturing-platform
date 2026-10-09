@@ -1,11 +1,34 @@
 process.env.SERVICE_NAME = "mes-integration";
 
-import { createApp, registerErrorHandler, logger, subscribe, ensureTopics, publish, TOPICS, internalServiceHeaders } from "@aps/shared";
+import { createApp, registerErrorHandler, logger, subscribe, ensureTopics, TOPICS, internalServiceHeaders } from "@aps/shared";
+import { signIdentityAssertion } from "@aps/shared/identity";
 import { prisma } from "@aps/domain";
 
 const app = createApp();
 const PORT = Number(process.env.PORT ?? 4019);
 const ANALYTICS_SERVICE_URL = process.env.ANALYTICS_SERVICE_URL ?? "http://localhost:4017";
+// Stage 06 (Service Ownership): the one real cross-domain write found in
+// the service inventory — this used to write Inventory/InventoryMovement
+// directly via Prisma, bypassing inventory-service's own HTTP API
+// entirely. Routed through it now, the same way every other
+// internal-service call in this repo mints a real, signed identity
+// assertion (Stage 02) rather than trusting a locally-known enterpriseId
+// unverified — here the assertion carries the COMPLETED order's own real
+// enterpriseId (never a fixed service-level value, since this handler
+// genuinely knows which tenant's stock is being consumed), which is what
+// makes it meaningfully different from e.g. apsAgent.ts's fixed-enterprise
+// service identity.
+const INVENTORY_SERVICE_URL = process.env.INVENTORY_SERVICE_URL ?? "http://localhost:4010";
+
+function internalFetchAsEnterprise(enterpriseId: string, input: string, init: RequestInit = {}): Promise<Response> {
+  const identityHeader = {
+    "x-identity-assertion": signIdentityAssertion(
+      { sub: "mes-integration", type: "service" as const, enterpriseId, aud: "aps-internal" },
+      process.env.INTERNAL_SERVICE_TOKEN ?? ""
+    ),
+  };
+  return fetch(input, { ...init, headers: { ...init.headers, ...internalServiceHeaders(), ...identityHeader } });
+}
 // A real gap found live: completing an operation never closed the loop
 // back to Order-to-Cash — nothing created a delivery/invoice for a
 // produced order once the shop floor actually finished it (only MTS/
@@ -165,36 +188,27 @@ app.post("/mes/completions", async (req, res) => {
         if (location) {
           for (const line of bom.lines) {
             const requiredQty = line.quantityPer * completedOrder.quantity;
-            const existing = await prisma.inventory.findUnique({
-              where: { productId_location: { productId: line.componentId, location } },
-            });
-            // Floor at 0 — never go negative. Scheduling already gated on
-            // availability at planning time, but real stock can genuinely
-            // have moved since (same defensive read-then-clamp-then-write
-            // shape as capacity-engine.ts's releaseCapacity).
-            const newQty = Math.max((existing?.qtyUnrestricted ?? 0) - requiredQty, 0);
-            await prisma.inventory.upsert({
-              where: { productId_location: { productId: line.componentId, location } },
-              create: { productId: line.componentId, location, qtyUnrestricted: newQty, qtyReserved: 0, qtyInTransit: 0 },
-              update: { qtyUnrestricted: newQty },
-            });
-            const movement = await prisma.inventoryMovement.create({
-              data: {
-                type: "GOODS_ISSUE",
+            // Stage 06: the actual Inventory/InventoryMovement write (and
+            // the resulting domain-event publish) now happens inside
+            // inventory-service, the one real owner of those tables — this
+            // just reports the real, already-computed consumption for the
+            // completed ProductionOrder's own real enterpriseId (not
+            // re-derived or trusted from any caller — this whole handler is
+            // triggered internally by a scheduled operation reaching DONE,
+            // never by an external request body).
+            const response = await internalFetchAsEnterprise(completedOrder.enterpriseId, `${INVENTORY_SERVICE_URL}/inventory/goods-issue`, {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({
                 productId: line.componentId,
                 location,
                 quantity: requiredQty,
                 productionOrderId: completedOrder.id,
-              },
+              }),
             });
-            await publish(TOPICS.INVENTORY_MOVEMENT_RECORDED, {
-              movementId: movement.id,
-              type: movement.type,
-              productId: movement.productId,
-              location: movement.location,
-              quantity: movement.quantity,
-              productionOrderId: completedOrder.id,
-            });
+            if (!response.ok) {
+              throw new Error(`inventory-service goods-issue returned ${response.status}`);
+            }
           }
         }
       }
