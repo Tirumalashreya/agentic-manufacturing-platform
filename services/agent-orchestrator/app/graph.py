@@ -1,4 +1,5 @@
 # app/graph.py
+import hashlib
 import logging
 import os
 import re
@@ -27,12 +28,18 @@ from app.agents.export_agent import export_agent
 from app.agents.consignment_agent import consignment_agent
 from app.agents.financial_agent import financial_agent
 from app.agents.request_understanding_agent import request_understanding_agent
+from app.agents.capability_selector_agent import capability_selector_agent
+from app.agents.promise_options_agent import promise_options_agent
+from app.agents.scenario_comparison_agent import scenario_comparison_agent
+from app.capabilities import CAPABILITY_SPECS, CapabilityCall, CapabilitySpec, dispatch, investigable_capabilities, register
+from app.capabilities.schemas import CapabilityResult
+import datetime
 from app.schemas.understanding import EntityReference
 from app.tools.reference_resolution import resolve_reference
 from app.tools.plan_executor import execute_action_plan, plan_targets_order_creation
 from groq import BadRequestError
 from app.erp.factory import default_erp_adapter as erp
-from app.tools.sales_tools import create_quotation, update_sales_order_status
+from app.tools.sales_tools import create_quotation
 from app.tools.service_tools import create_service_order
 from app.tools.subscription_tools import (
     create_subscription,
@@ -41,7 +48,7 @@ from app.tools.subscription_tools import (
     renew_subscription,
     cancel_subscription,
 )
-from app.tools.fulfillment_tools import compute_fulfillment_split
+from app.tools.fulfillment_tools import compute_fulfillment_split, compute_vendor_split
 from app.tools.production_tools import compute_target_completion_date
 from app.tools.post_sales_tools import process_post_sales_action, find_sales_order
 from app.tools.trading_tools import (
@@ -226,6 +233,19 @@ async def context_node(state: SalesState):
 def composed_execution_router(state: SalesState) -> str:
     if _classify_reschedule_request(state.get("user_message"), state.get("request_actions") or []):
         return "reschedule_request"
+    # Phase 10 (Agentic Order Promise & Scenario Reasoning): checked before
+    # plan_targets_order_creation for the exact same reason reschedule is —
+    # "Can we deliver 500 units by Friday?" extracts a real
+    # customer/product/quantity/deadline (the same fields a genuine
+    # create_order request does), so intent_agent/the extracted plan can
+    # easily point at composed_execution for what is actually a feasibility
+    # question, not a command to place the order yet. This classifier's
+    # own false-negative cost is low — a request that's genuinely "place
+    # the order" and happens to also match one of these phrases still goes
+    # through the identical real checks (credit/stock/approval) one node
+    # later, inside promise_reasoning_node itself.
+    if _classify_promise_request(state.get("user_message"), state.get("request_actions") or []):
+        return "promise_reasoning"
     # Real bug found live (agreed with the user): this used to run the
     # loose "stock"/"inventory" keyword check *before* checking real
     # order-creation intent — so any order request phrased "check their
@@ -348,6 +368,23 @@ async def reschedule_request_node(state: SalesState):
             },
         },
     }
+
+
+# Phase 10 — same deterministic, keyword-based trigger pattern as
+# _classify_reschedule_request/_classify_inventory_or_quality_request.
+# Deliberately narrow: "can/could we deliver/fulfill/ship/promise/get this
+# to [customer] by [date]" is a feasibility QUESTION, not an order-creation
+# command — that distinction is the entire reason this routes to a
+# different node than plan_targets_order_creation's composed_execution.
+def _classify_promise_request(user_message: str | None, request_actions: list[str]) -> bool:
+    haystack = " ".join([user_message or "", *request_actions]).lower()
+    promise_phrases = (
+        "can we deliver", "can we fulfil", "can we fulfill", "can we ship",
+        "can we promise", "can we get", "can we commit to",
+        "could we deliver", "could we fulfil", "could we fulfill",
+        "are we able to deliver", "are we able to fulfill",
+    )
+    return any(phrase in haystack for phrase in promise_phrases)
 
 
 # Real, keyword-based classification (Phase 8, agreed with the user) —
@@ -484,7 +521,21 @@ async def composed_execution_node(state: SalesState):
         "stock": state.get("stock"),
         "user_message": state.get("user_message"),
     }
-    result = execute_action_plan(state["request_action_plan"], context, state.get("intent"))
+    # Stage 03D (ungated-path convergence): DIRECT_SALES is only ever
+    # reached when intent_agent's own classification disagreed with
+    # process_agent's — process_agent only emits DIRECT_SALES for "the
+    # customer is placing a new order now" (see entry_router) — so a
+    # request arriving here via that redirect IS a genuine create_order
+    # request every time, intent_agent just missed it. Treating it as
+    # such here, instead of building (or keeping) a second, unapproved
+    # execution path for it, closes the one gap that let a real order's
+    # stock reservation / production order / vendor commitment happen
+    # with zero human approval (the old direct_sales_node ->
+    # credit_check_node -> mto_node/cto_node/hybrid_node/third_party_node
+    # chain — removed).
+    via_direct_sales = state.get("entry_type") == "DIRECT_SALES"
+    effective_intent = "create_order" if via_direct_sales else state.get("intent")
+    result = execute_action_plan(state["request_action_plan"], context, effective_intent)
 
     update: dict = {
         # Labeled distinctly from the 9 real entry_type values on
@@ -494,6 +545,12 @@ async def composed_execution_node(state: SalesState):
         "entry_type": "COMPOSED_PLAN",
         "status": result["status"],
     }
+    if via_direct_sales:
+        # Diagnostic signal, kept visible rather than silently absorbed
+        # into the same label a genuine composed-plan request gets — this
+        # IS the classification disagreement the convergence is about,
+        # and hiding it would make a real intent_agent miss invisible.
+        update["routed_via"] = "direct_sales_reclassification"
 
     stock_checked = False
     credit_unresolvable = False
@@ -605,6 +662,7 @@ async def composed_execution_node(state: SalesState):
                     quantity=split["to_produce"],
                     required_date=context.get("requested_deadline"),
                     configuration_notes=configuration_notes,
+                    order_identity=update.get("sales_order_id"),
                 )
                 # Real gap found live (agreed with the user): "source from
                 # vendor instead" used to be a blind choice — a vendor
@@ -691,26 +749,13 @@ async def composed_execution_node(state: SalesState):
 # still depends on. Best-effort — a failure here logs and returns None,
 # never raises, so the real (already-committed) mock-ERP order this is
 # describing is never put at risk by this new, additive layer.
-async def _dual_write_order_and_fulfillment(state: SalesState, context: dict) -> dict:
+async def _dual_write_order_and_fulfillment(state: SalesState, context: dict, run_id: str | None = None) -> dict:
     try:
         customer_id = await order_domain.find_or_create_customer(state["customer_name"])
         due_date = context.get("requested_deadline") or compute_target_completion_date(state.get("lead_time_days"))
         quantity = state["quantity"]
         value = round((state.get("price") or 0) * quantity, 2)
         strategy = state["fulfillment_strategy"]
-
-        real_sales_order_id = await order_domain.create_sales_order_record(
-            customer_id=customer_id,
-            due_date=due_date,
-            value=value,
-            priority=0,
-            order_number=state["sales_order_id"],
-            channel="domestic_sales",
-            fulfillment_type=strategy,
-            currency="INR",
-            created_by="agent-orchestrator",
-            external_order_id=state["sales_order_id"],
-        )
 
         lines: list[dict] = []
         if state.get("fulfillment_from_stock", 0) > 0:
@@ -734,8 +779,30 @@ async def _dual_write_order_and_fulfillment(state: SalesState, context: dict) ->
         elif state.get("fulfillment_to_produce", 0) > 0:
             lines.append({"sourceType": "PRODUCTION", "quantity": state["fulfillment_to_produce"]})
 
-        plan = await order_domain.create_order_line_and_fulfillment(
-            sales_order_id=real_sales_order_id,
+        # Stage 03C Part C: ONE atomic call to order-service's extended
+        # POST /sales-orders (Stage 03A/B) — replaces the former two
+        # separate HTTP calls (create the SalesOrder, then separately
+        # create its OrderLine+FulfillmentPlan+FulfillmentLine(s)), which
+        # left a real window where the first succeeded and the second
+        # failed, or where a retry of either call could duplicate work.
+        # The Idempotency-Key is the approval run's own real, stable
+        # run_id — already-settled business identity (the atomic claim in
+        # db.claim_approval means this run_id can only ever correspond to
+        # ONE approved decision), never LLM output — so a retry of this
+        # exact call for the same approval converges on the same
+        # SalesOrder instead of creating a second one.
+        idempotency_key = f"approval-run-{run_id}" if run_id else None
+        result = await order_domain.create_sales_order_with_fulfillment(
+            customer_id=customer_id,
+            due_date=due_date,
+            value=value,
+            priority=0,
+            order_number=state["sales_order_id"],
+            channel="domestic_sales",
+            fulfillment_type=strategy,
+            currency="INR",
+            created_by="agent-orchestrator",
+            external_order_id=state["sales_order_id"],
             product_id=None,  # resolved by manufacturing product mapping, not this generic write
             product_name=state["product_name"],
             quantity=quantity,
@@ -744,8 +811,10 @@ async def _dual_write_order_and_fulfillment(state: SalesState, context: dict) ->
             strategy=strategy,
             reasoning=state.get("fulfillment_reasoning"),
             lines=lines,
+            idempotency_key=idempotency_key,
         )
-        fulfillment_line_ids = {l["sourceType"]: l["id"] for l in plan["fulfillmentLines"]}
+        real_sales_order_id = result["id"]
+        fulfillment_line_ids = {l["sourceType"]: l["id"] for l in result["fulfillmentLines"]}
         return {"real_sales_order_id": real_sales_order_id, "fulfillment_line_ids": fulfillment_line_ids}
     except Exception:
         logger.warning("Order-to-production dual-write failed for %s — mock-ERP order is unaffected", state.get("sales_order_id"), exc_info=True)
@@ -780,7 +849,8 @@ async def _patch_stock_execution(state: SalesState, branch_update: dict) -> None
                 promised_date=branch_update.get("confirmed_delivery_date"),
             )
         elif branch_update.get("status") == "FULFILLMENT_FAILED":
-            await order_domain.patch_fulfillment_line(stock_fulfillment_line_id, status="FAILED")
+            # Exceptions/Holds: the real reason, when the caller has one.
+            await order_domain.patch_fulfillment_line(stock_fulfillment_line_id, status="FAILED", reason=branch_update.get("reason"))
     except Exception:
         logger.warning("Could not update STOCK FulfillmentLine %s", stock_fulfillment_line_id, exc_info=True)
 
@@ -802,7 +872,7 @@ async def _patch_vendor_execution(state: SalesState, branch_update: dict) -> Non
                 promised_date=branch_update.get("expected_arrival"),
             )
         elif branch_update.get("status") == "FULFILLMENT_FAILED":
-            await order_domain.patch_fulfillment_line(vendor_line_id, status="FAILED")
+            await order_domain.patch_fulfillment_line(vendor_line_id, status="FAILED", reason=branch_update.get("reason"))
     except Exception:
         logger.warning("Could not update BUY/DROP_SHIP FulfillmentLine %s", vendor_line_id, exc_info=True)
 
@@ -817,7 +887,9 @@ async def _patch_vendor_execution(state: SalesState, branch_update: dict) -> Non
 # through the real MTS/MTO/CTO/HYBRID/THIRD_PARTY decision and — for
 # MTS/the stock leg of HYBRID — all the way to a real delivery + invoice,
 # same as it would have from the chat-only path.
-async def run_post_approval_fulfillment(context: dict, sales_order_id: str, prefer_vendor: bool = False) -> dict:
+async def run_post_approval_fulfillment(
+    context: dict, sales_order_id: str, prefer_vendor: bool = False, run_id: str | None = None
+) -> dict:
     state: SalesState = {
         "user_message": context.get("user_message") or "",
         "sales_order_id": sales_order_id,
@@ -856,11 +928,27 @@ async def run_post_approval_fulfillment(context: dict, sales_order_id: str, pref
             # capacity in every future scheduling run. Same cleanup
             # principle as a straight REJECT.
             stale_production_order_id = (context.get("production_plan") or {}).get("production_order_id")
+            cleanup_warning = None
             if stale_production_order_id:
                 try:
                     await mfg.delete_production_order(stale_production_order_id)
-                except Exception:
-                    pass
+                except Exception as exc:
+                    # Stage 01 (Fail Loud, Fail Closed): the vendor-sourcing
+                    # fulfillment this function is about to record is real
+                    # and must not be blocked or undone by a failed cleanup
+                    # of an unrelated stale ProductionOrder — but the
+                    # failure must not be silently lost either. Logged in
+                    # full and surfaced in the human-readable response
+                    # below, matching the TS-side DownstreamSyncError
+                    # pattern's reasoning (report a secondary failure
+                    # without misrepresenting the primary result).
+                    logger.error(
+                        "Cleanup failed: stale ProductionOrder %s was not deleted for Sales Order %s",
+                        stale_production_order_id, sales_order_id, exc_info=True,
+                    )
+                    cleanup_warning = (
+                        f" (Note: cleanup of draft production order {stale_production_order_id} failed: {exc})"
+                    )
 
             state["fulfillment_from_stock"] = 0
             state["fulfillment_to_produce"] = state["quantity"]
@@ -878,9 +966,13 @@ async def run_post_approval_fulfillment(context: dict, sales_order_id: str, pref
             # (i.e. the trading order really was created) — a failed one
             # returns FULFILLMENT_FAILED with no strategy, nothing to record.
             if state.get("fulfillment_strategy"):
-                dual_write_update = await _dual_write_order_and_fulfillment(state, {**context, "vendor_plan": vendor_plan})
+                dual_write_update = await _dual_write_order_and_fulfillment(
+                    state, {**context, "vendor_plan": vendor_plan}, run_id=run_id
+                )
                 state.update(dual_write_update)
                 await _patch_vendor_execution(state, branch_update)
+            if cleanup_warning:
+                state["response"] = state.get("response", "") + cleanup_warning
             return state
 
     # Replay, not re-decision (agreed with the user): fulfillment strategy
@@ -908,7 +1000,7 @@ async def run_post_approval_fulfillment(context: dict, sales_order_id: str, pref
             f"{fulfillment['reasoning']}"
         )
 
-    dual_write_update = await _dual_write_order_and_fulfillment(state, context)
+    dual_write_update = await _dual_write_order_and_fulfillment(state, context, run_id=run_id)
     state.update(dual_write_update)
 
     strategy = state["fulfillment_strategy"]
@@ -1512,104 +1604,20 @@ async def pre_sales_node(state: SalesState):
     }
 
 
-# Direct Sales workflow (build-order step 7). No LLM judgment needed for
-# order creation itself — price is the catalog price (no negotiation on a
-# direct order) and every input is already resolved by Context; creating
-# the order is purely deterministic validation + a tool call, same
-# principle as approvals.
-async def direct_sales_node(state: SalesState):
-    created = erp.create_sales_order(
-        customer_id=state["customer_id"],
-        customer_name=state["customer_name"],
-        customer_active=state["customer_active"],
-        product_id=state["product_id"],
-        product_name=state["product_name"],
-        quantity=state["quantity"],
-        unit_price=state["price"],
-        requested_deadline=state["requested_deadline"],
-    )
-
-    if not created["created"]:
-        return {
-            "sales_order_id": None,
-            "sales_order_status": "NOT_CREATED",
-            "status": "REJECTED",
-            "response": created["reason"],
-        }
-
-    return {
-        "sales_order_id": created["sales_order_id"],
-        "sales_order_status": created["status"],
-        "sales_order_total": created["total_amount"],
-        "status": "COMPLETED",
-        "response": (
-            f"Sales Order {created['sales_order_id']} for {state['quantity']} x "
-            f"{state['product_name']}: total {created['total_amount']}, "
-            f"status {created['status']}."
-        ),
-    }
-
-
-# Only reached for a confirmed Sales Order — a rejected one ends the graph
-# before this.
-def direct_sales_router(state: SalesState) -> str:
-    if state["status"] == "REJECTED":
-        return "end"
-    return "credit_check"
-
-
-# Deterministic — no LLM. Existing exposure comes from real SalesOrders
-# already on record for this customer; if the check can't run at all
-# (missing customer/credit_limit — shouldn't happen given the guard
-# already passed in create_sales_order, but defensive), fail open rather
-# than block on a check with no data.
-async def credit_check_node(state: SalesState):
-    result = erp.check_credit(
-        customer_id=state["customer_id"],
-        credit_limit=state["customer_credit_limit"],
-        new_order_amount=state["sales_order_total"],
-        exclude_sales_order_id=state["sales_order_id"],
-    )
-
-    if not result["checked"]:
-        return {
-            "credit_checked": False,
-            "credit_within_limit": True,
-            "response": state["response"] + f" Credit check skipped: {result['reason']}",
-        }
-
-    return {
-        "credit_checked": True,
-        "credit_within_limit": result["within_credit"],
-        "credit_existing_exposure": result["existing_exposure"],
-        "credit_total_exposure": result["total_exposure"],
-        "response": state["response"] + (
-            f" Credit check: total exposure {result['total_exposure']} against "
-            f"a {result['credit_limit']} limit — "
-            + ("within limit." if result["within_credit"] else "OVER LIMIT.")
-        ),
-    }
-
-
-# Deterministic conditional edge, same pattern as entry_router/fulfillment_router.
-def credit_router(state: SalesState) -> str:
-    if not state["credit_within_limit"]:
-        return "credit_hold"
-    return "fulfillment_decision"
-
-
-async def credit_hold_node(state: SalesState):
-    update_sales_order_status(state["sales_order_id"], "CREDIT_BLOCKED")
-    return {
-        "sales_order_status": "CREDIT_BLOCKED",
-        "status": "ON_CREDIT_HOLD",
-        "response": state["response"] + (
-            " Order held on credit hold — fulfillment does not proceed "
-            "until credit is released."
-        ),
-    }
-
-
+# Stage 03D (ungated-path convergence): direct_sales_node/
+# direct_sales_router/credit_check_node/credit_router/credit_hold_node —
+# the old DIRECT_SALES-only, unapproved order-creation chain — were
+# removed here. They let any VIEWER-role chat message that process_agent
+# classified as DIRECT_SALES create a real order, run a live credit
+# check, and autonomously commit to MTS/MTO/CTO/HYBRID/THIRD_PARTY
+# execution with zero human approval. DIRECT_SALES now redirects into
+# composed_execution_node instead (see entry_router's edge map below),
+# which already has the real approval gate, the real check_credit hard
+# dependency (blocks create_order outright, rather than creating the
+# order first and flagging it afterward the way credit_hold_node did),
+# and the real fulfillment preview. fulfillment_decision_node survives
+# below — it's also called directly as a plain function from
+# run_post_approval_fulfillment and stays in use there.
 async def fulfillment_decision_node(state: SalesState):
     stock_total = sum(s["stock_qty"] for s in state.get("stock", []))
     decision = await fulfillment_agent(
@@ -1633,25 +1641,6 @@ async def fulfillment_decision_node(state: SalesState):
             f"{decision.reasoning}"
         ),
     }
-
-
-# Deterministic conditional edge, same pattern as entry_router — branches
-# on the Fulfillment Decision Agent's strategy, not itself a decision.
-def fulfillment_router(state: SalesState) -> str:
-    strategy = state["fulfillment_strategy"]
-    if strategy == "MTS":
-        return "mts"
-    if strategy == "MTO":
-        return "mto"
-    if strategy == "CTO":
-        return "cto"
-    if strategy == "HYBRID":
-        return "hybrid"
-    if strategy == "THIRD_PARTY":
-        return "third_party"
-    # INTERCOMPANY — no other-plant/other-company data exists in this
-    # system at all, so there is no tool that can act on this yet.
-    return "unfulfillable"
 
 
 # Shared by MTS (full quantity) and HYBRID (its stock leg only) — the
@@ -1735,6 +1724,9 @@ async def mts_node(state: SalesState):
     if not result["reserved"]:
         return {
             "status": "FULFILLMENT_FAILED",
+            # Exceptions/Holds: the real reason, for the caller to record
+            # on the STOCK FulfillmentLine.
+            "reason": result["reason"],
             "response": state["response"] + f" Stock reservation failed: {result['reason']}",
         }
 
@@ -1847,6 +1839,7 @@ async def _plan_production_via_manufacturing_services(
     quantity: int,
     required_date: str | None,
     configuration_notes: str | None = None,
+    order_identity: str | None = None,
 ) -> dict:
     from app.config import MANUFACTURING_PRODUCT_IDS
 
@@ -1884,8 +1877,24 @@ async def _plan_production_via_manufacturing_services(
     # request_production_plan is a real, synchronous HTTP call to it;
     # this still runs entirely before the human approval gate, so
     # "nothing commits before approval" is untouched.
+    # Stage 03C Part B: a timeout/retry of this same httpx call (relayed
+    # through APS Platform to order-service's POST /orders) must converge
+    # on one ProductionOrder, not create a duplicate. The key is a hash of
+    # real, already-settled business identity — order_identity is the
+    # sales order id create_order just wrote to the ERP earlier in this
+    # SAME node execution, not anything an LLM produced — plus product and
+    # quantity, so two genuinely different previews (different order, or a
+    # later HYBRID split of the same order) never collide. When no
+    # order_identity is available (e.g. a future caller that hasn't been
+    # updated), no key is sent and behavior is exactly what it was before
+    # this change.
+    idempotency_key = (
+        hashlib.sha256(f"production_order:{order_identity}:{manufacturing_product_id}:{quantity}".encode()).hexdigest()
+        if order_identity
+        else None
+    )
     plan = await mfg.request_production_plan(
-        manufacturing_product_id, product_name, quantity, required_date, configuration_notes
+        manufacturing_product_id, product_name, quantity, required_date, configuration_notes, idempotency_key
     )
     # apsAgent.ts's own "no BOM/routing exists at all" early-return still
     # uses this literal (Cause 1, the same real config gap as above, just
@@ -1999,7 +2008,13 @@ async def _execute_production_plan(state: SalesState, production_plan: dict | No
         production_fulfillment_line_id = (state.get("fulfillment_line_ids") or {}).get("PRODUCTION")
         if production_fulfillment_line_id:
             try:
-                await order_domain.patch_fulfillment_line(production_fulfillment_line_id, status="FAILED")
+                # Exceptions/Holds: the real verdict explanation already
+                # computed by the deterministic planning call, never
+                # invented here.
+                await order_domain.patch_fulfillment_line(
+                    production_fulfillment_line_id, status="FAILED",
+                    reason=production_plan.get("explanation") if production_plan else "No production plan available",
+                )
             except Exception:
                 logger.warning("Could not mark PRODUCTION FulfillmentLine %s FAILED", production_fulfillment_line_id, exc_info=True)
         return {
@@ -2101,9 +2116,10 @@ async def _execute_hybrid_with_plan(state: SalesState, production_plan: dict | N
         quantity=state["fulfillment_from_stock"],
     )
     if not reservation["reserved"]:
-        await _patch_stock_execution(state, {"status": "FULFILLMENT_FAILED"})
+        await _patch_stock_execution(state, {"status": "FULFILLMENT_FAILED", "reason": reservation["reason"]})
         return {
             "status": "FULFILLMENT_FAILED",
+            "reason": reservation["reason"],
             "response": state["response"] + f" Stock reservation failed: {reservation['reason']}",
         }
 
@@ -2188,6 +2204,810 @@ async def _plan_vendor_sourcing(product_id: str, product_name: str | None, quant
     }
 
 
+# Phase 10 (Agentic Order Promise & Scenario Reasoning) — registers the
+# one capability whose real implementation (_plan_production_via_
+# manufacturing_services, directly above) depends on graph-local helpers
+# (production_planning_agent, MANUFACTURING_PRODUCT_IDS, configuration
+# handling) and so cannot live in capabilities/manufacturing_capabilities.py
+# without a circular import. Registered here, right after that function is
+# defined, rather than at the bottom of the file, so this capability's
+# registration sits next to the function it wraps.
+async def _simulate_schedule_capability(args: dict) -> CapabilityResult:
+    manufacturing_product_id = args.get("manufacturing_product_id")
+    product_name = args.get("product_name")
+    quantity = args.get("quantity")
+    required_date = args.get("required_date")
+    if not manufacturing_product_id or not quantity:
+        return CapabilityResult(
+            capability="simulate_schedule", success=False, authoritative_source="aps-platform:what-if-schedule",
+            errors={"reason": "manufacturing_product_id and quantity are required."},
+        )
+    plan = await _plan_production_via_manufacturing_services(
+        product_id=manufacturing_product_id, product_name=product_name, quantity=quantity,
+        required_date=required_date, order_identity=None,
+    )
+    return CapabilityResult(
+        capability="simulate_schedule",
+        success=plan.get("verdict") not in ("PLANNING_CONFIGURATION_ISSUE",),
+        authoritative_source="aps-platform:what-if-schedule",
+        data=plan,
+    )
+
+
+register(
+    CapabilitySpec(
+        name="simulate_schedule",
+        description=(
+            "Run a real what-if production/scheduling simulation for a quantity of a manufacturing "
+            "product — creates a draft (non-committing) ProductionOrder and returns real materials/"
+            "routing/scheduled-operation facts."
+        ),
+        read_write="read_with_side_effect",
+        authoritative_source="aps-platform:what-if-schedule",
+        timeout_seconds=30.0,
+        phase="investigate",
+    ),
+    _simulate_schedule_capability,
+)
+
+
+# --- Phase 10: scenario simulation + feasibility (deterministic) ---
+
+_PROMISE_ALTERNATIVE_LABELS = {
+    "STOCK_PLUS_PRODUCTION": "Stock + Production",
+    "PRODUCTION_ONLY": "Production Only",
+    "VENDOR": "Vendor Sourcing",
+    "LATER_DATE": "Later Delivery Date",
+}
+
+LATER_DATE_PUSH_OUT_DAYS = 7
+
+
+def _is_promise_feasible(
+    requested_date: str | None, projected_date: str | None, production_status: str | None, vendor_available: bool | None
+) -> bool:
+    """Deterministic only — never the LLM's call. A scenario whose
+    production leg failed deterministically is infeasible regardless of
+    what any reasoning step says; a scenario with a projected date can
+    only be feasible if that date is on or before what was actually
+    requested."""
+    if production_status in ("MATERIAL_SHORTAGE", "PLANNER_REVIEW", "PLANNING_CONFIGURATION_ISSUE"):
+        return False
+    if vendor_available is False:
+        return False
+    if requested_date:
+        if not projected_date:
+            return False
+        return projected_date <= requested_date
+    return True
+
+
+async def _simulate_promise_scenario(
+    *,
+    scenario_id: str,
+    quantity_from_stock: int,
+    quantity_to_make: int,
+    quantity_from_vendor: int,
+    requested_date: str | None,
+    product_id: str,
+    product_name: str | None,
+    manufacturing_product_id: str | None,
+    lead_time_days: int | None,
+) -> dict:
+    """Builds one PromiseScenario dict (see capabilities/schemas.py) by
+    calling the exact same deterministic simulation functions
+    composed_execution_node already calls for its one chosen strategy —
+    _plan_production_via_manufacturing_services / _plan_vendor_sourcing —
+    just evaluated here for a candidate alternative instead. Never
+    fabricates a date or number: any field a real call didn't return is
+    simply omitted from evidence, not guessed at."""
+    evidence: dict = {}
+    risk_flags: list[str] = []
+    production_order_id: str | None = None
+    production_status: str | None = None
+    projected_delivery_date: str | None = None
+    vendor_plan: dict | None = None
+    # The FULL dict _plan_production_via_manufacturing_services returns —
+    # composed_execution_node passes this exact shape straight through to
+    # context["production_plan"], and _execute_production_plan (called
+    # after approval, via run_post_approval_fulfillment's replay branch)
+    # directly indexes plan["verdict"] and reads plan.get("procurement_plan").
+    # A reduced/reconstructed dict here would KeyError at execution time —
+    # this scenario simulator must hand back the real thing unchanged, not
+    # a summary of it, for whichever scenario ends up chosen.
+    raw_production_plan: dict | None = None
+
+    if quantity_to_make > 0:
+        if manufacturing_product_id is None:
+            return {
+                "scenario_id": scenario_id,
+                "label": _PROMISE_ALTERNATIVE_LABELS.get(scenario_id, scenario_id),
+                "quantity_from_stock": quantity_from_stock,
+                "quantity_to_make": quantity_to_make,
+                "quantity_from_vendor": quantity_from_vendor,
+                "requested_delivery_date": requested_date,
+                "projected_delivery_date": None,
+                "feasible": False,
+                "production_status": "PLANNING_CONFIGURATION_ISSUE",
+                "risk_flags": ["No manufacturing master data is mapped for this product — production cannot be simulated."],
+                "evidence": {},
+                "assumptions": [],
+                "production_order_id": None,
+                "raw_production_plan": None,
+            }
+        plan = await _plan_production_via_manufacturing_services(
+            product_id=manufacturing_product_id, product_name=product_name, quantity=quantity_to_make,
+            required_date=requested_date, order_identity=None,
+        )
+        raw_production_plan = plan
+        production_status = plan.get("verdict")
+        production_order_id = plan.get("production_order_id")
+        simulated_operations = plan.get("simulated_operations") or []
+        if simulated_operations:
+            projected_delivery_date = max(op["scheduled_end"] for op in simulated_operations)[:10]
+        evidence["production_plan"] = {
+            "verdict": production_status,
+            "operations_simulated": len(simulated_operations),
+            "operations_total": len(plan.get("routing_operations") or []),
+        }
+        if production_status == "MATERIAL_SHORTAGE":
+            risk_flags.append("Material shortage detected for this quantity.")
+        elif production_status == "PLANNER_REVIEW":
+            risk_flags.append("Scheduler could not place every operation, even at the extended horizon.")
+        elif production_status == "WAITING_FOR_PRODUCTION_SLOT":
+            risk_flags.append("Feasible only beyond the normal planning horizon.")
+
+    vendor_available: bool | None = None
+    if quantity_from_vendor > 0:
+        vendor_plan = await _plan_vendor_sourcing(product_id, product_name, quantity_from_vendor, lead_time_days)
+        vendor_available = bool(vendor_plan.get("vendors_available"))
+        evidence["vendor_plan"] = vendor_plan
+        if not vendor_available:
+            risk_flags.append("No vendor available for the requested quantity.")
+        elif projected_delivery_date is None:
+            projected_delivery_date = vendor_plan.get("target_completion_date")
+
+    if quantity_to_make == 0 and quantity_from_vendor == 0:
+        # Pure-stock scenario — ships immediately, nothing to simulate.
+        projected_delivery_date = datetime.date.today().isoformat()
+
+    feasible = _is_promise_feasible(requested_date, projected_delivery_date, production_status, vendor_available)
+
+    return {
+        "scenario_id": scenario_id,
+        "label": _PROMISE_ALTERNATIVE_LABELS.get(scenario_id, scenario_id),
+        "quantity_from_stock": quantity_from_stock,
+        "quantity_to_make": quantity_to_make,
+        "quantity_from_vendor": quantity_from_vendor,
+        "requested_delivery_date": requested_date,
+        "projected_delivery_date": projected_delivery_date,
+        "feasible": feasible,
+        "production_status": production_status,
+        "risk_flags": risk_flags,
+        "evidence": evidence,
+        "assumptions": [],
+        "production_order_id": production_order_id,
+        "vendor_plan": vendor_plan,
+        "raw_production_plan": raw_production_plan,
+    }
+
+
+def _args_for_capability(capability: str, goal: dict, manufacturing_product_id: str | None) -> dict:
+    """Deterministic argument-builder — the LLM never supplies these. It
+    only ever picks a capability NAME (capability_selector_agent); every
+    argument a capability actually receives comes from state this graph
+    already resolved via context_node/intent_agent, never from LLM output.
+    This is the concrete mechanism behind brief §5/§14's "typed arguments,
+    never pass arbitrary LLM-authored values" requirement."""
+    if capability == "inspect_customer":
+        return {"customer_name": goal.get("customer_name")}
+    if capability == "inspect_inventory":
+        return {"product_id": goal.get("product_id")}
+    if capability == "inspect_production_requirements":
+        return {"manufacturing_product_id": manufacturing_product_id}
+    if capability == "assess_capacity":
+        return {"plant_id": goal.get("plant_id") or MANUFACTURING_PLANT_ID}
+    if capability == "simulate_schedule":
+        return {
+            "manufacturing_product_id": manufacturing_product_id,
+            "product_name": goal.get("product_name"),
+            "quantity": goal.get("quantity"),
+            "required_date": goal.get("requested_deadline"),
+        }
+    if capability == "inspect_affected_orders":
+        return {
+            "plant_id": goal.get("plant_id") or MANUFACTURING_PLANT_ID,
+            "production_order_id": goal.get("production_order_id"),
+            "scope": "AFFECTED",
+        }
+    return {}
+
+
+MAX_PROMISE_REASONING_ITERATIONS = 4
+MAX_PROMISE_TOOL_CALLS = 6
+
+
+async def _simulate_reschedule_recovery(plant_id: str | None, production_order_id: str | None, original_promised_date: str | None) -> dict:
+    """Phase 13 — the real deterministic what-if this scenario was missing.
+    Calls scheduling-service's own POST /scheduling/what-if (via
+    mfg.simulate_reschedule) — the exact same Forward/Backward/Bottleneck
+    placement engine a real reschedule uses, against a scratch Redis
+    namespace that's discarded server-side when the call returns. Nothing
+    is persisted: no ScheduleRun/ScheduledOperation/ResourceReservation,
+    confirmed by reading that endpoint's own implementation.
+
+    Returns a dict with feasible/projected_delivery_date/promise_restored/
+    failure_reason/evidence — never guessed, every value either comes
+    straight from the real simulation response or a deterministic
+    comparison against the real original promise."""
+    if not plant_id or not production_order_id:
+        return {
+            "feasible": None, "projected_delivery_date": None, "promise_restored": None,
+            "failure_reason": "Missing plant/production order identity — cannot simulate.", "evidence": {},
+        }
+
+    try:
+        current_order = await mfg.get_production_order(production_order_id)
+    except Exception as exc:
+        return {
+            "feasible": None, "projected_delivery_date": None, "promise_restored": None,
+            "failure_reason": f"Could not read the current production order: {exc}", "evidence": {},
+        }
+    # The order's own real, currently-scheduled operation count — not
+    # invented — used as the "did the simulation place everything" floor.
+    # A disrupted order usually still has SOME ScheduledOperation rows
+    # (the ones not yet affected by the breakdown); this is the honest
+    # proxy for "how many operations does this order actually have"
+    # without a second routing fetch.
+    expected_op_count = len(current_order.get("scheduledOperations") or [])
+
+    try:
+        whatif = await mfg.simulate_reschedule(plant_id, production_order_id, scope="AFFECTED", mode="BOTTLENECK")
+    except Exception as exc:
+        return {
+            "feasible": None, "projected_delivery_date": None, "promise_restored": None,
+            "failure_reason": f"What-if simulation failed: {exc}", "evidence": {},
+        }
+
+    my_ops = [op for op in (whatif.get("simulatedOperations") or []) if op.get("productionOrderId") == production_order_id]
+    evidence = {
+        "operations_simulated": len(my_ops),
+        "operations_expected": expected_op_count,
+        "scope": whatif.get("scope"),
+        "scoped_order_ids": whatif.get("scopedOrderIds"),
+        "conflicts_detected": whatif.get("conflictsDetected"),
+    }
+
+    if not my_ops:
+        return {
+            "feasible": False, "projected_delivery_date": None, "promise_restored": False,
+            "failure_reason": "The what-if simulation could not place any of this order's operations.",
+            "evidence": evidence,
+        }
+
+    feasible = expected_op_count == 0 or len(my_ops) >= expected_op_count
+    projected_delivery_date = max(op["scheduledEnd"] for op in my_ops)[:10]
+    promise_restored = (projected_delivery_date <= original_promised_date[:10]) if original_promised_date else None
+
+    failure_reason = None
+    if not feasible:
+        failure_reason = f"Only {len(my_ops)} of {expected_op_count} operation(s) could be placed in the simulation."
+    elif promise_restored is False:
+        failure_reason = f"The earliest feasible completion ({projected_delivery_date}) is still after the original promise ({original_promised_date[:10]})."
+
+    return {
+        "feasible": feasible,
+        "projected_delivery_date": projected_delivery_date,
+        "promise_restored": promise_restored,
+        "failure_reason": failure_reason,
+        "evidence": evidence,
+    }
+
+
+async def _run_promise_recovery_scenarios(goal: dict, trace: list[dict], iteration_count: int, tool_call_count: int) -> dict:
+    """Phase 11's recovery-specific scenario generation/comparison/approval
+    tail — reuses promise_options_agent/scenario_comparison_agent VERBATIM
+    (the exact same two functions ORDER_PROMISE goals use), with only the
+    two PROMISE_RECOVERY-only alternatives (see promise_options_agent's
+    own system prompt) in play.
+
+    Deliberately does NOT offer STOCK_PLUS_PRODUCTION/VENDOR substitution
+    here, unlike a fresh ORDER_PROMISE goal: this order already has a
+    committed SalesOrder/FulfillmentPlan, and no existing deterministic
+    capability in this codebase amends an already-committed order's
+    fulfillment mix (adding/swapping a FulfillmentLine post-hoc) — only
+    RESCHEDULE_PRODUCTION (reschedule_production_order) is a real,
+    already-built, already-approved action for an EXISTING order. Building
+    an "amend existing fulfillment" capability is out of this phase's
+    scope — see the session report's limitations."""
+    current_result = goal.get("current_result") or {}
+    disruption = goal.get("disruption") or {}
+    requested_date = goal.get("requested_deadline")
+    current_promised_date = current_result.get("promised_date")
+
+    # KEEP_CURRENT — the honest floor. Its own "feasibility" is already a
+    # known fact (it's exactly the disrupted outcome that triggered this
+    # episode) — never re-simulated, just reported.
+    keep_current_scenario = {
+        "scenario_id": "KEEP_CURRENT",
+        "label": "Keep Current (Disrupted) Schedule",
+        "quantity_from_stock": 0,
+        "quantity_to_make": goal.get("quantity"),
+        "quantity_from_vendor": 0,
+        "requested_delivery_date": requested_date,
+        "projected_delivery_date": current_promised_date,
+        "feasible": False,
+        "promise_restored": False,
+        "failure_reason": "This is the schedule the disruption already produced — the original promise is not met.",
+        "production_status": None,
+        "risk_flags": ["This is the schedule the disruption already produced — the original promise is not met."],
+        "evidence": {"disruption": disruption},
+        "assumptions": [],
+        "production_order_id": None,
+        "vendor_plan": None,
+        "raw_production_plan": None,
+    }
+    scenarios = [keep_current_scenario]
+    trace.append({"scenario_generated": {k: v for k, v in keep_current_scenario.items() if k not in ("vendor_plan", "raw_production_plan")}})
+
+    options_decision = await promise_options_agent(goal, {})
+    trace.append({"promise_options_decision": options_decision.model_dump()})
+
+    if "RESCHEDULE_BOTTLENECK" in options_decision.alternatives_to_investigate:
+        # Phase 13: a real deterministic what-if (see
+        # _simulate_reschedule_recovery) — the scheduler's own Forward/
+        # Backward/Bottleneck placement engine, run against a scratch
+        # namespace, nothing persisted. feasible/promise_restored are no
+        # longer guessed; they come straight from this simulation.
+        sim = await _simulate_reschedule_recovery(goal.get("plant_id"), goal.get("production_order_id"), requested_date)
+        preview = None
+        try:
+            preview = await mfg.get_affected_orders_preview(
+                goal.get("plant_id"), goal.get("production_order_id"), "AFFECTED"
+            )
+        except Exception:
+            logger.warning("Could not fetch affected-orders preview for recovery scenario", exc_info=True)
+        evidence = dict(sim["evidence"])
+        if preview:
+            evidence["affected_orders_preview"] = preview
+        risk_flags = []
+        if sim["feasible"] is None:
+            risk_flags.append("Real outcome could not be determined — see failure_reason.")
+        elif sim["feasible"] and sim["promise_restored"] is False:
+            risk_flags.append("Feasible, but still misses the original promise date.")
+        reschedule_scenario = {
+            "scenario_id": "RESCHEDULE_BOTTLENECK",
+            "label": "Bottleneck-Mode Reschedule",
+            "quantity_from_stock": 0,
+            "quantity_to_make": goal.get("quantity"),
+            "quantity_from_vendor": 0,
+            "requested_delivery_date": requested_date,
+            "projected_delivery_date": sim["projected_delivery_date"],
+            "feasible": sim["feasible"],
+            "promise_restored": sim["promise_restored"],
+            "failure_reason": sim["failure_reason"],
+            "production_status": None,
+            "risk_flags": risk_flags,
+            "evidence": evidence,
+            "assumptions": [],
+            "production_order_id": None,
+            "vendor_plan": None,
+            "raw_production_plan": None,
+        }
+        scenarios.append(reschedule_scenario)
+        trace.append({"scenario_generated": {k: v for k, v in reschedule_scenario.items() if k not in ("vendor_plan", "raw_production_plan")}})
+
+    comparison = await scenario_comparison_agent(scenarios)
+    trace.append({"scenario_comparison_decision": comparison.model_dump()})
+
+    recommended = next((s for s in scenarios if s["scenario_id"] == comparison.recommended_scenario_id), None)
+
+    base_update = {
+        "promise_goal": goal,
+        "promise_trace": trace,
+        "promise_scenarios": scenarios,
+        "promise_recommendation": {**comparison.model_dump(), "scenario": recommended},
+        "promise_iteration_count": iteration_count,
+        "promise_tool_call_count": tool_call_count,
+    }
+
+    if recommended is None or recommended["scenario_id"] == "KEEP_CURRENT":
+        # Brief §22's third required scenario: an honest failure, never
+        # "recovery successful." Nothing is approved or executed — the
+        # disrupted schedule autoReschedule already committed stands
+        # unchanged, which is the correct, truthful outcome here.
+        return {
+            **base_update,
+            "status": "COMPLETED",
+            "response": (
+                f"The original promise ({requested_date}) cannot currently be recovered for this order. "
+                f"{comparison.reasoning} Best available: {current_promised_date or 'unknown'}."
+            ),
+        }
+
+    # The one real executable recovery action — reusing RESCHEDULE_PRODUCTION
+    # verbatim, the exact action reschedule_request_node already builds and
+    # resolve_reschedule_approval (app/routers/approvals.py) already
+    # executes, completely unmodified by this phase (only its post-execution
+    # goal_satisfaction check is new — see _evaluate_reschedule_goal_satisfaction).
+    pending_context = {
+        "sales_order_id": goal.get("sales_order_id"),
+        "production_order_id": goal.get("production_order_id"),
+        "plant_id": goal.get("plant_id"),
+        "kind": "optimize",
+        "scope": "AFFECTED",
+        "mode": "BOTTLENECK",
+        # Carried through so approvals.py can verify, post-execution,
+        # whether the ORIGINAL promise (not just "the API call succeeded")
+        # was actually restored — see _evaluate_reschedule_goal_satisfaction.
+        "original_promised_date": requested_date,
+        "requested_quantity": goal.get("quantity"),
+    }
+    return {
+        **base_update,
+        "status": "AWAITING_APPROVAL",
+        "entry_type": "COMPOSED_PLAN",
+        "routed_via": "promise_reasoning_recovery",
+        "pending_approval": {
+            "action": "RESCHEDULE_PRODUCTION",
+            "context": pending_context,
+            "preview": {
+                "goal_type": "PROMISE_RECOVERY",
+                "sales_order_id": goal.get("sales_order_id"),
+                "kind": "optimize",
+                "scope": "AFFECTED",
+                "mode": "BOTTLENECK",
+                "disruption": disruption,
+                "original_promised_date": requested_date,
+                "current_promised_date": current_promised_date,
+                "recommended_scenario": recommended,
+                "alternatives_considered": scenarios,
+                "recommendation_reasoning": comparison.reasoning,
+            },
+        },
+        "response": (
+            f"A disruption broke the promised delivery for this order (was {requested_date}, "
+            f"now projected {current_promised_date}). Recommending a bottleneck-mode reschedule — "
+            f"{comparison.reasoning} Its outcome is not guaranteed until executed. Awaiting your approval."
+        ),
+    }
+
+
+async def promise_reasoning_node(state: SalesState) -> dict:
+    """Phase 10's genuinely agentic workflow: given a delivery-feasibility
+    question, dynamically investigates authorized capabilities (bounded
+    loop), generates deterministic alternative scenarios, compares them,
+    and raises the SAME human-approval gate (create_order) composed_
+    execution_node already uses — no new approval system, no new
+    execution path. See the session report for the full design rationale."""
+    # Phase 11: goal_type distinguishes a fresh delivery-feasibility
+    # question (ORDER_PROMISE, the Phase 10 default — chat-originated,
+    # always this value) from a disruption-recovery episode
+    # (PROMISE_RECOVERY — originates from app/routers/disruptions.py,
+    # never from the chat graph). Both run through this SAME function;
+    # only the goal's own shape and the scenario-generation/approval
+    # branches below differ. This is the literal mechanism behind the
+    # brief's "one reasoning mechanism, different goal/context" instruction.
+    goal_type = state.get("promise_goal_type") or "ORDER_PROMISE"
+    goal: dict = {
+        "goal_type": goal_type,
+        "customer_name": state.get("customer_name"),
+        "customer_id": state.get("customer_id"),
+        "product_name": state.get("product_name"),
+        "product_id": state.get("product_id"),
+        "quantity": state.get("quantity"),
+        "requested_deadline": state.get("requested_deadline"),
+        "user_message": state.get("user_message"),
+    }
+    if goal_type == "PROMISE_RECOVERY":
+        # Already-known, already-committed facts from the disruption event
+        # itself (see checkPromiseImpact, scheduling-service/src/index.ts)
+        # — never re-derived or guessed here.
+        goal["disruption"] = state.get("promise_disruption")
+        goal["current_result"] = state.get("promise_current_result")
+        goal["production_order_id"] = state.get("promise_production_order_id")
+        goal["plant_id"] = state.get("promise_plant_id")
+        goal["sales_order_id"] = state.get("promise_sales_order_id")
+
+    if not goal["product_id"] or not goal["quantity"]:
+        question = (
+            "I need a specific product and quantity to assess whether we can deliver it — "
+            "could you confirm both?"
+        )
+        return {
+            "needs_clarification": True,
+            "clarification_question": question,
+            "status": "NEEDS_CLARIFICATION",
+            "response": question,
+            "promise_goal": goal,
+            "promise_trace": [],
+        }
+
+    from app.config import MANUFACTURING_PRODUCT_IDS
+
+    manufacturing_product_id = MANUFACTURING_PRODUCT_IDS.get(goal["product_name"] or "")
+
+    trace: list[dict] = []
+    observations: dict[str, dict] = {}
+    called: set[str] = set()
+    iteration_count = 0
+    tool_call_count = 0
+
+    available = investigable_capabilities()
+    if manufacturing_product_id is None:
+        # Capacity/production-requirements capabilities are meaningless
+        # with no manufacturing master-data mapping at all — excluded from
+        # the offered set rather than offered and guaranteed to fail.
+        available = [c for c in available if c.name not in ("inspect_production_requirements", "assess_capacity")]
+    # simulate_schedule/simulate_reschedule are reserved for the
+    # alternative-simulation phase below, never offered to the free-form
+    # capability-selector loop — simulate_schedule has a real side effect
+    # (a draft ProductionOrder); simulate_reschedule should only ever run
+    # for the one candidate (RESCHEDULE_BOTTLENECK) promise_options_agent
+    # deliberately chose to investigate, not as a free-form "go check
+    # something" pick.
+    available = [c for c in available if c.name not in ("simulate_schedule", "simulate_reschedule")]
+    # inspect_affected_orders needs a real production_order_id to be
+    # usable at all (its own precondition check returns a clean failure
+    # otherwise — see manufacturing_capabilities.py). For ORDER_PROMISE,
+    # none exists yet at this point (one is only ever created by
+    # simulate_schedule, below) — excluded. For PROMISE_RECOVERY, the
+    # disrupted order's production_order_id already exists and this
+    # capability is genuinely useful evidence (who else shares its
+    # capacity) — offered.
+    if goal_type != "PROMISE_RECOVERY" or not goal.get("production_order_id"):
+        available = [c for c in available if c.name != "inspect_affected_orders"]
+
+    needs_clarification_result: dict | None = None
+    while iteration_count < MAX_PROMISE_REASONING_ITERATIONS and tool_call_count < MAX_PROMISE_TOOL_CALLS:
+        iteration_count += 1
+        remaining = [c for c in available if c.name not in called]
+        if not remaining:
+            break
+        decision = await capability_selector_agent(goal, observations, remaining)
+        if decision.action == "sufficient_information":
+            trace.append({"iteration": iteration_count, "decision": decision.model_dump()})
+            break
+        if decision.action == "need_clarification":
+            question = decision.clarification_question or "Could you clarify this request?"
+            trace.append({"iteration": iteration_count, "decision": decision.model_dump()})
+            needs_clarification_result = {
+                "needs_clarification": True,
+                "clarification_question": question,
+                "status": "NEEDS_CLARIFICATION",
+                "response": question,
+                "promise_goal": goal,
+                "promise_trace": trace,
+                "promise_iteration_count": iteration_count,
+                "promise_tool_call_count": tool_call_count,
+            }
+            break
+        # action == "call_capability" — re-validated against the actual
+        # authorized remaining set, never trusted from the model's own
+        # claim (the allow-list philosophy plan_executor.py already
+        # established, applied here to capability names).
+        cap_name = decision.capability
+        if cap_name not in {c.name for c in remaining}:
+            trace.append({
+                "iteration": iteration_count, "decision": decision.model_dump(),
+                "rejected": f"'{cap_name}' is not an authorized, not-yet-called capability.",
+            })
+            continue
+        call = CapabilityCall(capability=cap_name, arguments=_args_for_capability(cap_name, goal, manufacturing_product_id), reason=decision.reason)
+        result = await dispatch(call)
+        tool_call_count += 1
+        called.add(cap_name)
+        observations[cap_name] = result.model_dump()
+        trace.append({
+            "iteration": iteration_count, "decision": decision.model_dump(),
+            "capability_call": call.model_dump(), "result": result.model_dump(),
+        })
+
+    if needs_clarification_result is not None:
+        return needs_clarification_result
+
+    if goal_type == "PROMISE_RECOVERY":
+        return await _run_promise_recovery_scenarios(goal, trace, iteration_count, tool_call_count)
+
+    # --- deterministic feasibility + bounded alternative generation ---
+    inventory_data = observations.get("inspect_inventory", {}).get("data", {})
+    stock_total = inventory_data.get("stock_total", 0)
+    quantity = goal["quantity"]
+    requested_deadline = goal["requested_deadline"]
+    lead_time_days = state.get("lead_time_days")
+
+    scenarios: list[dict] = []
+
+    # Scenario A (brief §6/§7 "A. Stock + production split") is always
+    # computed — it's free (reuses inspect_inventory's result, already
+    # fetched above) and gives the comparison step a baseline even when
+    # it turns out trivially feasible from stock alone.
+    base_from_stock = min(stock_total, quantity)
+    base_to_make = quantity - base_from_stock
+    scenario_a = await _simulate_promise_scenario(
+        scenario_id="STOCK_PLUS_PRODUCTION", quantity_from_stock=base_from_stock, quantity_to_make=base_to_make,
+        quantity_from_vendor=0, requested_date=requested_deadline, product_id=goal["product_id"],
+        product_name=goal["product_name"], manufacturing_product_id=manufacturing_product_id, lead_time_days=lead_time_days,
+    )
+    scenarios.append(scenario_a)
+    trace.append({"scenario_generated": {k: v for k, v in scenario_a.items() if k not in ("vendor_plan", "raw_production_plan")}})
+
+    options_decision = await promise_options_agent(goal, observations)
+    trace.append({"promise_options_decision": options_decision.model_dump()})
+
+    for alternative in options_decision.alternatives_to_investigate:
+        if alternative == "STOCK_PLUS_PRODUCTION":
+            continue  # already computed as scenario_a above
+        if alternative == "PRODUCTION_ONLY":
+            scenario = await _simulate_promise_scenario(
+                scenario_id="PRODUCTION_ONLY", quantity_from_stock=0, quantity_to_make=quantity, quantity_from_vendor=0,
+                requested_date=requested_deadline, product_id=goal["product_id"], product_name=goal["product_name"],
+                manufacturing_product_id=manufacturing_product_id, lead_time_days=lead_time_days,
+            )
+        elif alternative == "VENDOR":
+            vendor_split = compute_vendor_split(quantity, stock_total)
+            scenario = await _simulate_promise_scenario(
+                scenario_id="VENDOR", quantity_from_stock=vendor_split["from_stock"], quantity_to_make=0,
+                quantity_from_vendor=vendor_split["from_vendor"],
+                requested_date=requested_deadline, product_id=goal["product_id"], product_name=goal["product_name"],
+                manufacturing_product_id=manufacturing_product_id, lead_time_days=lead_time_days,
+            )
+        elif alternative == "LATER_DATE":
+            later_date = (
+                (datetime.date.fromisoformat(requested_deadline[:10]) + datetime.timedelta(days=LATER_DATE_PUSH_OUT_DAYS)).isoformat()
+                if requested_deadline else None
+            )
+            scenario = await _simulate_promise_scenario(
+                scenario_id="LATER_DATE", quantity_from_stock=base_from_stock, quantity_to_make=base_to_make, quantity_from_vendor=0,
+                requested_date=later_date, product_id=goal["product_id"], product_name=goal["product_name"],
+                manufacturing_product_id=manufacturing_product_id, lead_time_days=lead_time_days,
+            )
+            scenario["assumptions"] = [f"Evaluated against a delivery date {LATER_DATE_PUSH_OUT_DAYS} days later than requested."]
+        else:
+            continue
+        scenarios.append(scenario)
+        trace.append({"scenario_generated": {k: v for k, v in scenario.items() if k not in ("vendor_plan", "raw_production_plan")}})
+
+    comparison = await scenario_comparison_agent(scenarios)
+    trace.append({"scenario_comparison_decision": comparison.model_dump()})
+
+    # Cleanup (brief §7's own stated requirement, mirroring
+    # resolve_sales_order_approval's existing REJECTED-branch cleanup):
+    # every scenario that created a real draft ProductionOrder but was NOT
+    # the recommended one must not be left behind competing for capacity.
+    for scenario in scenarios:
+        production_order_id = scenario.get("production_order_id")
+        if production_order_id and scenario["scenario_id"] != comparison.recommended_scenario_id:
+            try:
+                await mfg.delete_production_order(production_order_id)
+            except Exception as exc:
+                logger.error(
+                    "Cleanup failed: stale ProductionOrder %s was not deleted for non-chosen scenario %s",
+                    production_order_id, scenario["scenario_id"], exc_info=True,
+                )
+
+    recommended = next((s for s in scenarios if s["scenario_id"] == comparison.recommended_scenario_id), None)
+
+    base_update = {
+        "promise_goal": goal,
+        "promise_trace": trace,
+        "promise_scenarios": scenarios,
+        "promise_recommendation": {**comparison.model_dump(), "scenario": recommended},
+        "promise_iteration_count": iteration_count,
+        "promise_tool_call_count": tool_call_count,
+    }
+
+    if recommended is None:
+        # Brief §13 — never convert INFEASIBLE to FEASIBLE. No scenario
+        # was recommended (every one was infeasible or none were
+        # simulated) — reported honestly, no approval raised, nothing to
+        # execute.
+        return {
+            **base_update,
+            "status": "COMPLETED",
+            "response": (
+                f"No feasible option was found to deliver {quantity} x {goal['product_name']} "
+                f"by {requested_deadline or 'the requested date'}. {comparison.reasoning}"
+            ),
+        }
+
+    # Build the SAME pending_approval context shape composed_execution_node
+    # already produces for create_order — reusing create_order's existing
+    # hash/revalidation/execution path verbatim (Stage 04), not a new
+    # action type.
+    context = {
+        "customer_id": goal["customer_id"],
+        "customer_name": goal["customer_name"],
+        "customer_active": state.get("customer_active"),
+        "product_id": goal["product_id"],
+        "product_name": goal["product_name"],
+        "quantity": quantity,
+        "price": state.get("price"),
+        "requested_deadline": requested_deadline,
+        "can_produce": state.get("can_produce"),
+        "product_configurable": state.get("product_configurable"),
+        "lead_time_days": lead_time_days,
+        "stock": state.get("stock"),
+        "user_message": state.get("user_message"),
+    }
+    plan_result = execute_action_plan([], context, intent="create_order")
+    update: dict = {**base_update, "entry_type": "COMPOSED_PLAN", "routed_via": "promise_reasoning", "status": plan_result["status"]}
+
+    stock_checked = False
+    for step in plan_result["executed"]:
+        if step["action"] == "check_credit":
+            if step["result"].get("checked", True):
+                update["credit_checked"] = True
+                update["credit_within_limit"] = step["succeeded"]
+            else:
+                update["credit_checked"] = False
+        elif step["action"] == "check_stock":
+            stock_checked = True
+            update["stock_checked"] = True
+            update["stock_sufficient"] = step["succeeded"]
+
+    if plan_result["status"] != "AWAITING_APPROVAL":
+        # check_credit failed the hard gate — same real-world outcome as
+        # composed_execution_node's own credit_failed branch, reported
+        # honestly rather than silently downgraded to "complete."
+        update["status"] = "ON_CREDIT_HOLD" if update.get("credit_checked") and not update.get("credit_within_limit") else plan_result["status"]
+        update["response"] = (
+            f"Investigated {recommended['label']} for {quantity} x {goal['product_name']} — "
+            f"feasible by {recommended.get('projected_delivery_date') or 'an undetermined date'}, "
+            f"but credit could not be cleared, so no order was created."
+        )
+        return update
+
+    pending = plan_result["pending_action"]
+    fulfillment_strategy = (
+        "MTS" if recommended["quantity_to_make"] == 0 and recommended["quantity_from_vendor"] == 0
+        else "THIRD_PARTY" if recommended["quantity_from_vendor"] > 0
+        else "HYBRID" if recommended["quantity_from_stock"] > 0
+        else "MTO"
+    )
+    # The FULL raw plan dict from _plan_production_via_manufacturing_services
+    # (see _simulate_promise_scenario's own comment) — not a reconstructed
+    # subset. _execute_production_plan (reached post-approval, via
+    # run_post_approval_fulfillment's "replay, not re-decision" branch)
+    # directly indexes plan["verdict"] and plan.get("procurement_plan");
+    # only this exact shape is safe to hand it.
+    production_plan = recommended.get("raw_production_plan") if recommended["quantity_to_make"] > 0 else None
+    vendor_plan = recommended.get("vendor_plan")
+
+    update["pending_approval"] = {
+        "action": pending["action"],
+        "context": {
+            **pending["context"],
+            "fulfillment": {
+                "strategy": fulfillment_strategy,
+                "reasoning": comparison.reasoning,
+                "from_stock": recommended["quantity_from_stock"],
+                "to_produce": recommended["quantity_to_make"] + recommended["quantity_from_vendor"],
+            },
+            "production_plan": production_plan,
+            "vendor_plan": vendor_plan,
+        },
+        "preview": {
+            "goal_type": "ORDER_PROMISE",
+            "customer_name": goal["customer_name"],
+            "product_name": goal["product_name"],
+            "quantity": quantity,
+            "requested_deadline": requested_deadline,
+            "recommended_scenario": recommended,
+            "alternatives_considered": scenarios,
+            "recommendation_reasoning": comparison.reasoning,
+            "credit_within_limit": update.get("credit_within_limit"),
+            "stock_sufficient": update.get("stock_sufficient") if stock_checked else None,
+        },
+    }
+    update["response"] = (
+        f"Investigated {len(scenarios)} option(s) for delivering {quantity} x {goal['product_name']} "
+        f"to {goal['customer_name']} by {requested_deadline or 'the requested date'}. "
+        f"Recommending {recommended['label']} — {comparison.reasoning} Awaiting your approval before anything is created."
+    )
+    return update
+
+
 def _execute_vendor_sourcing(state: SalesState, vendor_plan: dict) -> dict:
     """Replays an already-decided vendor plan — no re-decision, no new
     LLM call. Mirrors third_party_node's tail exactly."""
@@ -2205,6 +3025,9 @@ def _execute_vendor_sourcing(state: SalesState, vendor_plan: dict) -> dict:
     if not order["created"]:
         return {
             "status": "FULFILLMENT_FAILED",
+            # Exceptions/Holds: the real reason, for the caller to record
+            # on the BUY/DROP_SHIP FulfillmentLine.
+            "reason": order["reason"],
             "response": state["response"] + f" Trading order failed: {order['reason']}",
         }
 
@@ -2237,226 +3060,18 @@ def _execute_vendor_sourcing(state: SalesState, vendor_plan: dict) -> dict:
     }
 
 
-async def mto_node(state: SalesState):
-    assessment = _assess_materials(state["product_id"], state["fulfillment_to_produce"])
-    has_shortage = bool(assessment["shortages"])
-    initial_status = "AWAITING_MATERIALS" if has_shortage else "PLANNED"
-
-    result = erp.create_production_order(
-        sales_order_id=state["sales_order_id"],
-        product_id=state["product_id"],
-        product_name=state["product_name"],
-        quantity=state["fulfillment_to_produce"],
-        lead_time_days=state["lead_time_days"],
-        initial_status=initial_status,
-    )
-    if not result["created"]:
-        return {
-            "status": "FULFILLMENT_FAILED",
-            "response": state["response"] + f" Production order failed: {result['reason']}",
-        }
-
-    procurement_note = await _procure_shortages(
-        assessment, result["production_order_id"], result["target_completion_date"]
-    )
-    return {
-        "status": "IN_PRODUCTION" if not has_shortage else "AWAITING_MATERIALS",
-        "response": state["response"] + (
-            f" Production Order {result['production_order_id']} created "
-            f"({result['status']}), target completion {result['target_completion_date']}."
-        ) + procurement_note,
-    }
-
-
-# Configuration Agent extracts what the customer actually asked for from
-# their original message — it does not validate those options are real
-# (no BOM/configuration-rules data exists to validate against yet), it
-# only turns free text into structured data for the production record.
-async def cto_node(state: SalesState):
-    configuration = await configuration_agent(
-        product_name=state["product_name"],
-        user_message=state["user_message"],
-    )
-    if configuration.options:
-        options_text = "; ".join(f"{o.attribute}: {o.value}" for o in configuration.options)
-        configuration_notes = f"Requested configuration: {options_text}. {configuration.notes}"
-    else:
-        configuration_notes = configuration.notes
-
-    # Checked against the base product's BOM — configuration-specific
-    # variants (e.g. different RAM per option) aren't modeled, same honest
-    # limit as Configuration Agent not validating the options themselves.
-    assessment = _assess_materials(state["product_id"], state["fulfillment_to_produce"])
-    has_shortage = bool(assessment["shortages"])
-    initial_status = "AWAITING_MATERIALS" if has_shortage else "PLANNED"
-
-    result = erp.create_production_order(
-        sales_order_id=state["sales_order_id"],
-        product_id=state["product_id"],
-        product_name=state["product_name"],
-        quantity=state["fulfillment_to_produce"],
-        lead_time_days=state["lead_time_days"],
-        requires_configuration=True,
-        configuration_notes=configuration_notes,
-        initial_status=initial_status,
-    )
-
-    base_update = {
-        "configuration_options": [o.model_dump() for o in configuration.options],
-    }
-    if result["created"]:
-        procurement_note = await _procure_shortages(
-            assessment, result["production_order_id"], result["target_completion_date"]
-        )
-        return {
-            **base_update,
-            "status": "IN_PRODUCTION" if not has_shortage else "AWAITING_MATERIALS",
-            "response": state["response"] + (
-                f" Production Order {result['production_order_id']} created "
-                f"({configuration_notes}), target completion "
-                f"{result['target_completion_date']}."
-            ) + procurement_note,
-        }
-    return {
-        **base_update,
-        "status": "FULFILLMENT_FAILED",
-        "response": state["response"] + f" Production order failed: {result['reason']}",
-    }
-
-
-async def hybrid_node(state: SalesState):
-    reservation = {"reserved": True, "allocations": [], "reservation_id": None}
-    if state["fulfillment_from_stock"] > 0:
-        reservation = erp.reserve_stock(
-            sales_order_id=state["sales_order_id"],
-            product_id=state["product_id"],
-            product_name=state["product_name"],
-            quantity=state["fulfillment_from_stock"],
-        )
-
-    production = {"created": True, "production_order_id": None, "target_completion_date": None}
-    if state["fulfillment_to_produce"] > 0:
-        production = erp.create_production_order(
-            sales_order_id=state["sales_order_id"],
-            product_id=state["product_id"],
-            product_name=state["product_name"],
-            quantity=state["fulfillment_to_produce"],
-            lead_time_days=state["lead_time_days"],
-        )
-
-    if reservation["reserved"] and production["created"]:
-        parts = []
-        billing_update = {"delivery_id": None, "delivery_status": None, "confirmed_delivery_date": None, "invoice_id": None, "invoice_status": None, "invoice_amount": None, "note": ""}
-        if state["fulfillment_from_stock"] > 0:
-            parts.append(
-                f"reserved {state['fulfillment_from_stock']} from stock "
-                f"(reservation {reservation['reservation_id']})"
-            )
-            # Only the stock leg is actually ready to ship/bill now — the
-            # produced leg isn't real yet.
-            billing_update = await _deliver_and_bill(state, state["fulfillment_from_stock"])
-        if state["fulfillment_to_produce"] > 0:
-            parts.append(
-                f"Production Order {production['production_order_id']} created "
-                f"for the remaining {state['fulfillment_to_produce']}"
-            )
-        return {
-            "delivery_id": billing_update["delivery_id"],
-            "delivery_status": billing_update["delivery_status"],
-            "confirmed_delivery_date": billing_update["confirmed_delivery_date"],
-            "invoice_id": billing_update["invoice_id"],
-            "invoice_status": billing_update["invoice_status"],
-            "invoice_amount": billing_update["invoice_amount"],
-            "status": "PARTIALLY_IN_PRODUCTION",
-            "response": state["response"] + " " + "; ".join(parts) + "." + billing_update["note"],
-        }
-
-    reasons = []
-    if not reservation["reserved"]:
-        reasons.append(reservation.get("reason", "stock reservation failed"))
-    if not production["created"]:
-        reasons.append(production.get("reason", "production order failed"))
-    return {
-        "status": "FULFILLMENT_FAILED",
-        "response": state["response"] + " Fulfillment failed: " + "; ".join(reasons),
-    }
-
-
-# Trading — sourcing a finished product from a vendor instead of
-# manufacturing it. Reuses Procurement Agent's exact vendor lead-time/cost
-# tradeoff logic: choosing a vendor for a finished product is the same
-# decision as choosing one for a raw material component, just a different
-# level of the same problem. Only real vendor data makes this possible —
-# most products have none (this company makes what it sells for those),
-# so it honestly falls back to manual handling rather than faking a source.
-async def third_party_node(state: SalesState):
-    vendors = erp.get_vendors_for_product(state["product_id"])
-    if not vendors:
-        return await unfulfillable_node(state)
-
-    target_completion_date = compute_target_completion_date(state["lead_time_days"])
-    decision = await procurement_agent(
-        shortages=[{
-            "component_id": state["product_id"],
-            "component_name": state["product_name"],
-            "shortage": state["fulfillment_to_produce"],
-            "vendors": vendors,
-        }],
-        target_completion_date=target_completion_date,
-    )
-    if not decision.choices:
-        return await unfulfillable_node(state)
-
-    choice = decision.choices[0]
-    vendor = next((v for v in vendors if v["vendor_id"] == choice.vendor_id), vendors[0])
-
-    # The real distinction (agreed with the user, matching how SAP itself
-    # separates these): does THIS vendor ship straight to the customer,
-    # or through our own warehouse first? Decided here, deterministically,
-    # from real vendor-master data — not guessed by the LLM, and not
-    # knowable before a specific vendor was actually chosen.
-    drop_ship = bool(vendor.get("ships_direct_to_customer"))
-
-    order = create_trading_order(
-        sales_order_id=state["sales_order_id"],
-        product_id=state["product_id"],
-        product_name=state["product_name"],
-        vendor_id=vendor["vendor_id"],
-        vendor_name=vendor["vendor_name"],
-        quantity=state["fulfillment_to_produce"],
-        unit_cost=vendor["unit_cost"],
-        lead_time_days=vendor["lead_time_days"],
-        drop_ship=drop_ship,
-    )
-    if not order["created"]:
-        return {
-            "status": "FULFILLMENT_FAILED",
-            "response": state["response"] + f" Trading order failed: {order['reason']}",
-        }
-
-    if drop_ship:
-        strategy_label = "THIRD_PARTY"
-        route_note = (
-            f"{vendor['vendor_name']} ships this directly to the customer — it never enters "
-            f"our warehouse or our inventory."
-        )
-    else:
-        strategy_label = "TRADING"
-        route_note = (
-            f"{vendor['vendor_name']} ships this to us first — it's received, quality-checked, "
-            f"and warehoused into our own inventory before we dispatch it to the customer."
-        )
-
-    return {
-        "fulfillment_strategy": strategy_label,
-        "status": "SOURCING",
-        "response": state["response"] + (
-            f" Sourced from vendor: Trading Order {order['trading_order_id']} — "
-            f"{state['fulfillment_to_produce']} x {state['product_name']} from "
-            f"{vendor['vendor_name']}, arriving {order['expected_arrival']}. "
-            f"{choice.reasoning} {route_note}"
-        ),
-    }
+# Stage 03D (ungated-path convergence): mto_node/cto_node/hybrid_node/
+# third_party_node — the old DIRECT_SALES-only execution implementations
+# — were removed here. They wrote Excel-only ProductionOrder/
+# StockReservation/TradingOrder rows with no idempotency support, no real
+# scheduling, and no human approval. The gated path's own equivalents —
+# _execute_production_plan (real Postgres ProductionOrder via APS
+# Platform, real scheduling, real idempotency) and
+# _execute_vendor_sourcing (same vendor-plan replay, real FulfillmentLine
+# tracking) — already do everything these did, and now run for every
+# order regardless of which classifier noticed it. configuration_agent/
+# procurement_agent/fulfillment_agent's reasoning is unchanged — it
+# still runs pre-approval in composed_execution_node, exactly as before.
 
 
 # The rest of Trading's lifecycle — Goods Receipt / QC / Warehousing —
@@ -2584,7 +3199,6 @@ builder.add_node("context", context_node)
 builder.add_node("composed_execution", composed_execution_node)
 builder.add_node("process", process_node)
 builder.add_node("pre_sales", pre_sales_node)
-builder.add_node("direct_sales", direct_sales_node)
 builder.add_node("post_sales", post_sales_node)
 builder.add_node("service", service_node)
 builder.add_node("subscription", subscription_node)
@@ -2592,16 +3206,14 @@ builder.add_node("project", project_node)
 builder.add_node("export", export_node)
 builder.add_node("consignment", consignment_node)
 builder.add_node("financial", financial_node)
-builder.add_node("credit_check", credit_check_node)
-builder.add_node("credit_hold", credit_hold_node)
-builder.add_node("fulfillment_decision", fulfillment_decision_node)
-builder.add_node("mts", mts_node)
-builder.add_node("mto", mto_node)
-builder.add_node("cto", cto_node)
-builder.add_node("hybrid", hybrid_node)
-builder.add_node("third_party", third_party_node)
-builder.add_node("unfulfillable", unfulfillable_node)
 builder.add_node("not_implemented", not_implemented_node)
+# Stage 03D: "direct_sales"/"credit_check"/"credit_hold"/
+# "fulfillment_decision"/"mts"/"mto"/"cto"/"hybrid"/"third_party"/
+# "unfulfillable" graph nodes removed — entry_router now sends
+# DIRECT_SALES straight into "composed_execution" (see its edge map
+# below). fulfillment_decision_node/mts_node/unfulfillable_node remain
+# as plain functions, called directly from run_post_approval_fulfillment
+# — they just aren't LangGraph nodes of their own anymore.
 
 builder.add_edge(START, "intent")
 builder.add_conditional_edges(
@@ -2626,6 +3238,7 @@ builder.add_edge("unclear", END)
 builder.add_edge("unsupported", END)
 builder.add_node("reschedule_request", reschedule_request_node)
 builder.add_node("inventory_quality_request", inventory_quality_request_node)
+builder.add_node("promise_reasoning", promise_reasoning_node)
 builder.add_conditional_edges(
     "context",
     composed_execution_router,
@@ -2633,19 +3246,30 @@ builder.add_conditional_edges(
         "composed_execution": "composed_execution",
         "reschedule_request": "reschedule_request",
         "inventory_quality_request": "inventory_quality_request",
+        "promise_reasoning": "promise_reasoning",
         "process": "process",
     },
 )
 builder.add_edge("composed_execution", END)
 builder.add_edge("reschedule_request", END)
 builder.add_edge("inventory_quality_request", END)
+builder.add_edge("promise_reasoning", END)
 builder.add_conditional_edges(
     "process",
     entry_router,
     {
         "unclear": "unclear",
         "pre_sales": "pre_sales",
-        "direct_sales": "direct_sales",
+        # Stage 03D: DIRECT_SALES used to go to its own unapproved
+        # execution chain ("direct_sales" -> credit_check -> credit_hold/
+        # fulfillment_decision -> mts/mto/cto/hybrid/third_party/
+        # unfulfillable, all removed). entry_router's own function body
+        # is unchanged — it still returns the string "direct_sales" for
+        # this branch — only where that key routes to has changed: into
+        # the same approval-gated machinery every other order-creating
+        # request already uses (see composed_execution_node's
+        # via_direct_sales handling).
+        "direct_sales": "composed_execution",
         "post_sales": "post_sales",
         "service": "service",
         "subscription": "subscription",
@@ -2664,41 +3288,6 @@ builder.add_edge("project", END)
 builder.add_edge("export", END)
 builder.add_edge("consignment", END)
 builder.add_edge("financial", END)
-builder.add_conditional_edges(
-    "direct_sales",
-    direct_sales_router,
-    {
-        "end": END,
-        "credit_check": "credit_check",
-    },
-)
-builder.add_conditional_edges(
-    "credit_check",
-    credit_router,
-    {
-        "credit_hold": "credit_hold",
-        "fulfillment_decision": "fulfillment_decision",
-    },
-)
-builder.add_edge("credit_hold", END)
-builder.add_conditional_edges(
-    "fulfillment_decision",
-    fulfillment_router,
-    {
-        "mts": "mts",
-        "mto": "mto",
-        "cto": "cto",
-        "hybrid": "hybrid",
-        "third_party": "third_party",
-        "unfulfillable": "unfulfillable",
-    },
-)
-builder.add_edge("mts", END)
-builder.add_edge("mto", END)
-builder.add_edge("cto", END)
-builder.add_edge("hybrid", END)
-builder.add_edge("third_party", END)
-builder.add_edge("unfulfillable", END)
 builder.add_edge("not_implemented", END)
 
 graph = builder.compile()

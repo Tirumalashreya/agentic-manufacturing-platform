@@ -4,6 +4,13 @@ import openpyxl
 
 from app.tools.audit_tools import record_audit_event
 from app.tools.idempotency_tools import get_idempotent_result, record_idempotent_result
+# Stage 03F-A: this module used to carry its own independent copy of
+# find_sales_order (same SalesOrders sheet, same lookup, never
+# consolidated with sales_tools.py's) — re-exported here instead, so
+# every existing caller of post_sales_tools.find_sales_order (graph.py,
+# entity_resolver.py, this module's own return-eligibility check) keeps
+# working unchanged, with exactly one real implementation left to update.
+from app.tools.sales_tools import find_sales_order
 
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
@@ -71,18 +78,6 @@ def _previously_returned_quantity(referenced_order_id: str, product_id: str, wb=
         ):
             total += row_quantity or 0
     return total
-
-
-def find_sales_order(sales_order_id: str) -> dict | None:
-    wb = openpyxl.load_workbook(MOCK_ERP_PATH)
-    if "SalesOrders" not in wb.sheetnames:
-        return None
-    sheet = wb["SalesOrders"]
-    headers = [cell.value for cell in next(sheet.iter_rows(max_row=1))]
-    for row in sheet.iter_rows(min_row=2, values_only=True):
-        if row[0] == sales_order_id:
-            return dict(zip(headers, row))
-    return None
 
 
 def process_post_sales_action(

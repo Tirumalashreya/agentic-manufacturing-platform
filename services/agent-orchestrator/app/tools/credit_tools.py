@@ -14,13 +14,16 @@ _SALES_ORDER_TOTAL_AMOUNT_COL = 7
 # what's been paid, but there's no payment tracking yet, so every other
 # confirmed order counts as outstanding exposure.
 #
-# exclude_sales_order_id matters because the caller (credit_check_node)
-# creates the Sales Order FIRST, then checks credit against it — by the
-# time this runs, the order being checked is already a row in the sheet.
-# Without excluding it here, its own total_amount got counted once as
-# "existing" exposure and a second time via new_order_amount, silently
-# doubling every order's apparent exposure and pushing otherwise-valid
-# orders onto a credit hold they never should have hit.
+# exclude_sales_order_id matters for any caller that creates the Sales
+# Order FIRST, then checks credit against it — by the time this runs,
+# the order being checked is already a row in the sheet. Without
+# excluding it here, its own total_amount got counted once as "existing"
+# exposure and a second time via new_order_amount, silently doubling
+# every order's apparent exposure and pushing otherwise-valid orders
+# onto a credit hold they never should have hit. (The gated path's own
+# check_credit, plan_executor.py's _run_check_credit, runs check_credit
+# BEFORE create_order and so never needs to pass this at all — it's kept
+# for any caller with the opposite ordering.)
 def check_credit(
     customer_id: str | None,
     credit_limit: float | None,

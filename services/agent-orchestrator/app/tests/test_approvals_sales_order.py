@@ -29,6 +29,8 @@ from fastapi.testclient import TestClient
 os.environ.setdefault("INTERNAL_SERVICE_TOKEN", "test-token-for-approvals-tests")
 
 from app import db  # noqa: E402  (must import after setting the token above)
+from app.approval_proposal import compute_proposal_hash  # noqa: E402
+from app.integrations.manufacturing_services import AGENT_ORCHESTRATOR_ENTERPRISE_ID  # noqa: E402
 from app.main import app  # noqa: E402
 from app.schemas.billing import BillingDecision
 from app.schemas.fulfillment import FulfillmentDecision
@@ -56,7 +58,14 @@ def _context(**overrides):
 
 async def _pending(context: dict) -> str:
     run_id = await db.create_run()
-    await db.save_pending_approval(run_id=run_id, action="create_order", payload=context, requested_by="test-requester")
+    await db.save_pending_approval(
+        run_id=run_id,
+        action="create_order",
+        payload=context,
+        requested_by="test-requester",
+        enterprise_id=AGENT_ORCHESTRATOR_ENTERPRISE_ID,
+        proposal_hash=compute_proposal_hash("create_order", context),
+    )
     return run_id
 
 
@@ -161,6 +170,45 @@ async def test_reject_creates_nothing():
     body = response.json()
     assert body["created"] is False
     assert body["status"] == "REJECTED"
+
+
+@pytest.mark.asyncio
+async def test_reject_with_no_stale_production_order_has_no_cleanup_warning():
+    # No production_plan at all (the MTS/plain case) — nothing to clean
+    # up, so no cleanup_warning key should appear (no regression on the
+    # ordinary reject path).
+    run_id = await _pending(_context())
+    response = _resolve(run_id, "REJECTED")
+
+    assert response.status_code == 200
+    assert "cleanup_warning" not in response.json()
+
+
+@pytest.mark.asyncio
+async def test_reject_cleanup_failure_is_reported_not_swallowed():
+    # Stage 01 (Fail Loud, Fail Closed) — ARCHITECTURE_BASELINE.md §5/§11:
+    # this is the bare `except Exception: pass` previously at this
+    # endpoint's REJECTED branch. A failed cleanup of the stale, orphaned
+    # ProductionOrder must be logged and surfaced — never silently
+    # dropped — while the rejection itself (already real and committed)
+    # must not be reported as having failed.
+    context = _context(production_plan={"production_order_id": "po-stale-reject-1"})
+    run_id = await _pending(context)
+    with patch(
+        "app.routers.approvals.mfg.delete_production_order",
+        side_effect=RuntimeError("order-service unreachable"),
+    ) as delete_mock:
+        response = _resolve(run_id, "REJECTED")
+
+    assert response.status_code == 200
+    body = response.json()
+    # The rejection itself is NOT reported as failed.
+    assert body["status"] == "REJECTED"
+    assert body["created"] is False
+    # The cleanup failure is visible, not hidden.
+    assert "po-stale-reject-1" in body["cleanup_warning"]
+    assert "order-service unreachable" in body["cleanup_warning"]
+    delete_mock.assert_called_once_with("po-stale-reject-1")
 
 
 @pytest.mark.asyncio

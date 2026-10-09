@@ -1,4 +1,16 @@
 # app/tests/test_fulfillment_execution.py
+#
+# Stage 03D (ungated-path convergence): these tests used to drive the
+# live graph through the old DIRECT_SALES path (mts_node/cto_node/
+# third_party_node, all auto-executing with zero approval) and assert a
+# final, fully-executed status (BILLED/IN_PRODUCTION/SOURCING). That path
+# is gone — composed_execution_node now handles every order-creating
+# request, DIRECT_SALES-classified or not, and stops at AWAITING_APPROVAL
+# (or a real CUSTOMER_NOT_FOUND/ON_CREDIT_HOLD) before anything commits.
+# These tests now assert the same real fulfillment-strategy decision —
+# computed identically, pre-approval, by composed_execution_node's own
+# fulfillment_agent/configuration_agent/procurement_agent calls — shows
+# up correctly in the approval preview, with nothing executed yet.
 import pytest
 
 from app.graph import graph
@@ -15,15 +27,16 @@ async def test_full_stock_order_is_fulfilled_from_stock():
         "user_message": "Zenith Enterprises wants to order 5 wireless mice now."
     })
 
-    assert result["entry_type"] == "DIRECT_SALES"
-    assert result["sales_order_id"] is not None
-    assert result["fulfillment_strategy"] == "MTS"
-    # BILLED once Delivery+Billing were wired in (invoice created
-    # automatically after a stock reservation) — this test predated that
-    # and was never re-verified live under it until now.
-    assert result["status"] == "BILLED"
-    assert "Reserved from stock" in result["response"]
-    assert "invoiced" in result["response"]
+    assert result["entry_type"] == "COMPOSED_PLAN"
+    assert result["status"] in ("AWAITING_APPROVAL", "CUSTOMER_NOT_FOUND", "ON_CREDIT_HOLD")
+    assert result.get("sales_order_id") is None
+
+    if result["status"] == "AWAITING_APPROVAL":
+        fulfillment = result["pending_approval"]["preview"]["fulfillment"]
+        assert fulfillment["strategy"] == "MTS"
+        assert fulfillment["from_stock"] + fulfillment["to_produce"] == 5
+        # MTS needs no production plan at all — nothing to produce.
+        assert result["pending_approval"]["context"]["production_plan"] is None
 
 
 @pytest.mark.asyncio
@@ -35,24 +48,29 @@ async def test_configurable_product_order_requires_configuration():
         "user_message": "Zenith Enterprises wants to order 3 Laptop - Standard units now."
     })
 
-    assert result["entry_type"] == "DIRECT_SALES"
-    assert result["fulfillment_strategy"] == "CTO"
-    assert result["status"] == "IN_PRODUCTION"
-    # "requires configuration" was a hardcoded literal from before
-    # Configuration Agent existed — it now generates real notes instead,
-    # so check for the actual current signal: a Production Order that
-    # captured a configuration_options result (empty list is still valid —
-    # it means the customer stated no specific options).
-    assert "Production Order" in result["response"]
-    assert "configuration_options" in result
-    assert isinstance(result["configuration_options"], list)
+    assert result["entry_type"] == "COMPOSED_PLAN"
+    assert result["status"] in ("AWAITING_APPROVAL", "CUSTOMER_NOT_FOUND", "ON_CREDIT_HOLD")
+    assert result.get("sales_order_id") is None
+
+    if result["status"] == "AWAITING_APPROVAL":
+        fulfillment = result["pending_approval"]["preview"]["fulfillment"]
+        assert fulfillment["strategy"] == "CTO"
+        # The real production plan (BOM/routing/capacity, computed via
+        # APS Platform) exists in the preview the human sees — not yet
+        # committed (no real ProductionOrder survives a reject). An
+        # empty/None configuration_notes is still valid — it means the
+        # customer stated no specific options, same honest case the old
+        # cto_node's empty configuration_options list used to represent.
+        production_plan = result["pending_approval"]["context"]["production_plan"]
+        assert production_plan is not None
+        assert "configuration_notes" in production_plan
 
 
 @pytest.mark.asyncio
 async def test_no_stock_third_party_is_sourced_from_vendor():
     # Webcam HD: not configurable, can_produce=False — a request beyond
-    # real stock forces THIRD_PARTY, which now has a real execution path
-    # via ProductVendors (two vendors seeded for this product).
+    # real stock forces THIRD_PARTY, which has a real vendor pick via
+    # ProductVendors (two vendors seeded for this product).
     #
     # The quantity is computed from *actual current* stock rather than a
     # hardcoded number: mock_erp.xlsx is shared, ever-mutating state (this
@@ -86,30 +104,30 @@ async def test_no_stock_third_party_is_sourced_from_vendor():
         "user_message": f"Zenith Enterprises wants to order {quantity} Webcam HD units now."
     })
 
-    assert result["entry_type"] == "DIRECT_SALES"
-    assert result["fulfillment_strategy"] == "THIRD_PARTY"
-    assert result["status"] == "SOURCING"
-    assert "Trading Order" in result["response"]
-    assert "Sourced from vendor" in result["response"]
+    assert result["entry_type"] == "COMPOSED_PLAN"
+    assert result["status"] in ("AWAITING_APPROVAL", "CUSTOMER_NOT_FOUND", "ON_CREDIT_HOLD")
+    assert result.get("sales_order_id") is None
+
+    if result["status"] == "AWAITING_APPROVAL":
+        fulfillment = result["pending_approval"]["preview"]["fulfillment"]
+        assert fulfillment["strategy"] == "THIRD_PARTY"
+        vendor_plan = result["pending_approval"]["context"]["vendor_plan"]
+        assert vendor_plan is not None
+        assert vendor_plan.get("vendors_available") is not False
 
 
 @pytest.mark.asyncio
-async def test_third_party_with_no_vendor_data_is_pending_manual_action():
+async def test_third_party_with_no_vendor_data_reports_no_vendors_available():
     # Every real can_produce=False product in the catalog now has vendor
     # data, so this exercises the genuine no-vendor fallback directly
-    # against the node rather than through the live graph.
-    from app.graph import third_party_node
+    # against _plan_vendor_sourcing — the surviving function that now
+    # computes this pre-approval (third_party_node, which used to make
+    # this same call at execution time with no human ever seeing it
+    # first, was removed as part of Stage 03D).
+    from app.graph import _plan_vendor_sourcing
 
-    state = {
-        "product_id": "P999_NO_VENDOR",
-        "product_name": "Nonexistent Product",
-        "fulfillment_strategy": "THIRD_PARTY",
-        "fulfillment_to_produce": 10,
-        "sales_order_id": "SO_TEST",
-        "lead_time_days": 20,
-        "response": "",
-    }
-    result = await third_party_node(state)
+    result = await _plan_vendor_sourcing(
+        product_id="P999_NO_VENDOR", product_name="Nonexistent Product", quantity=10, lead_time_days=20
+    )
 
-    assert result["status"] == "PENDING_MANUAL_ACTION"
-    assert "no vendor is on file" in result["response"]
+    assert result == {"vendors_available": False}

@@ -32,11 +32,17 @@ async def test_order_within_credit_limit_proceeds_to_fulfillment():
         "user_message": f"Coastal Electronics Group wants to order {quantity} wireless mice now."
     })
 
-    assert result["entry_type"] == "DIRECT_SALES"
+    # Stage 03D: this request still goes through composed_execution_node
+    # regardless of which classifier noticed it (see entry_router's edge
+    # map) — the real fulfillment strategy is now in the pre-approval
+    # preview, not a top-level field, since nothing executes until a
+    # human approves.
+    assert result["entry_type"] == "COMPOSED_PLAN"
     assert result["credit_checked"] is True
     assert result["credit_within_limit"] is True
-    assert result["fulfillment_strategy"] is not None
-    assert result["status"] != "ON_CREDIT_HOLD"
+    assert result["status"] == "AWAITING_APPROVAL"
+    assert result["pending_approval"]["preview"]["fulfillment"]["strategy"] is not None
+    assert result.get("sales_order_id") is None
 
 
 @pytest.mark.asyncio
@@ -44,12 +50,18 @@ async def test_order_over_credit_limit_is_held():
     # XYZ Industries (C002) has a real credit_limit of 50,000 — one
     # Laptop - Gaming at 95,000 blows straight past it, so this should
     # stop at credit hold and never reach fulfillment.
+    #
+    # Stage 03D: check_credit is now a real, non-bypassable dependency of
+    # the gated create_order step — an order whose credit check fails is
+    # never created at all (no Excel row either), not created-then-held
+    # the way the old ungated credit_hold_node used to leave it.
     result = await graph.ainvoke({
         "user_message": "XYZ Industries wants to order 1 Laptop - Gaming now."
     })
 
-    assert result["entry_type"] == "DIRECT_SALES"
+    assert result["entry_type"] == "COMPOSED_PLAN"
     assert result["credit_checked"] is True
     assert result["credit_within_limit"] is False
     assert result["status"] == "ON_CREDIT_HOLD"
-    assert "fulfillment_strategy" not in result or result.get("fulfillment_strategy") is None
+    assert result.get("sales_order_id") is None
+    assert "pending_approval" not in result

@@ -25,6 +25,7 @@ from app.graph import (  # noqa: E402
     _execute_production_plan,
     _patch_stock_execution,
     _patch_vendor_execution,
+    mts_node,
     run_post_approval_fulfillment,
 )
 
@@ -50,28 +51,32 @@ def _state(**overrides):
 
 @contextmanager
 def _mock_order_domain():
+    # Stage 03C Part C: create_sales_order_record + create_order_line_and_
+    # _fulfillment collapsed into the one atomic
+    # create_sales_order_with_fulfillment call — mocking that single call
+    # here matches the real implementation now in _dual_write_order_and_
+    # _fulfillment (graph.py).
     with patch("app.graph.order_domain.find_or_create_customer", AsyncMock(return_value="cust-real-id")), \
-         patch("app.graph.order_domain.create_sales_order_record", AsyncMock(return_value="so-real-id")), \
-         patch("app.graph.order_domain.create_order_line_and_fulfillment", AsyncMock(return_value={
-             "orderLineId": "ol-1", "fulfillmentPlanId": "fp-1", "fulfillmentLines": [],
-         })) as create_line, \
+         patch("app.graph.order_domain.create_sales_order_with_fulfillment", AsyncMock(return_value={
+             "id": "so-real-id", "orderLineId": "ol-1", "fulfillmentPlanId": "fp-1", "fulfillmentLines": [],
+         })) as create_order, \
          patch("app.graph.order_domain.patch_fulfillment_line", AsyncMock(return_value=None)) as patch_line:
-        yield {"create_order_line_and_fulfillment": create_line, "patch_fulfillment_line": patch_line}
+        yield {"create_order_with_fulfillment": create_order, "patch_fulfillment_line": patch_line}
 
 
 @pytest.mark.asyncio
 async def test_mts_creates_one_stock_fulfillment_line():
     state = _state(fulfillment_strategy="MTS", fulfillment_from_stock=250, fulfillment_to_produce=0)
     with _mock_order_domain() as mocks:
-        mocks["create_order_line_and_fulfillment"].return_value = {
-            "orderLineId": "ol-1", "fulfillmentPlanId": "fp-1",
+        mocks["create_order_with_fulfillment"].return_value = {
+            "id": "so-real-id", "orderLineId": "ol-1", "fulfillmentPlanId": "fp-1",
             "fulfillmentLines": [{"id": "fl-stock", "sourceType": "STOCK"}],
         }
         result = await _dual_write_order_and_fulfillment(state, context={})
 
     assert result["real_sales_order_id"] == "so-real-id"
     assert result["fulfillment_line_ids"] == {"STOCK": "fl-stock"}
-    _, kwargs = mocks["create_order_line_and_fulfillment"].call_args
+    _, kwargs = mocks["create_order_with_fulfillment"].call_args
     assert kwargs["lines"] == [{"sourceType": "STOCK", "quantity": 250}]
 
 
@@ -79,14 +84,14 @@ async def test_mts_creates_one_stock_fulfillment_line():
 async def test_mto_creates_one_production_fulfillment_line():
     state = _state(fulfillment_strategy="MTO", fulfillment_from_stock=0, fulfillment_to_produce=250)
     with _mock_order_domain() as mocks:
-        mocks["create_order_line_and_fulfillment"].return_value = {
-            "orderLineId": "ol-1", "fulfillmentPlanId": "fp-1",
+        mocks["create_order_with_fulfillment"].return_value = {
+            "id": "so-real-id", "orderLineId": "ol-1", "fulfillmentPlanId": "fp-1",
             "fulfillmentLines": [{"id": "fl-prod", "sourceType": "PRODUCTION"}],
         }
         result = await _dual_write_order_and_fulfillment(state, context={})
 
     assert result["fulfillment_line_ids"] == {"PRODUCTION": "fl-prod"}
-    _, kwargs = mocks["create_order_line_and_fulfillment"].call_args
+    _, kwargs = mocks["create_order_with_fulfillment"].call_args
     assert kwargs["lines"] == [{"sourceType": "PRODUCTION", "quantity": 250}]
 
 
@@ -94,8 +99,8 @@ async def test_mto_creates_one_production_fulfillment_line():
 async def test_hybrid_creates_two_fulfillment_lines_summing_to_order_quantity():
     state = _state(fulfillment_strategy="HYBRID", fulfillment_from_stock=165, fulfillment_to_produce=85)
     with _mock_order_domain() as mocks:
-        mocks["create_order_line_and_fulfillment"].return_value = {
-            "orderLineId": "ol-1", "fulfillmentPlanId": "fp-1",
+        mocks["create_order_with_fulfillment"].return_value = {
+            "id": "so-real-id", "orderLineId": "ol-1", "fulfillmentPlanId": "fp-1",
             "fulfillmentLines": [
                 {"id": "fl-stock", "sourceType": "STOCK"},
                 {"id": "fl-prod", "sourceType": "PRODUCTION"},
@@ -104,7 +109,7 @@ async def test_hybrid_creates_two_fulfillment_lines_summing_to_order_quantity():
         result = await _dual_write_order_and_fulfillment(state, context={})
 
     assert result["fulfillment_line_ids"] == {"STOCK": "fl-stock", "PRODUCTION": "fl-prod"}
-    _, kwargs = mocks["create_order_line_and_fulfillment"].call_args
+    _, kwargs = mocks["create_order_with_fulfillment"].call_args
     lines = kwargs["lines"]
     assert lines == [
         {"sourceType": "STOCK", "quantity": 165},
@@ -120,14 +125,14 @@ async def test_third_party_creates_one_drop_ship_fulfillment_line_with_vendor_in
     state = _state(fulfillment_strategy="THIRD_PARTY", fulfillment_from_stock=0, fulfillment_to_produce=40)
     context = {"vendor_plan": {"vendor_id": "PV004", "vendor_name": "Nexus Hardware Supply", "drop_ship": True}}
     with _mock_order_domain() as mocks:
-        mocks["create_order_line_and_fulfillment"].return_value = {
-            "orderLineId": "ol-1", "fulfillmentPlanId": "fp-1",
+        mocks["create_order_with_fulfillment"].return_value = {
+            "id": "so-real-id", "orderLineId": "ol-1", "fulfillmentPlanId": "fp-1",
             "fulfillmentLines": [{"id": "fl-vendor", "sourceType": "DROP_SHIP"}],
         }
         result = await _dual_write_order_and_fulfillment(state, context)
 
     assert result["fulfillment_line_ids"] == {"DROP_SHIP": "fl-vendor"}
-    _, kwargs = mocks["create_order_line_and_fulfillment"].call_args
+    _, kwargs = mocks["create_order_with_fulfillment"].call_args
     assert kwargs["lines"] == [{
         "sourceType": "DROP_SHIP", "quantity": 40,
         "vendorId": "PV004", "vendorName": "Nexus Hardware Supply",
@@ -145,14 +150,14 @@ async def test_trading_creates_a_buy_fulfillment_line_not_a_production_one():
     state = _state(fulfillment_strategy="TRADING", fulfillment_from_stock=0, fulfillment_to_produce=30)
     context = {"vendor_plan": {"vendor_id": "PV001", "vendor_name": "Metro Webcam Distributors", "drop_ship": False}}
     with _mock_order_domain() as mocks:
-        mocks["create_order_line_and_fulfillment"].return_value = {
-            "orderLineId": "ol-1", "fulfillmentPlanId": "fp-1",
+        mocks["create_order_with_fulfillment"].return_value = {
+            "id": "so-real-id", "orderLineId": "ol-1", "fulfillmentPlanId": "fp-1",
             "fulfillmentLines": [{"id": "fl-vendor", "sourceType": "BUY"}],
         }
         result = await _dual_write_order_and_fulfillment(state, context)
 
     assert result["fulfillment_line_ids"] == {"BUY": "fl-vendor"}
-    _, kwargs = mocks["create_order_line_and_fulfillment"].call_args
+    _, kwargs = mocks["create_order_with_fulfillment"].call_args
     assert kwargs["lines"] == [{
         "sourceType": "BUY", "quantity": 30,
         "vendorId": "PV001", "vendorName": "Metro Webcam Distributors",
@@ -185,8 +190,8 @@ async def test_prefer_vendor_path_reaches_the_canonical_domain_model():
         "app.graph.create_trading_order",
         return_value={"created": True, "trading_order_id": "TRD-1", "expected_arrival": "2026-10-05"},
     ), _mock_order_domain() as mocks:
-        mocks["create_order_line_and_fulfillment"].return_value = {
-            "orderLineId": "ol-1", "fulfillmentPlanId": "fp-1",
+        mocks["create_order_with_fulfillment"].return_value = {
+            "id": "so-real-id", "orderLineId": "ol-1", "fulfillmentPlanId": "fp-1",
             "fulfillmentLines": [{"id": "fl-vendor", "sourceType": "DROP_SHIP"}],
         }
         result = await run_post_approval_fulfillment(context, sales_order_id="SO-9002", prefer_vendor=True)
@@ -194,8 +199,8 @@ async def test_prefer_vendor_path_reaches_the_canonical_domain_model():
     assert result["fulfillment_strategy"] == "THIRD_PARTY"
     assert result["real_sales_order_id"] == "so-real-id"
     assert result["fulfillment_line_ids"] == {"DROP_SHIP": "fl-vendor"}
-    mocks["create_order_line_and_fulfillment"].assert_awaited_once()
-    _, kwargs = mocks["create_order_line_and_fulfillment"].call_args
+    mocks["create_order_with_fulfillment"].assert_awaited_once()
+    _, kwargs = mocks["create_order_with_fulfillment"].call_args
     assert kwargs["lines"] == [{
         "sourceType": "DROP_SHIP", "quantity": 10,
         "vendorId": "PV004", "vendorName": "Nexus Hardware Supply",
@@ -208,6 +213,49 @@ async def test_prefer_vendor_path_reaches_the_canonical_domain_model():
         (("fl-vendor",), {"status": "EXECUTION_CREATED"}),
         (("fl-vendor",), {"execution_reference": "TRD-1", "status": "FULFILLED", "promised_date": "2026-10-05"}),
     ]
+
+
+@pytest.mark.asyncio
+async def test_prefer_vendor_cleanup_failure_is_reported_not_swallowed():
+    # Stage 01 (Fail Loud, Fail Closed) — ARCHITECTURE_BASELINE.md §5/§11:
+    # this is the bare `except Exception: pass` previously at graph.py's
+    # prefer_vendor early-return. A failed cleanup of the stale, orphaned
+    # ProductionOrder must be logged and surfaced, never silently dropped —
+    # and must NOT block the real vendor-sourcing fulfillment that follows.
+    context = {
+        "customer_id": "C025", "customer_name": "Test Customer",
+        "product_id": "P025", "product_name": "Cable Management Kit",
+        "quantity": 10, "price": 900.0, "can_produce": True, "product_configurable": False,
+        "lead_time_days": 5, "stock": [{"plant": "PLANT01", "stock_qty": 0}],
+        "vendor_plan": {
+            "vendors_available": True, "vendor_id": "PV004", "vendor_name": "Nexus Hardware Supply",
+            "unit_cost": 700, "lead_time_days": 5, "drop_ship": True,
+            "strategy_label": "THIRD_PARTY", "reasoning": "test",
+        },
+        "production_plan": {"production_order_id": "po-stale-1"},
+    }
+    with patch(
+        "app.graph.mfg.delete_production_order",
+        AsyncMock(side_effect=RuntimeError("order-service unreachable")),
+    ) as delete_mock, patch(
+        "app.graph.create_trading_order",
+        return_value={"created": True, "trading_order_id": "TRD-1", "expected_arrival": "2026-10-05"},
+    ), _mock_order_domain() as mocks:
+        mocks["create_order_with_fulfillment"].return_value = {
+            "id": "so-real-id", "orderLineId": "ol-1", "fulfillmentPlanId": "fp-1",
+            "fulfillmentLines": [{"id": "fl-vendor", "sourceType": "DROP_SHIP"}],
+        }
+        result = await run_post_approval_fulfillment(context, sales_order_id="SO-9002", prefer_vendor=True)
+
+    # Cleanup was actually attempted against the real stale id, not skipped.
+    delete_mock.assert_awaited_once_with("po-stale-1")
+    # Not silently swallowed — the failure is visible in the human-facing response.
+    assert "po-stale-1" in result["response"]
+    assert "order-service unreachable" in result["response"]
+    # And not misrepresented as a failure of the real fulfillment that
+    # otherwise succeeded — the vendor-sourcing result itself still completed.
+    assert result["fulfillment_strategy"] == "THIRD_PARTY"
+    assert result["real_sales_order_id"] == "so-real-id"
 
 
 @pytest.mark.asyncio
@@ -233,7 +281,7 @@ async def test_prefer_vendor_failure_does_not_reach_the_dual_write():
         result = await run_post_approval_fulfillment(context, sales_order_id="SO-9003", prefer_vendor=True)
 
     assert result["status"] == "FULFILLMENT_FAILED"
-    mocks["create_order_line_and_fulfillment"].assert_not_awaited()
+    mocks["create_order_with_fulfillment"].assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -243,6 +291,63 @@ async def test_dual_write_failure_is_best_effort_and_never_raises():
         result = await _dual_write_order_and_fulfillment(state, context={})
 
     assert result == {"real_sales_order_id": None, "fulfillment_line_ids": {}}
+
+
+# Stage 03C Part C: the dual-write now makes exactly ONE call to order-
+# service (create_sales_order_with_fulfillment) instead of two, carrying a
+# real Idempotency-Key derived from the approval run's own stable run_id —
+# never from any LLM output — so a retry of this one call for the same
+# approval converges on the same SalesOrder instead of risking a duplicate.
+@pytest.mark.asyncio
+async def test_dual_write_sends_a_real_idempotency_key_derived_from_run_id():
+    state = _state()
+    with _mock_order_domain() as mocks:
+        await _dual_write_order_and_fulfillment(state, context={}, run_id="run-abc123")
+
+    mocks["create_order_with_fulfillment"].assert_awaited_once()
+    _, kwargs = mocks["create_order_with_fulfillment"].call_args
+    assert kwargs["idempotency_key"] == "approval-run-run-abc123"
+
+
+@pytest.mark.asyncio
+async def test_dual_write_with_no_run_id_sends_no_idempotency_key():
+    # Defensive fallback only — every real caller (run_post_approval_
+    # fulfillment, threaded from approvals.py's body.run_id) always has
+    # one; this just proves the absence of a run_id never fabricates a key
+    # or blocks the call, matching order-service's own "missing header ->
+    # exactly the old behavior" guarantee.
+    state = _state()
+    with _mock_order_domain() as mocks:
+        await _dual_write_order_and_fulfillment(state, context={})
+
+    _, kwargs = mocks["create_order_with_fulfillment"].call_args
+    assert kwargs["idempotency_key"] is None
+
+
+@pytest.mark.asyncio
+async def test_run_post_approval_fulfillment_threads_run_id_into_the_dual_write():
+    # Narrow wiring check — the "replay, not re-decision" branch (a
+    # pre-computed fulfillment in context) is used so no real LLM call
+    # happens, and both _dual_write_order_and_fulfillment and mts_node are
+    # mocked directly so nothing downstream of the dual-write (a real
+    # erp.reserve_stock Excel write) runs either; the point of this test
+    # is only that approvals.py's body.run_id reaches this call.
+    context = {
+        "customer_id": "C025", "customer_name": "Test Customer",
+        "product_id": "P025", "product_name": "Test Widget",
+        "quantity": 10, "price": 100.0, "can_produce": True, "product_configurable": False,
+        "lead_time_days": 2, "stock": [],
+        "fulfillment": {"strategy": "MTS", "reasoning": "in stock", "from_stock": 10, "to_produce": 0},
+    }
+    with patch(
+        "app.graph._dual_write_order_and_fulfillment",
+        AsyncMock(return_value={"real_sales_order_id": "so-real-id", "fulfillment_line_ids": {}}),
+    ) as dual_write_mock, patch("app.graph.mts_node", AsyncMock(return_value={})):
+        await run_post_approval_fulfillment(context, sales_order_id="SO-9010", run_id="run-xyz789")
+
+    dual_write_mock.assert_awaited_once()
+    _, kwargs = dual_write_mock.call_args
+    assert kwargs["run_id"] == "run-xyz789"
 
 
 @pytest.mark.asyncio
@@ -325,7 +430,24 @@ async def test_production_plan_failure_marks_the_production_line_failed():
         result = await _execute_production_plan(state, {"verdict": "PLANNER_REVIEW", "production_order_id": "po-1", "explanation": "no slot"})
 
     assert result["status"] == "FULFILLMENT_FAILED"
-    patch_line.assert_awaited_once_with("fl-prod", status="FAILED")
+    # Exceptions/Holds: the real production-plan explanation is forwarded
+    # as the line's reason, never invented.
+    patch_line.assert_awaited_once_with("fl-prod", status="FAILED", reason="no slot")
+
+
+@pytest.mark.asyncio
+async def test_production_plan_failure_with_no_explanation_falls_back_to_a_real_stated_reason():
+    # No production plan at all (the missing-production_order_id branch) —
+    # still a real, honest reason string, never a silent None.
+    state = _state(
+        fulfillment_strategy="MTO", fulfillment_from_stock=0, fulfillment_to_produce=85,
+        real_sales_order_id="so-real-id", fulfillment_line_ids={"PRODUCTION": "fl-prod"},
+    )
+    with patch("app.graph.order_domain.patch_fulfillment_line", AsyncMock(return_value=None)) as patch_line:
+        result = await _execute_production_plan(state, None)
+
+    assert result["status"] == "FULFILLMENT_FAILED"
+    patch_line.assert_awaited_once_with("fl-prod", status="FAILED", reason="No production plan available")
 
 
 # Fulfillment architecture hardening: _patch_stock_execution/
@@ -357,7 +479,28 @@ async def test_patch_stock_execution_on_failure_marks_failed():
     state = _state(fulfillment_line_ids={"STOCK": "fl-stock"})
     with patch("app.graph.order_domain.patch_fulfillment_line", AsyncMock(return_value=None)) as patch_line:
         await _patch_stock_execution(state, {"status": "FULFILLMENT_FAILED"})
-    patch_line.assert_awaited_once_with("fl-stock", status="FAILED")
+    # No "reason" key in this branch_update — forwarded as None, not omitted.
+    patch_line.assert_awaited_once_with("fl-stock", status="FAILED", reason=None)
+
+
+@pytest.mark.asyncio
+async def test_patch_stock_execution_on_failure_forwards_the_real_reservation_reason():
+    state = _state(fulfillment_line_ids={"STOCK": "fl-stock"})
+    with patch("app.graph.order_domain.patch_fulfillment_line", AsyncMock(return_value=None)) as patch_line:
+        await _patch_stock_execution(state, {
+            "status": "FULFILLMENT_FAILED", "reason": "Stock reservation shortfall: 250 required, 165 available",
+        })
+    patch_line.assert_awaited_once_with(
+        "fl-stock", status="FAILED", reason="Stock reservation shortfall: 250 required, 165 available"
+    )
+
+
+@pytest.mark.asyncio
+async def test_patch_vendor_execution_on_failure_forwards_the_real_reason():
+    state = _state(fulfillment_line_ids={"BUY": "fl-buy"})
+    with patch("app.graph.order_domain.patch_fulfillment_line", AsyncMock(return_value=None)) as patch_line:
+        await _patch_vendor_execution(state, {"status": "FULFILLMENT_FAILED", "reason": "vendor rejected the order"})
+    patch_line.assert_awaited_once_with("fl-buy", status="FAILED", reason="vendor rejected the order")
 
 
 @pytest.mark.asyncio
@@ -379,3 +522,19 @@ async def test_patch_vendor_execution_finds_either_buy_or_drop_ship_key():
         (("fl-buy",), {"status": "EXECUTION_CREATED"}),
         (("fl-buy",), {"execution_reference": "TO-1", "status": "FULFILLED", "promised_date": "2026-10-05"}),
     ]
+
+
+@pytest.mark.asyncio
+async def test_mts_node_failure_carries_the_real_reservation_reason():
+    # Exceptions/Holds, the mts_node leg: the real reason erp.reserve_stock
+    # already computed, for _patch_stock_execution's caller to persist onto
+    # the STOCK FulfillmentLine — never invented here.
+    state = _state(fulfillment_from_stock=250)
+    with patch(
+        "app.graph.erp.reserve_stock",
+        return_value={"reserved": False, "reason": "Stock reservation shortfall: 250 required, 165 available"},
+    ):
+        result = await mts_node(state)
+
+    assert result["status"] == "FULFILLMENT_FAILED"
+    assert result["reason"] == "Stock reservation shortfall: 250 required, 165 available"

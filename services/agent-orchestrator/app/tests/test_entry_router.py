@@ -74,53 +74,58 @@ async def test_request_quote_routes_to_pre_sales():
 
 
 @pytest.mark.asyncio
-async def test_create_order_routes_to_direct_sales():
-    # This test's actual job is verifying DIRECT_SALES routing, not the
-    # credit outcome (that has its own dedicated tests) — so it must not
-    # depend on any specific customer's accumulated exposure staying low
-    # across a long-lived shared mock_erp.xlsx. Coastal Electronics Group
-    # used to have enough headroom for this to always land CONFIRMED, but
-    # heavy live testing this session pushed its real exposure close to
-    # its limit, which is exactly the kind of shared-state fragility this
-    # rewrite avoids by branching on the real outcome instead of assuming
-    # one.
+async def test_create_order_request_always_requires_approval():
+    # Stage 03D (ungated-path convergence): DIRECT_SALES used to be a
+    # second, unapproved order-creation path, reachable whenever
+    # intent_agent's classification disagreed with process_agent's own
+    # independent judgment. This proves that disagreement no longer
+    # matters for a real order request — it reaches the identical
+    # approval gate whether intent_agent classifies it create_order (the
+    # composed_execution_router path) or process_agent lands it on
+    # DIRECT_SALES instead (now redirected into that same gate, see
+    # entry_router's edge map). No order is created, no stock reserved,
+    # and no production/vendor commitment made without a human approval
+    # in between, regardless of which classifier noticed the request.
+    #
+    # This test's job is verifying that gate is always reached, not the
+    # specific credit outcome — so it must not depend on any one
+    # customer's accumulated exposure staying low across a long-lived
+    # shared mock_erp.xlsx; it branches on which of the three legitimate
+    # real outcomes actually happened instead of assuming one.
     result = await graph.ainvoke({
         "user_message": "Coastal Electronics Group wants to order 5 laptops now."
     })
 
-    assert result["entry_type"] == "DIRECT_SALES"
-    assert result["sales_order_id"] is not None
-
-    if result["credit_within_limit"]:
-        assert result["sales_order_status"] == "CONFIRMED"
-        assert result["fulfillment_strategy"] in ("MTS", "MTO", "CTO", "THIRD_PARTY", "INTERCOMPANY", "HYBRID")
-        assert result["fulfillment_from_stock"] + result["fulfillment_to_produce"] == 5
-        assert result["status"] in ("FULFILLED", "BILLED", "IN_PRODUCTION", "PARTIALLY_IN_PRODUCTION", "PENDING_MANUAL_ACTION")
-    else:
-        assert result["sales_order_status"] == "CREDIT_BLOCKED"
-        assert result["status"] == "ON_CREDIT_HOLD"
+    assert result["entry_type"] == "COMPOSED_PLAN"
+    # Any of these three is a legitimate real outcome of a gated credit
+    # check (see composed_execution_node's CUSTOMER_NOT_FOUND/
+    # ON_CREDIT_HOLD handling) — what must never happen is a silent full
+    # auto-execution with no approval step in between.
+    assert result["status"] in ("AWAITING_APPROVAL", "CUSTOMER_NOT_FOUND", "ON_CREDIT_HOLD")
+    # create_order is gated — it never runs until a real human approval
+    # (app/routers/approvals.py) resolves it, so no order exists yet.
+    assert result.get("sales_order_id") is None
 
 
 @pytest.mark.asyncio
-async def test_create_order_for_unregistered_customer_lands_on_credit_hold():
-    # Stale name/assertion fixed: context_agent now auto-provisions an
-    # unresolved customer with a modest starter credit limit (see
-    # NEW_CUSTOMER_STARTER_CREDIT_LIMIT in customer_tools.py) instead of
-    # rejecting the request outright — a real "no such customer at all"
-    # outcome no longer exists once the customer is auto-created before
-    # credit_check_node ever runs. A 100-unit order comfortably exceeds
-    # that starter limit, so it correctly lands on credit hold. Note
-    # direct_sales_node creates the order record before credit_check_node
-    # runs (so it can exclude the order's own amount from its own
-    # exposure calculation) — a real sales_order_id does exist here, just
-    # with status CREDIT_BLOCKED, not None.
+async def test_create_order_for_unregistered_customer_is_held_before_any_order_exists():
+    # Stage 03D: context_agent auto-provisions an unresolved customer
+    # with a modest starter credit limit (NEW_CUSTOMER_STARTER_CREDIT_LIMIT
+    # in customer_tools.py) rather than rejecting the request outright — a
+    # 100-unit order comfortably exceeds that starter limit, so it
+    # correctly lands on credit hold. Unlike the old ungated path (which
+    # created the Excel order FIRST, then flagged it CREDIT_BLOCKED),
+    # check_credit is now a real, non-bypassable dependency of the gated
+    # create_order step — an order whose credit check fails is never
+    # created at all, not created-then-held. A real, stronger fail-closed
+    # guarantee than before, not just a relocated one.
     result = await graph.ainvoke({
         "user_message": "Some Unregistered Company wants to order 100 laptops now."
     })
 
-    assert result["entry_type"] == "DIRECT_SALES"
+    assert result["entry_type"] == "COMPOSED_PLAN"
     assert result["status"] == "ON_CREDIT_HOLD"
-    assert result["sales_order_status"] == "CREDIT_BLOCKED"
+    assert result.get("sales_order_id") is None
 
 
 @pytest.mark.asyncio

@@ -91,6 +91,13 @@ class SalesState(TypedDict, total=False):
     credit_within_limit: bool
     credit_existing_exposure: float
     credit_total_exposure: float
+    # Stage 01 (Fail Loud, Fail Closed): the real three-way outcome —
+    # "PASS" | "HOLD" | "UNVERIFIABLE". credit_within_limit stays a plain
+    # bool for credit_router's existing branch (True only for PASS); this
+    # field exists so a HOLD (over limit) and an UNVERIFIABLE (credit
+    # couldn't even be checked) are never collapsed into the same meaning
+    # downstream — both stop the workflow, but for different reasons.
+    credit_verification_status: str
 
     # Composed-execution's check_stock action (plan_executor.py) — a
     # real bug found live: these three were never declared here, and
@@ -176,3 +183,36 @@ class SalesState(TypedDict, total=False):
 
     status: str
     response: str
+
+    # Phase 10 (Agentic Order Promise & Scenario Reasoning) — the bounded
+    # reasoning loop's own trace, additive to everything above. Never
+    # read by any existing node/router; existing workflows are completely
+    # unaffected by these fields' presence.
+    promise_goal: dict[str, Any]
+    # One entry per capability-selector iteration: {"iteration": int,
+    # "decision": {...}} or {"iteration": int, "capability_call": {...},
+    # "result": {...}} — the full "what did it ask, why, what came back"
+    # trace this phase's observability requirement needs, captured as the
+    # single promise_reasoning node's own AgentStageResult output (see
+    # pipeline.py's existing per-node logging — unchanged).
+    promise_trace: list[dict[str, Any]]
+    promise_scenarios: list[dict[str, Any]]
+    promise_recommendation: dict[str, Any] | None
+    promise_iteration_count: int
+    promise_tool_call_count: int
+    # Set on the final resolve-approval response (approvals.py) — the
+    # deterministic post-execution goal check (brief §11): did the
+    # committed plan actually satisfy the originally requested quantity
+    # and date. Never inferred from an HTTP 200 alone.
+    goal_satisfaction: dict[str, Any] | None
+
+    # Phase 11 (Promise Monitoring & Agentic Recovery) — set only when
+    # promise_reasoning_node is invoked for a disruption-recovery episode
+    # (app/routers/disruptions.py), never by the chat graph. Additive;
+    # absent/None for every ORDER_PROMISE (Phase 10, chat-originated) run.
+    promise_goal_type: str
+    promise_disruption: dict[str, Any] | None
+    promise_current_result: dict[str, Any] | None
+    promise_production_order_id: str | None
+    promise_plant_id: str | None
+    promise_sales_order_id: str | None

@@ -179,26 +179,77 @@ APPROVAL_TTL_HOURS = 24  # matches the real existing UX: Agent Console's own
 # executable against day-old credit/inventory facts indefinitely.
 
 
-async def save_pending_approval(run_id: str, action: str, payload: dict, requested_by: str | None) -> None:
+# Phase 16 (End-to-End Disruption Recovery Validation) — real gap found:
+# scheduling-service's own IdempotencyKey table only dedupes two calls to
+# checkPromiseImpact within the SAME schedule run (keyed on scheduleRunId:
+# productionOrderId — see pipeline.ts). It does nothing for the same
+# underlying real-world disruption surfacing through two DIFFERENT
+# schedule runs (a redelivered Kafka message after a consumer restart, or
+# two disruption types hitting the same resource close together) — each
+# would independently reach /disruptions/evaluate, each would run its own
+# (expensive) reasoning episode, and each would create its own separate
+# pending RESCHEDULE_PRODUCTION approval for the SAME production order,
+# with no uniqueness constraint anywhere stopping it. Reused here as a
+# read-before-reasoning guard — not a new mechanism, the same "is there
+# already a live pending approval for this" question list_pending_approvals
+# above already answers, just scoped to one specific production order.
+# approvalExpiresAt > now() matters for the same reason it does there: an
+# expired prior proposal must never block a legitimate new one.
+async def has_pending_reschedule_approval(production_order_id: str, enterprise_id: str) -> bool:
+    conn = await get_connection()
+    try:
+        row = await conn.fetchrow(
+            'SELECT 1 FROM "AgentPipelineRun" '
+            "WHERE \"approvalAction\" = 'RESCHEDULE_PRODUCTION' AND \"approvalStatus\" = 'PENDING' "
+            'AND "approvalExpiresAt" > now() '
+            'AND "approvalPayload"->>\'production_order_id\' = $1 '
+            'AND ("enterpriseId" = $2 OR "enterpriseId" IS NULL) '
+            "LIMIT 1",
+            production_order_id,
+            enterprise_id,
+        )
+        return row is not None
+    finally:
+        await conn.close()
+
+
+async def save_pending_approval(
+    run_id: str,
+    action: str,
+    payload: dict,
+    requested_by: str | None,
+    enterprise_id: str,
+    proposal_hash: str,
+) -> None:
     """Called once, right after a run's graph execution ends paused at a
     real human-approval gate (see pipeline.py's start_run) — persists
     exactly what the human is being shown as the canonical, server-owned
     record of what this approval covers. Nothing about this write is
     conditional: a run reaches a gate at most once, so there's no race to
     guard here — the race starts at claim_approval below, once a decision
-    is made."""
+    is made.
+
+    Stage 04: enterprise_id/proposal_hash are the version-binding fields —
+    see app/approval_proposal.py for how proposal_hash is computed
+    (the canonical hash of the real EXECUTABLE subset of payload, never
+    the full preview dict). approvalCreatedAt is set here, distinct from
+    the run's own createdAt (which marks when the graph started, not
+    when — or whether — it ever reached this gate)."""
     conn = await get_connection()
     try:
         await conn.execute(
             'UPDATE "AgentPipelineRun" SET '
             '"approvalAction" = $2, "approvalStatus" = \'PENDING\', "approvalPayload" = $3::jsonb, '
-            '"approvalExpiresAt" = now() + ($4 || \' hours\')::interval, "requestedBy" = $5 '
+            '"approvalExpiresAt" = now() + ($4 || \' hours\')::interval, "requestedBy" = $5, '
+            '"enterpriseId" = $6, "proposalHash" = $7, "approvalCreatedAt" = now() '
             "WHERE id = $1",
             run_id,
             action,
             json.dumps(payload),
             str(APPROVAL_TTL_HOURS),
             requested_by,
+            enterprise_id,
+            proposal_hash,
         )
     finally:
         await conn.close()
@@ -213,7 +264,8 @@ async def get_approval(run_id: str) -> dict | None:
     try:
         row = await conn.fetchrow(
             'SELECT id, "approvalAction", "approvalStatus", "approvalPayload", "approvalExpiresAt", '
-            '"requestedBy", "approvedAt", "approvedBy", "rejectedAt", "rejectedBy", "executedAt", "executionResult" '
+            '"requestedBy", "approvedAt", "approvedBy", "rejectedAt", "rejectedBy", "executedAt", "executionResult", '
+            '"enterpriseId", "proposalHash", "approvalCreatedAt" '
             'FROM "AgentPipelineRun" WHERE id = $1',
             run_id,
         )
@@ -229,7 +281,9 @@ async def get_approval(run_id: str) -> dict | None:
         await conn.close()
 
 
-async def claim_approval(run_id: str, expected_action: str, decision: str, actor_user_id: str) -> dict | None:
+async def claim_approval(
+    run_id: str, expected_action: str, decision: str, actor_user_id: str, enterprise_id: str
+) -> dict | None:
     """The one atomic operation this whole mechanism depends on. Two
     concurrent calls with the same run_id: at most one UPDATE actually
     matches a row (Postgres locks the row for the duration of the first
@@ -237,9 +291,9 @@ async def claim_approval(run_id: str, expected_action: str, decision: str, actor
     evaluated, approvalStatus is no longer 'PENDING', so it matches zero
     rows) — that single fact is what makes 'consumable exactly once' true
     without any extra locking. Returns the updated row on success, None on
-    failure (already resolved, expired, or the wrong action type — the
-    caller re-reads via get_approval to tell which, for an honest error
-    message).
+    failure (already resolved, expired, wrong action type, or wrong
+    enterprise — the caller re-reads via get_approval to tell which, for
+    an honest error message).
 
     expected_action is part of the SAME atomic WHERE clause, not a
     separate check run before or after the claim — a real bug found live
@@ -250,6 +304,15 @@ async def claim_approval(run_id: str, expected_action: str, decision: str, actor
     entirely. Folding the action into the WHERE clause closes that: a
     mismatched action means zero rows match, full stop, same as an
     already-resolved or expired one.
+
+    Stage 04: enterprise_id is folded into the same WHERE clause the same
+    way — an approver whose enterprise doesn't match the run's stored
+    enterpriseId matches zero rows, atomically, not a separate
+    after-the-fact check. "OR enterpriseId IS NULL" preserves exactly the
+    pre-Stage-04 behavior for any approval that was already PENDING
+    before this column existed (there is no retroactive enterpriseId to
+    compare against on those rows) — net-new approvals always have a real
+    value here (see save_pending_approval).
 
     Expiry is checked and applied lazily, in the SAME statement, rather
     than needing a background sweep this codebase has no infrastructure
@@ -277,20 +340,24 @@ async def claim_approval(run_id: str, expected_action: str, decision: str, actor
                 'UPDATE "AgentPipelineRun" SET '
                 "\"approvalStatus\" = 'APPROVED', \"approvedAt\" = now(), \"approvedBy\" = $2 "
                 "WHERE id = $1 AND \"approvalAction\" = $3 AND \"approvalStatus\" = 'PENDING' "
-                'RETURNING id, "approvalAction", "approvalPayload"',
+                'AND ("enterpriseId" = $4 OR "enterpriseId" IS NULL) '
+                'RETURNING id, "approvalAction", "approvalPayload", "proposalHash", "enterpriseId"',
                 run_id,
                 actor_user_id,
                 expected_action,
+                enterprise_id,
             )
         else:
             row = await conn.fetchrow(
                 'UPDATE "AgentPipelineRun" SET '
                 "\"approvalStatus\" = 'REJECTED', \"rejectedAt\" = now(), \"rejectedBy\" = $2 "
                 "WHERE id = $1 AND \"approvalAction\" = $3 AND \"approvalStatus\" = 'PENDING' "
-                'RETURNING id, "approvalAction", "approvalPayload"',
+                'AND ("enterpriseId" = $4 OR "enterpriseId" IS NULL) '
+                'RETURNING id, "approvalAction", "approvalPayload", "proposalHash", "enterpriseId"',
                 run_id,
                 actor_user_id,
                 expected_action,
+                enterprise_id,
             )
         if row is None:
             return None
@@ -298,6 +365,31 @@ async def claim_approval(run_id: str, expected_action: str, decision: str, actor
         if result["approvalPayload"] is not None:
             result["approvalPayload"] = json.loads(result["approvalPayload"])
         return result
+    finally:
+        await conn.close()
+
+
+async def mark_stale(run_id: str, reasons: list[str]) -> bool:
+    """Stage 04 (§3/§6) — APPROVED -> STALE. Called immediately before
+    execution, only when app/approval_proposal.py's revalidate_proposal
+    (or the proposalHash integrity check) finds the real business state
+    this proposal was computed against has changed, or the stored payload
+    no longer matches its own recorded hash. Guarded the same CAS way as
+    mark_executed (WHERE approvalStatus = 'APPROVED') — a STALE approval
+    is terminal: execution never proceeds against it, and a human must
+    submit a fresh request, producing a brand-new run and a brand-new
+    proposal, not a resurrection of this one."""
+    conn = await get_connection()
+    try:
+        row = await conn.fetchrow(
+            'UPDATE "AgentPipelineRun" SET '
+            "\"approvalStatus\" = 'STALE', \"executionResult\" = $2::jsonb "
+            "WHERE id = $1 AND \"approvalStatus\" = 'APPROVED' "
+            "RETURNING id",
+            run_id,
+            json.dumps({"stale": True, "reasons": reasons}),
+        )
+        return row is not None
     finally:
         await conn.close()
 

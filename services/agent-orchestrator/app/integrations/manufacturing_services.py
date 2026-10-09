@@ -15,10 +15,16 @@ tool, or the services' own tests where they have them) — nothing here
 invents a new capability on the TS side except get_bom, which mirrors an
 endpoint added deliberately for this (see routing-service/src/index.ts).
 """
+import base64
+import hashlib
+import hmac
+import json
 import os
+import time
 
 import httpx
 
+from app.trace_context import get_trace_id
 from app.config import (
     APS_PLATFORM_URL,
     INVENTORY_SERVICE_URL,
@@ -31,6 +37,46 @@ from app.config import (
 
 _TIMEOUT = 15.0
 
+# Stage 02 (Tenant Isolation + Service Identity): this process has no
+# per-request human user or multi-tenant concept of its own — it is, by its
+# current single-tenant design, always acting on behalf of the one real
+# enterprise this whole demo system has ever operated against (see
+# ARCHITECTURE_BASELINE.md's own verified finding on this). Rather than
+# leaving that implicit, it's made explicit and configurable here, the same
+# way MANUFACTURING_PLANT_ID already is (graph.py) — a real, deployer-set
+# value, not a silent per-request fallback.
+AGENT_ORCHESTRATOR_ENTERPRISE_ID = os.environ.get("AGENT_ORCHESTRATOR_ENTERPRISE_ID", "seed-enterprise")
+# Must match packages/shared/src/serviceAuth.ts's requireIdentity() calls.
+_IDENTITY_AUDIENCE = "aps-internal"
+
+
+def _base64url(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).rstrip(b"=").decode("ascii")
+
+
+def _sign_identity_assertion(enterprise_id: str, secret: str, ttl_seconds: int = 60) -> str:
+    """Python counterpart to packages/shared/src/identity.ts's
+    signIdentityAssertion — produces byte-for-byte the same
+    header.payload.signature format (base64url, HMAC-SHA256) so
+    order-service/inventory-service's verifyIdentityAssertion can check it
+    with no special-casing for which language minted it. This process has
+    no human session to derive claims from, so it asserts its own fixed
+    service identity (type="service", sub="agent-orchestrator") rather than
+    forwarding anything caller-supplied."""
+    now = int(time.time())
+    header = _base64url(json.dumps({"alg": "HS256", "typ": "APS-IDENTITY"}, separators=(",", ":")).encode())
+    payload = _base64url(json.dumps({
+        "sub": "agent-orchestrator",
+        "type": "service",
+        "enterpriseId": enterprise_id,
+        "aud": _IDENTITY_AUDIENCE,
+        "iat": now,
+        "exp": now + ttl_seconds,
+    }, separators=(",", ":")).encode())
+    signature = _base64url(hmac.new(secret.encode(), f"{header}.{payload}".encode(), hashlib.sha256).digest())
+    return f"{header}.{payload}.{signature}"
+
+
 # Auth/Authz hardening, Phase 1 (Finding 1.1): every TS service this module
 # calls now requires the shared internal-service credential (see
 # packages/shared/src/serviceAuth.ts) — passed as a default header on every
@@ -42,11 +88,33 @@ _TIMEOUT = 15.0
 # PLANNER-or-above approval already happened upstream, at this process's own
 # require_role("PLANNER") gate on the approval-resolve endpoints, before any
 # of these calls are ever made.
+#
+# Stage 02: also attaches a signed identity assertion (see
+# _sign_identity_assertion above) — order-service/inventory-service verify
+# this independently of the shared token; every other service below simply
+# ignores the extra header.
+#
+# Stage 07: also forwards the current run's trace_id (see
+# app/trace_context.py) as x-trace-id, when one is set — every TS service's
+# createApp() middleware (packages/shared/src/http.ts) echoes/logs whatever
+# it receives here, so every outbound call this whole module makes, for the
+# lifetime of one real run, is greppable under the same one id across every
+# service's logs, with no change to any of the ~40 call sites below.
+# Omitted (not an empty string) when no run is in scope — e.g. the demo
+# ticker / health checks — so those keep minting their own fresh trace_id
+# at the receiving end exactly as before.
 def _internal_headers() -> dict[str, str]:
     token = os.environ.get("INTERNAL_SERVICE_TOKEN")
     if not token:
         raise RuntimeError("INTERNAL_SERVICE_TOKEN is not set — cannot call another internal service without it")
-    return {"x-internal-token": token}
+    headers = {
+        "x-internal-token": token,
+        "x-identity-assertion": _sign_identity_assertion(AGENT_ORCHESTRATOR_ENTERPRISE_ID, token),
+    }
+    trace_id = get_trace_id()
+    if trace_id:
+        headers["x-trace-id"] = trace_id
+    return headers
 
 
 async def get_bom(product_id: str) -> dict | None:
@@ -218,6 +286,7 @@ class APSAgentClient:
         quantity: int,
         required_date: str | None,
         configuration_notes: str | None,
+        idempotency_key: str | None = None,
     ) -> dict:
         """Pre-approval planning, relocated to APS Platform (agreed with
         the user) — this used to be agent-orchestrator calling
@@ -227,7 +296,15 @@ class APSAgentClient:
         made by a genuinely separate application now; this call still
         happens synchronously inside the pre-approval flow, so "nothing
         before a human approves" is untouched — only who does the
-        planning moved, not when."""
+        planning moved, not when.
+
+        Stage 03C Part B: idempotency_key, when given, is relayed all the
+        way to apsAgent.ts's real POST /orders call (order-service), so a
+        timeout/retry of THIS SAME httpx call converges on one
+        ProductionOrder instead of creating a duplicate. See
+        _plan_production_via_manufacturing_services in graph.py for how
+        the key is derived — a real business identity (the already-created
+        sales order id + product + quantity), never LLM output."""
         async with httpx.AsyncClient(timeout=60.0, headers=_internal_headers()) as client:
             resp = await client.post(
                 f"{APS_PLATFORM_URL}/api/plan-production",
@@ -237,6 +314,7 @@ class APSAgentClient:
                     "quantity": quantity,
                     "requiredDate": required_date,
                     "configurationNotes": configuration_notes,
+                    "idempotencyKey": idempotency_key,
                 },
             )
         resp.raise_for_status()
@@ -329,8 +407,11 @@ async def request_production_plan(
     quantity: int,
     required_date: str | None,
     configuration_notes: str | None,
+    idempotency_key: str | None = None,
 ) -> dict:
-    return await aps_agent.plan_production(product_id, product_name, quantity, required_date, configuration_notes)
+    return await aps_agent.plan_production(
+        product_id, product_name, quantity, required_date, configuration_notes, idempotency_key
+    )
 
 
 async def commit_production_plan(production_order_id: str, plant_id: str, billing_context: dict | None) -> dict:
@@ -351,6 +432,28 @@ async def get_affected_orders_preview(plant_id: str, production_order_id: str, s
 
 async def reschedule_production_order(plant_id: str, production_order_id: str, scope: str, mode: str) -> dict:
     return await aps_agent.reschedule(plant_id, production_order_id, scope, mode)
+
+
+# Phase 13 (Recovery What-If Simulation) — calls scheduling-service's own
+# POST /scheduling/what-if DIRECTLY, not through the APS Platform bridge
+# aps_agent.simulate()/reschedule() use. That endpoint already exists,
+# already supports scope="AFFECTED"/mode="BOTTLENECK"+productionOrderId
+# (confirmed by reading its real implementation — it was already hardened
+# for exactly this combination, with its own scratch-Redis-namespace
+# cleanup), and writes nothing (no ScheduleRun/ScheduledOperation/
+# ResourceReservation — the same non-committing dry-run path real-run
+# capacity placement uses, just never persisted). Same direct-to-
+# scheduling-service convention get_quality_inspections/
+# get_delay_explanation already use for read-only/non-committing calls —
+# not a new integration pattern.
+async def simulate_reschedule(plant_id: str, production_order_id: str, scope: str = "AFFECTED", mode: str = "BOTTLENECK") -> dict:
+    async with httpx.AsyncClient(timeout=60.0, headers=_internal_headers()) as client:
+        resp = await client.post(
+            f"{SCHEDULING_SERVICE_URL}/scheduling/what-if",
+            json={"plantId": plant_id, "scope": scope, "mode": mode, "productionOrderId": production_order_id, "capacityAdjustments": []},
+        )
+    resp.raise_for_status()
+    return resp.json()
 
 
 async def find_production_order_by_sales_order(sales_order_id: str) -> dict | None:

@@ -1,12 +1,17 @@
 # app/routers/pipeline.py
 import logging
+import time
+from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app import db
+from app.approval_proposal import compute_proposal_hash
 from app.graph import graph
+from app.integrations.manufacturing_services import AGENT_ORCHESTRATOR_ENTERPRISE_ID
 from app.security import ForwardedUser, require_user
+from app.trace_context import set_trace_id
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -50,6 +55,14 @@ async def _try_log_stage(run_id: str | None, node_name: str, delta: dict) -> Non
 @router.post("/pipeline/runs")
 async def start_run(body: RunRequest, user: ForwardedUser = Depends(require_user)):
     run_id = await _try_create_run()
+    # Stage 07 (Observability/Correlation): run_id IS this system's real
+    # root correlation id for a workflow — set once, here, for the
+    # contextvar every outbound call for the rest of this request reads
+    # automatically (see app/trace_context.py). Falls back to a fresh id
+    # when run-tracking itself is unavailable (DATABASE_URL unset) so a
+    # trace_id always exists to forward/log, even though it then has no
+    # durable AgentPipelineRun row behind it.
+    set_trace_id(run_id or f"untracked-{uuid4()}")
 
     # Streaming ("updates" mode) instead of graph.ainvoke() gives the same
     # final state (SalesState has no custom reducers, so folding every
@@ -61,12 +74,24 @@ async def start_run(body: RunRequest, user: ForwardedUser = Depends(require_user
     # came from which stage.
     merged: dict = {"user_message": body.message}
     stages: list[dict] = []
+    # Stage 07 (AI decision record): real per-node wall-clock duration —
+    # free, since this loop already awaits each node's completion in
+    # order; no change to any of the ~20 individual LLM-calling agent
+    # modules needed to get it. provider ("groq") and model (GROQ_MODEL,
+    # app/config.py) are deliberately NOT repeated on every row — they're
+    # fixed, repo-wide constants today, not per-call data, so storing them
+    # per stage would be padding, not a real decision record; this
+    # documents that rather than inventing a column nothing actually varies.
+    stage_started_at = time.monotonic()
     try:
         async for update in graph.astream({"user_message": body.message}, stream_mode="updates"):
+            now = time.monotonic()
             for node_name, delta in update.items():
-                stages.append({"node": node_name, "output": delta})
+                duration_ms = round((now - stage_started_at) * 1000)
+                stages.append({"node": node_name, "output": delta, "duration_ms": duration_ms})
                 merged.update(delta)
-                await _try_log_stage(run_id, node_name, delta)
+                await _try_log_stage(run_id, node_name, {**delta, "_duration_ms": duration_ms})
+            stage_started_at = now
     except Exception:
         await _try_finish_run(run_id, "FAILED")
         raise
@@ -96,6 +121,8 @@ async def start_run(body: RunRequest, user: ForwardedUser = Depends(require_user
             action=pending["action"],
             payload=pending["context"],
             requested_by=user.user_id,
+            enterprise_id=AGENT_ORCHESTRATOR_ENTERPRISE_ID,
+            proposal_hash=compute_proposal_hash(pending["action"], pending["context"]),
         )
 
     return {"run_id": run_id, "user_message": body.message, "stages": stages, **merged}

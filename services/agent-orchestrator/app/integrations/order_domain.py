@@ -41,7 +41,7 @@ async def find_or_create_customer(name: str) -> str:
         return resp.json()["id"]
 
 
-async def create_sales_order_record(
+async def create_sales_order_with_fulfillment(
     customer_id: str,
     due_date: str,
     value: float,
@@ -52,8 +52,37 @@ async def create_sales_order_record(
     currency: str,
     created_by: str | None,
     external_order_id: str,
-) -> str:
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
+    product_id: str | None,
+    product_name: str,
+    quantity: float,
+    unit_price: float,
+    requested_date: str | None,
+    strategy: str,
+    reasoning: str | None,
+    lines: list[dict],
+    idempotency_key: str | None = None,
+) -> dict:
+    """Stage 03C Part C: the one atomic call that replaced the former
+    create_sales_order_record + create_order_line_and_fulfillment pair —
+    order-service's POST /sales-orders, extended (Stage 03A/B) to accept
+    `lines`, already creates SalesOrder + OrderLine + FulfillmentPlan +
+    FulfillmentLine(s) in a single Postgres transaction when `lines` is
+    present. Two separate HTTP calls meant a real window where the first
+    succeeded and the second failed (or, on a retry, duplicated) — this
+    closes it by construction, not by added retry logic.
+
+    idempotency_key, when given, is sent as the real Idempotency-Key
+    header (the same claim-first mechanism this same endpoint already
+    uses for Part A/B) — see _dual_write_order_and_fulfillment in graph.py
+    for how it's derived from the approval run's own stable run_id.
+
+    lines: [{"sourceType": "STOCK"|"PRODUCTION"|"BUY"|"DROP_SHIP"|"TRANSFER", "quantity": float, ...}].
+    Returns the created SalesOrder plus {"orderLineId", "fulfillmentPlanId",
+    "fulfillmentLines": [{"id", "sourceType"}]}."""
+    headers = _internal_headers()
+    if idempotency_key:
+        headers = {**headers, "Idempotency-Key": idempotency_key}
+    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=headers) as client:
         resp = await client.post(
             f"{ORDER_SERVICE_URL}/sales-orders",
             json={
@@ -68,29 +97,6 @@ async def create_sales_order_record(
                 "currency": currency,
                 "createdBy": created_by,
                 "externalOrderId": external_order_id,
-            },
-        )
-    resp.raise_for_status()
-    return resp.json()["id"]
-
-
-async def create_order_line_and_fulfillment(
-    sales_order_id: str,
-    product_id: str | None,
-    product_name: str,
-    quantity: float,
-    unit_price: float,
-    requested_date: str | None,
-    strategy: str,
-    reasoning: str | None,
-    lines: list[dict],
-) -> dict:
-    """lines: [{"sourceType": "STOCK"|"PRODUCTION"|"VENDOR"|"TRANSFER", "quantity": float, ...}].
-    Returns {"orderLineId", "fulfillmentPlanId", "fulfillmentLines": [{"id", "sourceType"}]}."""
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.post(
-            f"{ORDER_SERVICE_URL}/sales-orders/{sales_order_id}/fulfillment",
-            json={
                 "productId": product_id,
                 "productName": product_name,
                 "quantity": quantity,
@@ -111,6 +117,7 @@ async def patch_fulfillment_line(
     execution_reference: str | None = None,
     status: str | None = None,
     promised_date: str | None = None,
+    reason: str | None = None,
 ) -> None:
     body: dict = {}
     if production_order_id is not None:
@@ -121,6 +128,8 @@ async def patch_fulfillment_line(
         body["status"] = status
     if promised_date is not None:
         body["promisedDate"] = promised_date
+    if reason is not None:
+        body["reason"] = reason
     async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
         resp = await client.patch(f"{ORDER_SERVICE_URL}/fulfillment-lines/{fulfillment_line_id}", json=body)
     resp.raise_for_status()
@@ -136,3 +145,37 @@ async def get_fulfillment_by_external_order_id(external_order_id: str) -> dict |
     resp.raise_for_status()
     orders = resp.json()
     return orders[0] if orders else None
+
+
+async def get_promise_inbox(
+    limit: int | None = None,
+    offset: int | None = None,
+    search: str | None = None,
+    risk_status: str | None = None,
+    pending_approval_only: bool | None = None,
+) -> dict:
+    """Phase 14 (Promise Risk & Decision Inbox) — pure passthrough to
+    order-service's GET /sales-orders/promises (the real aggregation +
+    deterministic classification endpoint; see packages/domain/src/
+    promise-risk.ts and services/order-service/src/promise-inbox.ts).
+    No reasoning happens here: this function exists only so the Ledger
+    app's own API proxy (which forwards exclusively to this service, not
+    order-service — see frontend/src/app/api/orchestrator/[...path]/
+    route.ts) can reach it, same "compose an already-existing HTTP call"
+    principle as every other function in this file."""
+    params: dict[str, str] = {}
+    if limit is not None:
+        params["limit"] = str(limit)
+    if offset is not None:
+        params["offset"] = str(offset)
+    if search:
+        params["search"] = search
+    if risk_status:
+        params["riskStatus"] = risk_status
+    if pending_approval_only:
+        params["pendingApprovalOnly"] = "true"
+
+    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
+        resp = await client.get(f"{ORDER_SERVICE_URL}/sales-orders/promises", params=params)
+    resp.raise_for_status()
+    return resp.json()

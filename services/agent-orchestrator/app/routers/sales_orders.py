@@ -16,9 +16,37 @@ from app.integrations import manufacturing_services as mfg
 from app.integrations import order_domain
 from app.routers.production import _build_tracking
 from app.security import require_role
+from app.tools.billing_tools import find_invoice_by_sales_order
+from app.tools.delivery_tools import find_delivery_by_sales_order
 from app.tools.sales_tools import find_sales_order
 
 router = APIRouter(prefix="/sales-orders")
+
+
+# Phase 14 (Promise Risk & Decision Inbox) — declared before the
+# `/{sales_order_id}/...` routes below (static-before-dynamic; FastAPI
+# would not actually collide here since none of those are a bare single
+# segment, but this keeps the ordering unambiguous). Pure passthrough to
+# order-service's real aggregation + deterministic classification
+# endpoint (order_domain.get_promise_inbox) — no reasoning, no LLM, and
+# this is the Ledger app's only ingress into agent-orchestrator, so this
+# is the one new seam the frontend's existing /api/orchestrator proxy
+# needs to reach it.
+@router.get("/promises")
+async def promise_inbox(
+    limit: int | None = None,
+    offset: int | None = None,
+    search: str | None = None,
+    riskStatus: str | None = None,
+    pendingApprovalOnly: bool | None = None,
+):
+    return await order_domain.get_promise_inbox(
+        limit=limit,
+        offset=offset,
+        search=search,
+        risk_status=riskStatus,
+        pending_approval_only=pendingApprovalOnly,
+    )
 
 
 async def _build_production_plan(production_order: dict) -> dict:
@@ -140,6 +168,9 @@ async def sales_order_fulfillment(sales_order_id: str):
                     # patch has run — both stay null until then.
                     "promised_date": l.get("promisedDate"),
                     "execution_reference": l.get("executionReference"),
+                    # Exceptions/Holds: why this line is FAILED/ON_HOLD/
+                    # CANCELLED — null for every other status.
+                    "reason": l.get("reason"),
                 }
                 for l in plan.get("lines", [])
             ],
@@ -197,12 +228,26 @@ async def sales_order_detail(sales_order_id: str):
         "shown transiently on the approval screen at planning time, not persisted indexed by sales_order_id."
     )
 
+    # Order Control Center (Phase 3, agreed with the user): real delivery/
+    # invoice records, looked up independently of whether a production
+    # order exists. _build_tracking above already does this same lookup,
+    # but only ever runs when a production order is linked — leaving the
+    # most common case (a pure-stock MTS order, which still gets a real
+    # delivery+invoice via _deliver_and_bill) with none here at all. This
+    # is the one, always-attempted, real source for both.
+    delivery = find_delivery_by_sales_order(sales_order_id)
+    invoice = find_invoice_by_sales_order(sales_order_id)
+    if not delivery and not invoice:
+        missing.append("No delivery or invoice recorded yet for this order.")
+
     return {
         "sales_order": sales_order,
         "production_order_id": production_order["id"] if production_order else None,
         "production_plan": production_plan,
         "schedule": schedule,
         "capacity": capacity,
+        "delivery": delivery,
+        "invoice": invoice,
         "work_centers": [{"id": wc["id"], "code": wc["code"]} for wc in work_centers],
         "missing": missing,
     }

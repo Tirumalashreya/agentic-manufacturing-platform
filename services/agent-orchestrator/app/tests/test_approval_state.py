@@ -19,7 +19,7 @@ other DB-backed piece of this codebase already has.
 """
 import asyncio
 import os
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -27,6 +27,8 @@ from fastapi.testclient import TestClient
 os.environ.setdefault("INTERNAL_SERVICE_TOKEN", "test-token-for-approval-state-tests")
 
 from app import db  # noqa: E402
+from app.approval_proposal import compute_proposal_hash  # noqa: E402
+from app.integrations.manufacturing_services import AGENT_ORCHESTRATOR_ENTERPRISE_ID  # noqa: E402
 from app.main import app  # noqa: E402
 
 client = TestClient(app)
@@ -47,8 +49,14 @@ _SALES_CONTEXT = {
 
 async def _make_pending(action: str = "create_order", payload: dict | None = None) -> str:
     run_id = await db.create_run()
+    effective_payload = payload or dict(_SALES_CONTEXT)
     await db.save_pending_approval(
-        run_id=run_id, action=action, payload=payload or dict(_SALES_CONTEXT), requested_by="test-requester"
+        run_id=run_id,
+        action=action,
+        payload=effective_payload,
+        requested_by="test-requester",
+        enterprise_id=AGENT_ORCHESTRATOR_ENTERPRISE_ID,
+        proposal_hash=compute_proposal_hash(action, effective_payload),
     )
     return run_id
 
@@ -312,7 +320,14 @@ _RESCHEDULE_CONTEXT = {
 async def test_reschedule_approval_lifecycle_and_replay_protection():
     run_id = await _make_pending(action="RESCHEDULE_PRODUCTION", payload=dict(_RESCHEDULE_CONTEXT))
 
+    # Stage 04: revalidate_proposal re-checks the referenced ProductionOrder
+    # still exists before rescheduling it — mocked here for the same reason
+    # reschedule_production_order itself is mocked just below (no live
+    # reschedulable production order exists in this environment).
     with patch(
+        "app.approval_proposal.mfg.get_production_order",
+        new=AsyncMock(return_value={"id": "po-test-1", "status": "PLANNED"}),
+    ), patch(
         "app.routers.approvals.mfg.reschedule_production_order",
         return_value={"ordersProcessed": 1, "operationsScheduled": 3, "conflictsDetected": 0, "scheduleVersion": 2, "scope": "SINGLE"},
     ) as mocked:
@@ -348,3 +363,155 @@ async def test_reschedule_rejection_never_calls_the_real_reschedule():
         )
     assert res.status_code == 200
     assert res.json() == {"resolved": True, "status": "REJECTED"}
+
+
+# --------------------------------------------------------------------------
+# Stage 04 — Immutable Proposal + Version-Bound Approval. Genuinely new
+# ground (per the Stage 04 audit this was built against): nothing before
+# this re-checked real business state between proposal and execution, and
+# no hash/version/enterprise binding existed on the approval row at all.
+# --------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_version_binding_fields_are_populated_at_proposal_time():
+    run_id = await _make_pending()
+    row = await db.get_approval(run_id)
+    assert row["enterpriseId"] == AGENT_ORCHESTRATOR_ENTERPRISE_ID
+    assert row["proposalHash"] == compute_proposal_hash("create_order", _SALES_CONTEXT)
+    assert row["approvalCreatedAt"] is not None
+
+
+@pytest.mark.asyncio
+async def test_stale_customer_inactive_blocks_execution_and_flips_to_stale():
+    run_id = await _make_pending()
+    with patch(
+        "app.approval_proposal.get_customer",
+        return_value={"customer_id": "C018", "customer_name": "Northgate Traders", "active": False, "credit_limit": 50_000.0},
+    ):
+        res = _resolve(run_id, "APPROVED")
+    assert res.status_code == 409
+    assert "stale" in res.json()["detail"]["error"].lower()
+    row = await db.get_approval(run_id)
+    assert row["approvalStatus"] == "STALE"
+    assert row["executionResult"]["stale"] is True
+    assert any("active status changed" in r for r in row["executionResult"]["reasons"])
+
+
+@pytest.mark.asyncio
+async def test_stale_credit_exceeded_blocks_execution():
+    run_id = await _make_pending()
+    with patch(
+        "app.approval_proposal.get_customer",
+        return_value={"customer_id": "C018", "customer_name": "Northgate Traders", "active": True, "credit_limit": 50_000.0},
+    ), patch(
+        "app.approval_proposal.check_credit",
+        return_value={"checked": True, "within_credit": False, "total_exposure": 999_999.0, "credit_limit": 50_000.0},
+    ):
+        res = _resolve(run_id, "APPROVED")
+    assert res.status_code == 409
+    row = await db.get_approval(run_id)
+    assert row["approvalStatus"] == "STALE"
+    assert any("credit exposure changed" in r for r in row["executionResult"]["reasons"])
+
+
+@pytest.mark.asyncio
+async def test_stale_stock_shortfall_blocks_execution():
+    context = dict(_SALES_CONTEXT, fulfillment={"strategy": "MTS", "from_stock": 250, "to_produce": 0})
+    run_id = await _make_pending(payload=context)
+    with patch("app.approval_proposal.get_stock", return_value=[{"plant": "PLANT01", "stock_qty": 10}]):
+        res = _resolve(run_id, "APPROVED")
+    assert res.status_code == 409
+    row = await db.get_approval(run_id)
+    assert row["approvalStatus"] == "STALE"
+    assert any("Stock for" in r and "dropped below" in r for r in row["executionResult"]["reasons"])
+
+
+@pytest.mark.asyncio
+async def test_stale_production_order_no_longer_planned_blocks_execution():
+    context = dict(_SALES_CONTEXT, production_plan={"production_order_id": "po-real-1", "plant_id": "plant-1", "quantity": 1})
+    run_id = await _make_pending(payload=context)
+    with patch(
+        "app.approval_proposal.mfg.get_production_order",
+        new=AsyncMock(return_value={"id": "po-real-1", "status": "RELEASED"}),
+    ):
+        res = _resolve(run_id, "APPROVED")
+    assert res.status_code == 409
+    row = await db.get_approval(run_id)
+    assert row["approvalStatus"] == "STALE"
+    assert any("no longer PLANNED" in r for r in row["executionResult"]["reasons"])
+
+
+@pytest.mark.asyncio
+async def test_proposal_hash_mismatch_blocks_execution_without_trusting_a_modified_payload():
+    # Simulates the payload having been modified after proposal time (no
+    # real code path does this today — a defense-in-depth integrity
+    # check) by writing a DIFFERENT payload directly, independent of the
+    # hash already recorded at save_pending_approval time.
+    run_id = await db.create_run()
+    await db.save_pending_approval(
+        run_id=run_id,
+        action="create_order",
+        payload=_SALES_CONTEXT,
+        requested_by="test-requester",
+        enterprise_id=AGENT_ORCHESTRATOR_ENTERPRISE_ID,
+        proposal_hash="0" * 64,  # deliberately wrong — never matches the real payload
+    )
+    res = _resolve(run_id, "APPROVED")
+    assert res.status_code == 409
+    assert "integrity" in res.json()["detail"]["reasons"][0].lower()
+    row = await db.get_approval(run_id)
+    assert row["approvalStatus"] == "STALE"
+
+
+@pytest.mark.asyncio
+async def test_reschedule_proposal_hash_mismatch_blocks_execution_without_trusting_a_modified_payload():
+    """Phase 16 (End-to-End Disruption Recovery Validation) — real gap
+    found: this defense-in-depth integrity check had a test for
+    create_order only; RESCHEDULE_PRODUCTION runs through the exact same
+    _revalidate_or_stale/proposalHash machinery (see approvals.py) but had
+    no test of its own proving it."""
+    run_id = await db.create_run()
+    await db.save_pending_approval(
+        run_id=run_id,
+        action="RESCHEDULE_PRODUCTION",
+        payload=_RESCHEDULE_CONTEXT,
+        requested_by="test-requester",
+        enterprise_id=AGENT_ORCHESTRATOR_ENTERPRISE_ID,
+        proposal_hash="0" * 64,  # deliberately wrong — never matches the real payload
+    )
+    res = client.post("/approvals/reschedule/resolve", json={"run_id": run_id, "decision": "APPROVED"}, headers=HEADERS)
+    assert res.status_code == 409
+    assert "integrity" in res.json()["detail"]["reasons"][0].lower()
+    row = await db.get_approval(run_id)
+    assert row["approvalStatus"] == "STALE"
+
+
+@pytest.mark.asyncio
+async def test_wrong_enterprise_cannot_claim_the_approval():
+    run_id = await db.create_run()
+    other_enterprise = "a-different-enterprise"
+    await db.save_pending_approval(
+        run_id=run_id,
+        action="create_order",
+        payload=_SALES_CONTEXT,
+        requested_by="test-requester",
+        enterprise_id=other_enterprise,
+        proposal_hash=compute_proposal_hash("create_order", _SALES_CONTEXT),
+    )
+    res = _resolve(run_id, "APPROVED")
+    assert res.status_code == 403
+    row = await db.get_approval(run_id)
+    assert row["approvalStatus"] == "PENDING"  # the claim never happened — not consumed, not touched
+
+
+@pytest.mark.asyncio
+async def test_a_genuinely_unchanged_proposal_still_executes_normally():
+    # The negative-case safety net for every staleness test above: with
+    # nothing mocked (real customer/credit/stock data, matching what the
+    # proposal was built from), revalidation finds nothing and execution
+    # proceeds exactly as every pre-Stage-04 happy-path test already proved.
+    run_id = await _make_pending()
+    res = _resolve(run_id, "APPROVED")
+    assert res.status_code == 200
+    row = await db.get_approval(run_id)
+    assert row["approvalStatus"] == "CONSUMED"
