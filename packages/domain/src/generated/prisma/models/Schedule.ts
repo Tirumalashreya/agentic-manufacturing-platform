@@ -42,6 +42,7 @@ export type ScheduleMinAggregateOutputType = {
   id: string | null
   plantId: string | null
   versionNumber: number | null
+  status: $Enums.ScheduleStatus | null
   kpiOnTimePct: number | null
   kpiUtilizationPct: number | null
   publishedAt: Date | null
@@ -52,6 +53,7 @@ export type ScheduleMaxAggregateOutputType = {
   id: string | null
   plantId: string | null
   versionNumber: number | null
+  status: $Enums.ScheduleStatus | null
   kpiOnTimePct: number | null
   kpiUtilizationPct: number | null
   publishedAt: Date | null
@@ -62,6 +64,7 @@ export type ScheduleCountAggregateOutputType = {
   id: number
   plantId: number
   versionNumber: number
+  status: number
   kpiOnTimePct: number
   kpiUtilizationPct: number
   publishedAt: number
@@ -86,6 +89,7 @@ export type ScheduleMinAggregateInputType = {
   id?: true
   plantId?: true
   versionNumber?: true
+  status?: true
   kpiOnTimePct?: true
   kpiUtilizationPct?: true
   publishedAt?: true
@@ -96,6 +100,7 @@ export type ScheduleMaxAggregateInputType = {
   id?: true
   plantId?: true
   versionNumber?: true
+  status?: true
   kpiOnTimePct?: true
   kpiUtilizationPct?: true
   publishedAt?: true
@@ -106,6 +111,7 @@ export type ScheduleCountAggregateInputType = {
   id?: true
   plantId?: true
   versionNumber?: true
+  status?: true
   kpiOnTimePct?: true
   kpiUtilizationPct?: true
   publishedAt?: true
@@ -203,6 +209,7 @@ export type ScheduleGroupByOutputType = {
   id: string
   plantId: string
   versionNumber: number
+  status: $Enums.ScheduleStatus
   kpiOnTimePct: number | null
   kpiUtilizationPct: number | null
   publishedAt: Date
@@ -236,22 +243,28 @@ export type ScheduleWhereInput = {
   id?: Prisma.StringFilter<"Schedule"> | string
   plantId?: Prisma.StringFilter<"Schedule"> | string
   versionNumber?: Prisma.IntFilter<"Schedule"> | number
+  status?: Prisma.EnumScheduleStatusFilter<"Schedule"> | $Enums.ScheduleStatus
   kpiOnTimePct?: Prisma.FloatNullableFilter<"Schedule"> | number | null
   kpiUtilizationPct?: Prisma.FloatNullableFilter<"Schedule"> | number | null
   publishedAt?: Prisma.DateTimeFilter<"Schedule"> | Date | string
   supersededAt?: Prisma.DateTimeNullableFilter<"Schedule"> | Date | string | null
   plant?: Prisma.XOR<Prisma.PlantScalarRelationFilter, Prisma.PlantWhereInput>
+  scheduledOperations?: Prisma.ScheduledOperationListRelationFilter
+  resourceReservations?: Prisma.ResourceReservationListRelationFilter
 }
 
 export type ScheduleOrderByWithRelationInput = {
   id?: Prisma.SortOrder
   plantId?: Prisma.SortOrder
   versionNumber?: Prisma.SortOrder
+  status?: Prisma.SortOrder
   kpiOnTimePct?: Prisma.SortOrderInput | Prisma.SortOrder
   kpiUtilizationPct?: Prisma.SortOrderInput | Prisma.SortOrder
   publishedAt?: Prisma.SortOrder
   supersededAt?: Prisma.SortOrderInput | Prisma.SortOrder
   plant?: Prisma.PlantOrderByWithRelationInput
+  scheduledOperations?: Prisma.ScheduledOperationOrderByRelationAggregateInput
+  resourceReservations?: Prisma.ResourceReservationOrderByRelationAggregateInput
 }
 
 export type ScheduleWhereUniqueInput = Prisma.AtLeast<{
@@ -262,17 +275,21 @@ export type ScheduleWhereUniqueInput = Prisma.AtLeast<{
   NOT?: Prisma.ScheduleWhereInput | Prisma.ScheduleWhereInput[]
   plantId?: Prisma.StringFilter<"Schedule"> | string
   versionNumber?: Prisma.IntFilter<"Schedule"> | number
+  status?: Prisma.EnumScheduleStatusFilter<"Schedule"> | $Enums.ScheduleStatus
   kpiOnTimePct?: Prisma.FloatNullableFilter<"Schedule"> | number | null
   kpiUtilizationPct?: Prisma.FloatNullableFilter<"Schedule"> | number | null
   publishedAt?: Prisma.DateTimeFilter<"Schedule"> | Date | string
   supersededAt?: Prisma.DateTimeNullableFilter<"Schedule"> | Date | string | null
   plant?: Prisma.XOR<Prisma.PlantScalarRelationFilter, Prisma.PlantWhereInput>
+  scheduledOperations?: Prisma.ScheduledOperationListRelationFilter
+  resourceReservations?: Prisma.ResourceReservationListRelationFilter
 }, "id" | "plantId_versionNumber">
 
 export type ScheduleOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
   plantId?: Prisma.SortOrder
   versionNumber?: Prisma.SortOrder
+  status?: Prisma.SortOrder
   kpiOnTimePct?: Prisma.SortOrderInput | Prisma.SortOrder
   kpiUtilizationPct?: Prisma.SortOrderInput | Prisma.SortOrder
   publishedAt?: Prisma.SortOrder
@@ -291,6 +308,7 @@ export type ScheduleScalarWhereWithAggregatesInput = {
   id?: Prisma.StringWithAggregatesFilter<"Schedule"> | string
   plantId?: Prisma.StringWithAggregatesFilter<"Schedule"> | string
   versionNumber?: Prisma.IntWithAggregatesFilter<"Schedule"> | number
+  status?: Prisma.EnumScheduleStatusWithAggregatesFilter<"Schedule"> | $Enums.ScheduleStatus
   kpiOnTimePct?: Prisma.FloatNullableWithAggregatesFilter<"Schedule"> | number | null
   kpiUtilizationPct?: Prisma.FloatNullableWithAggregatesFilter<"Schedule"> | number | null
   publishedAt?: Prisma.DateTimeWithAggregatesFilter<"Schedule"> | Date | string
@@ -300,47 +318,60 @@ export type ScheduleScalarWhereWithAggregatesInput = {
 export type ScheduleCreateInput = {
   id?: string
   versionNumber: number
+  status?: $Enums.ScheduleStatus
   kpiOnTimePct?: number | null
   kpiUtilizationPct?: number | null
   publishedAt?: Date | string
   supersededAt?: Date | string | null
   plant: Prisma.PlantCreateNestedOneWithoutSchedulesInput
+  scheduledOperations?: Prisma.ScheduledOperationCreateNestedManyWithoutScheduleVersionInput
+  resourceReservations?: Prisma.ResourceReservationCreateNestedManyWithoutScheduleVersionInput
 }
 
 export type ScheduleUncheckedCreateInput = {
   id?: string
   plantId: string
   versionNumber: number
+  status?: $Enums.ScheduleStatus
   kpiOnTimePct?: number | null
   kpiUtilizationPct?: number | null
   publishedAt?: Date | string
   supersededAt?: Date | string | null
+  scheduledOperations?: Prisma.ScheduledOperationUncheckedCreateNestedManyWithoutScheduleVersionInput
+  resourceReservations?: Prisma.ResourceReservationUncheckedCreateNestedManyWithoutScheduleVersionInput
 }
 
 export type ScheduleUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   versionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  status?: Prisma.EnumScheduleStatusFieldUpdateOperationsInput | $Enums.ScheduleStatus
   kpiOnTimePct?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   kpiUtilizationPct?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   publishedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   plant?: Prisma.PlantUpdateOneRequiredWithoutSchedulesNestedInput
+  scheduledOperations?: Prisma.ScheduledOperationUpdateManyWithoutScheduleVersionNestedInput
+  resourceReservations?: Prisma.ResourceReservationUpdateManyWithoutScheduleVersionNestedInput
 }
 
 export type ScheduleUncheckedUpdateInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   plantId?: Prisma.StringFieldUpdateOperationsInput | string
   versionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  status?: Prisma.EnumScheduleStatusFieldUpdateOperationsInput | $Enums.ScheduleStatus
   kpiOnTimePct?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   kpiUtilizationPct?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   publishedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  scheduledOperations?: Prisma.ScheduledOperationUncheckedUpdateManyWithoutScheduleVersionNestedInput
+  resourceReservations?: Prisma.ResourceReservationUncheckedUpdateManyWithoutScheduleVersionNestedInput
 }
 
 export type ScheduleCreateManyInput = {
   id?: string
   plantId: string
   versionNumber: number
+  status?: $Enums.ScheduleStatus
   kpiOnTimePct?: number | null
   kpiUtilizationPct?: number | null
   publishedAt?: Date | string
@@ -350,6 +381,7 @@ export type ScheduleCreateManyInput = {
 export type ScheduleUpdateManyMutationInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   versionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  status?: Prisma.EnumScheduleStatusFieldUpdateOperationsInput | $Enums.ScheduleStatus
   kpiOnTimePct?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   kpiUtilizationPct?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   publishedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -360,6 +392,7 @@ export type ScheduleUncheckedUpdateManyInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   plantId?: Prisma.StringFieldUpdateOperationsInput | string
   versionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  status?: Prisma.EnumScheduleStatusFieldUpdateOperationsInput | $Enums.ScheduleStatus
   kpiOnTimePct?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   kpiUtilizationPct?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   publishedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -376,6 +409,11 @@ export type ScheduleOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
+export type ScheduleNullableScalarRelationFilter = {
+  is?: Prisma.ScheduleWhereInput | null
+  isNot?: Prisma.ScheduleWhereInput | null
+}
+
 export type SchedulePlantIdVersionNumberCompoundUniqueInput = {
   plantId: string
   versionNumber: number
@@ -385,6 +423,7 @@ export type ScheduleCountOrderByAggregateInput = {
   id?: Prisma.SortOrder
   plantId?: Prisma.SortOrder
   versionNumber?: Prisma.SortOrder
+  status?: Prisma.SortOrder
   kpiOnTimePct?: Prisma.SortOrder
   kpiUtilizationPct?: Prisma.SortOrder
   publishedAt?: Prisma.SortOrder
@@ -401,6 +440,7 @@ export type ScheduleMaxOrderByAggregateInput = {
   id?: Prisma.SortOrder
   plantId?: Prisma.SortOrder
   versionNumber?: Prisma.SortOrder
+  status?: Prisma.SortOrder
   kpiOnTimePct?: Prisma.SortOrder
   kpiUtilizationPct?: Prisma.SortOrder
   publishedAt?: Prisma.SortOrder
@@ -411,6 +451,7 @@ export type ScheduleMinOrderByAggregateInput = {
   id?: Prisma.SortOrder
   plantId?: Prisma.SortOrder
   versionNumber?: Prisma.SortOrder
+  status?: Prisma.SortOrder
   kpiOnTimePct?: Prisma.SortOrder
   kpiUtilizationPct?: Prisma.SortOrder
   publishedAt?: Prisma.SortOrder
@@ -465,22 +506,64 @@ export type ScheduleUncheckedUpdateManyWithoutPlantNestedInput = {
   deleteMany?: Prisma.ScheduleScalarWhereInput | Prisma.ScheduleScalarWhereInput[]
 }
 
+export type ScheduleCreateNestedOneWithoutScheduledOperationsInput = {
+  create?: Prisma.XOR<Prisma.ScheduleCreateWithoutScheduledOperationsInput, Prisma.ScheduleUncheckedCreateWithoutScheduledOperationsInput>
+  connectOrCreate?: Prisma.ScheduleCreateOrConnectWithoutScheduledOperationsInput
+  connect?: Prisma.ScheduleWhereUniqueInput
+}
+
+export type ScheduleUpdateOneWithoutScheduledOperationsNestedInput = {
+  create?: Prisma.XOR<Prisma.ScheduleCreateWithoutScheduledOperationsInput, Prisma.ScheduleUncheckedCreateWithoutScheduledOperationsInput>
+  connectOrCreate?: Prisma.ScheduleCreateOrConnectWithoutScheduledOperationsInput
+  upsert?: Prisma.ScheduleUpsertWithoutScheduledOperationsInput
+  disconnect?: Prisma.ScheduleWhereInput | boolean
+  delete?: Prisma.ScheduleWhereInput | boolean
+  connect?: Prisma.ScheduleWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ScheduleUpdateToOneWithWhereWithoutScheduledOperationsInput, Prisma.ScheduleUpdateWithoutScheduledOperationsInput>, Prisma.ScheduleUncheckedUpdateWithoutScheduledOperationsInput>
+}
+
+export type ScheduleCreateNestedOneWithoutResourceReservationsInput = {
+  create?: Prisma.XOR<Prisma.ScheduleCreateWithoutResourceReservationsInput, Prisma.ScheduleUncheckedCreateWithoutResourceReservationsInput>
+  connectOrCreate?: Prisma.ScheduleCreateOrConnectWithoutResourceReservationsInput
+  connect?: Prisma.ScheduleWhereUniqueInput
+}
+
+export type ScheduleUpdateOneWithoutResourceReservationsNestedInput = {
+  create?: Prisma.XOR<Prisma.ScheduleCreateWithoutResourceReservationsInput, Prisma.ScheduleUncheckedCreateWithoutResourceReservationsInput>
+  connectOrCreate?: Prisma.ScheduleCreateOrConnectWithoutResourceReservationsInput
+  upsert?: Prisma.ScheduleUpsertWithoutResourceReservationsInput
+  disconnect?: Prisma.ScheduleWhereInput | boolean
+  delete?: Prisma.ScheduleWhereInput | boolean
+  connect?: Prisma.ScheduleWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ScheduleUpdateToOneWithWhereWithoutResourceReservationsInput, Prisma.ScheduleUpdateWithoutResourceReservationsInput>, Prisma.ScheduleUncheckedUpdateWithoutResourceReservationsInput>
+}
+
+export type EnumScheduleStatusFieldUpdateOperationsInput = {
+  set?: $Enums.ScheduleStatus
+}
+
 export type ScheduleCreateWithoutPlantInput = {
   id?: string
   versionNumber: number
+  status?: $Enums.ScheduleStatus
   kpiOnTimePct?: number | null
   kpiUtilizationPct?: number | null
   publishedAt?: Date | string
   supersededAt?: Date | string | null
+  scheduledOperations?: Prisma.ScheduledOperationCreateNestedManyWithoutScheduleVersionInput
+  resourceReservations?: Prisma.ResourceReservationCreateNestedManyWithoutScheduleVersionInput
 }
 
 export type ScheduleUncheckedCreateWithoutPlantInput = {
   id?: string
   versionNumber: number
+  status?: $Enums.ScheduleStatus
   kpiOnTimePct?: number | null
   kpiUtilizationPct?: number | null
   publishedAt?: Date | string
   supersededAt?: Date | string | null
+  scheduledOperations?: Prisma.ScheduledOperationUncheckedCreateNestedManyWithoutScheduleVersionInput
+  resourceReservations?: Prisma.ResourceReservationUncheckedCreateNestedManyWithoutScheduleVersionInput
 }
 
 export type ScheduleCreateOrConnectWithoutPlantInput = {
@@ -516,15 +599,145 @@ export type ScheduleScalarWhereInput = {
   id?: Prisma.StringFilter<"Schedule"> | string
   plantId?: Prisma.StringFilter<"Schedule"> | string
   versionNumber?: Prisma.IntFilter<"Schedule"> | number
+  status?: Prisma.EnumScheduleStatusFilter<"Schedule"> | $Enums.ScheduleStatus
   kpiOnTimePct?: Prisma.FloatNullableFilter<"Schedule"> | number | null
   kpiUtilizationPct?: Prisma.FloatNullableFilter<"Schedule"> | number | null
   publishedAt?: Prisma.DateTimeFilter<"Schedule"> | Date | string
   supersededAt?: Prisma.DateTimeNullableFilter<"Schedule"> | Date | string | null
 }
 
+export type ScheduleCreateWithoutScheduledOperationsInput = {
+  id?: string
+  versionNumber: number
+  status?: $Enums.ScheduleStatus
+  kpiOnTimePct?: number | null
+  kpiUtilizationPct?: number | null
+  publishedAt?: Date | string
+  supersededAt?: Date | string | null
+  plant: Prisma.PlantCreateNestedOneWithoutSchedulesInput
+  resourceReservations?: Prisma.ResourceReservationCreateNestedManyWithoutScheduleVersionInput
+}
+
+export type ScheduleUncheckedCreateWithoutScheduledOperationsInput = {
+  id?: string
+  plantId: string
+  versionNumber: number
+  status?: $Enums.ScheduleStatus
+  kpiOnTimePct?: number | null
+  kpiUtilizationPct?: number | null
+  publishedAt?: Date | string
+  supersededAt?: Date | string | null
+  resourceReservations?: Prisma.ResourceReservationUncheckedCreateNestedManyWithoutScheduleVersionInput
+}
+
+export type ScheduleCreateOrConnectWithoutScheduledOperationsInput = {
+  where: Prisma.ScheduleWhereUniqueInput
+  create: Prisma.XOR<Prisma.ScheduleCreateWithoutScheduledOperationsInput, Prisma.ScheduleUncheckedCreateWithoutScheduledOperationsInput>
+}
+
+export type ScheduleUpsertWithoutScheduledOperationsInput = {
+  update: Prisma.XOR<Prisma.ScheduleUpdateWithoutScheduledOperationsInput, Prisma.ScheduleUncheckedUpdateWithoutScheduledOperationsInput>
+  create: Prisma.XOR<Prisma.ScheduleCreateWithoutScheduledOperationsInput, Prisma.ScheduleUncheckedCreateWithoutScheduledOperationsInput>
+  where?: Prisma.ScheduleWhereInput
+}
+
+export type ScheduleUpdateToOneWithWhereWithoutScheduledOperationsInput = {
+  where?: Prisma.ScheduleWhereInput
+  data: Prisma.XOR<Prisma.ScheduleUpdateWithoutScheduledOperationsInput, Prisma.ScheduleUncheckedUpdateWithoutScheduledOperationsInput>
+}
+
+export type ScheduleUpdateWithoutScheduledOperationsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  versionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  status?: Prisma.EnumScheduleStatusFieldUpdateOperationsInput | $Enums.ScheduleStatus
+  kpiOnTimePct?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  kpiUtilizationPct?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  publishedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  plant?: Prisma.PlantUpdateOneRequiredWithoutSchedulesNestedInput
+  resourceReservations?: Prisma.ResourceReservationUpdateManyWithoutScheduleVersionNestedInput
+}
+
+export type ScheduleUncheckedUpdateWithoutScheduledOperationsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  plantId?: Prisma.StringFieldUpdateOperationsInput | string
+  versionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  status?: Prisma.EnumScheduleStatusFieldUpdateOperationsInput | $Enums.ScheduleStatus
+  kpiOnTimePct?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  kpiUtilizationPct?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  publishedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  resourceReservations?: Prisma.ResourceReservationUncheckedUpdateManyWithoutScheduleVersionNestedInput
+}
+
+export type ScheduleCreateWithoutResourceReservationsInput = {
+  id?: string
+  versionNumber: number
+  status?: $Enums.ScheduleStatus
+  kpiOnTimePct?: number | null
+  kpiUtilizationPct?: number | null
+  publishedAt?: Date | string
+  supersededAt?: Date | string | null
+  plant: Prisma.PlantCreateNestedOneWithoutSchedulesInput
+  scheduledOperations?: Prisma.ScheduledOperationCreateNestedManyWithoutScheduleVersionInput
+}
+
+export type ScheduleUncheckedCreateWithoutResourceReservationsInput = {
+  id?: string
+  plantId: string
+  versionNumber: number
+  status?: $Enums.ScheduleStatus
+  kpiOnTimePct?: number | null
+  kpiUtilizationPct?: number | null
+  publishedAt?: Date | string
+  supersededAt?: Date | string | null
+  scheduledOperations?: Prisma.ScheduledOperationUncheckedCreateNestedManyWithoutScheduleVersionInput
+}
+
+export type ScheduleCreateOrConnectWithoutResourceReservationsInput = {
+  where: Prisma.ScheduleWhereUniqueInput
+  create: Prisma.XOR<Prisma.ScheduleCreateWithoutResourceReservationsInput, Prisma.ScheduleUncheckedCreateWithoutResourceReservationsInput>
+}
+
+export type ScheduleUpsertWithoutResourceReservationsInput = {
+  update: Prisma.XOR<Prisma.ScheduleUpdateWithoutResourceReservationsInput, Prisma.ScheduleUncheckedUpdateWithoutResourceReservationsInput>
+  create: Prisma.XOR<Prisma.ScheduleCreateWithoutResourceReservationsInput, Prisma.ScheduleUncheckedCreateWithoutResourceReservationsInput>
+  where?: Prisma.ScheduleWhereInput
+}
+
+export type ScheduleUpdateToOneWithWhereWithoutResourceReservationsInput = {
+  where?: Prisma.ScheduleWhereInput
+  data: Prisma.XOR<Prisma.ScheduleUpdateWithoutResourceReservationsInput, Prisma.ScheduleUncheckedUpdateWithoutResourceReservationsInput>
+}
+
+export type ScheduleUpdateWithoutResourceReservationsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  versionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  status?: Prisma.EnumScheduleStatusFieldUpdateOperationsInput | $Enums.ScheduleStatus
+  kpiOnTimePct?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  kpiUtilizationPct?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  publishedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  plant?: Prisma.PlantUpdateOneRequiredWithoutSchedulesNestedInput
+  scheduledOperations?: Prisma.ScheduledOperationUpdateManyWithoutScheduleVersionNestedInput
+}
+
+export type ScheduleUncheckedUpdateWithoutResourceReservationsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  plantId?: Prisma.StringFieldUpdateOperationsInput | string
+  versionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  status?: Prisma.EnumScheduleStatusFieldUpdateOperationsInput | $Enums.ScheduleStatus
+  kpiOnTimePct?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  kpiUtilizationPct?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  publishedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  scheduledOperations?: Prisma.ScheduledOperationUncheckedUpdateManyWithoutScheduleVersionNestedInput
+}
+
 export type ScheduleCreateManyPlantInput = {
   id?: string
   versionNumber: number
+  status?: $Enums.ScheduleStatus
   kpiOnTimePct?: number | null
   kpiUtilizationPct?: number | null
   publishedAt?: Date | string
@@ -534,47 +747,97 @@ export type ScheduleCreateManyPlantInput = {
 export type ScheduleUpdateWithoutPlantInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   versionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  status?: Prisma.EnumScheduleStatusFieldUpdateOperationsInput | $Enums.ScheduleStatus
   kpiOnTimePct?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   kpiUtilizationPct?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   publishedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  scheduledOperations?: Prisma.ScheduledOperationUpdateManyWithoutScheduleVersionNestedInput
+  resourceReservations?: Prisma.ResourceReservationUpdateManyWithoutScheduleVersionNestedInput
 }
 
 export type ScheduleUncheckedUpdateWithoutPlantInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   versionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  status?: Prisma.EnumScheduleStatusFieldUpdateOperationsInput | $Enums.ScheduleStatus
   kpiOnTimePct?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   kpiUtilizationPct?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   publishedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  scheduledOperations?: Prisma.ScheduledOperationUncheckedUpdateManyWithoutScheduleVersionNestedInput
+  resourceReservations?: Prisma.ResourceReservationUncheckedUpdateManyWithoutScheduleVersionNestedInput
 }
 
 export type ScheduleUncheckedUpdateManyWithoutPlantInput = {
   id?: Prisma.StringFieldUpdateOperationsInput | string
   versionNumber?: Prisma.IntFieldUpdateOperationsInput | number
+  status?: Prisma.EnumScheduleStatusFieldUpdateOperationsInput | $Enums.ScheduleStatus
   kpiOnTimePct?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   kpiUtilizationPct?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   publishedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
+
+/**
+ * Count Type ScheduleCountOutputType
+ */
+
+export type ScheduleCountOutputType = {
+  scheduledOperations: number
+  resourceReservations: number
+}
+
+export type ScheduleCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  scheduledOperations?: boolean | ScheduleCountOutputTypeCountScheduledOperationsArgs
+  resourceReservations?: boolean | ScheduleCountOutputTypeCountResourceReservationsArgs
+}
+
+/**
+ * ScheduleCountOutputType without action
+ */
+export type ScheduleCountOutputTypeDefaultArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ScheduleCountOutputType
+   */
+  select?: Prisma.ScheduleCountOutputTypeSelect<ExtArgs> | null
+}
+
+/**
+ * ScheduleCountOutputType without action
+ */
+export type ScheduleCountOutputTypeCountScheduledOperationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ScheduledOperationWhereInput
+}
+
+/**
+ * ScheduleCountOutputType without action
+ */
+export type ScheduleCountOutputTypeCountResourceReservationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ResourceReservationWhereInput
+}
 
 
 export type ScheduleSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   plantId?: boolean
   versionNumber?: boolean
+  status?: boolean
   kpiOnTimePct?: boolean
   kpiUtilizationPct?: boolean
   publishedAt?: boolean
   supersededAt?: boolean
   plant?: boolean | Prisma.PlantDefaultArgs<ExtArgs>
+  scheduledOperations?: boolean | Prisma.Schedule$scheduledOperationsArgs<ExtArgs>
+  resourceReservations?: boolean | Prisma.Schedule$resourceReservationsArgs<ExtArgs>
+  _count?: boolean | Prisma.ScheduleCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["schedule"]>
 
 export type ScheduleSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
   plantId?: boolean
   versionNumber?: boolean
+  status?: boolean
   kpiOnTimePct?: boolean
   kpiUtilizationPct?: boolean
   publishedAt?: boolean
@@ -586,6 +849,7 @@ export type ScheduleSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exte
   id?: boolean
   plantId?: boolean
   versionNumber?: boolean
+  status?: boolean
   kpiOnTimePct?: boolean
   kpiUtilizationPct?: boolean
   publishedAt?: boolean
@@ -597,15 +861,19 @@ export type ScheduleSelectScalar = {
   id?: boolean
   plantId?: boolean
   versionNumber?: boolean
+  status?: boolean
   kpiOnTimePct?: boolean
   kpiUtilizationPct?: boolean
   publishedAt?: boolean
   supersededAt?: boolean
 }
 
-export type ScheduleOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "plantId" | "versionNumber" | "kpiOnTimePct" | "kpiUtilizationPct" | "publishedAt" | "supersededAt", ExtArgs["result"]["schedule"]>
+export type ScheduleOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "plantId" | "versionNumber" | "status" | "kpiOnTimePct" | "kpiUtilizationPct" | "publishedAt" | "supersededAt", ExtArgs["result"]["schedule"]>
 export type ScheduleInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   plant?: boolean | Prisma.PlantDefaultArgs<ExtArgs>
+  scheduledOperations?: boolean | Prisma.Schedule$scheduledOperationsArgs<ExtArgs>
+  resourceReservations?: boolean | Prisma.Schedule$resourceReservationsArgs<ExtArgs>
+  _count?: boolean | Prisma.ScheduleCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type ScheduleIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   plant?: boolean | Prisma.PlantDefaultArgs<ExtArgs>
@@ -618,11 +886,14 @@ export type $SchedulePayload<ExtArgs extends runtime.Types.Extensions.InternalAr
   name: "Schedule"
   objects: {
     plant: Prisma.$PlantPayload<ExtArgs>
+    scheduledOperations: Prisma.$ScheduledOperationPayload<ExtArgs>[]
+    resourceReservations: Prisma.$ResourceReservationPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
     plantId: string
     versionNumber: number
+    status: $Enums.ScheduleStatus
     kpiOnTimePct: number | null
     kpiUtilizationPct: number | null
     publishedAt: Date
@@ -1022,6 +1293,8 @@ readonly fields: ScheduleFieldRefs;
 export interface Prisma__ScheduleClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
   plant<T extends Prisma.PlantDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.PlantDefaultArgs<ExtArgs>>): Prisma.Prisma__PlantClient<runtime.Types.Result.GetResult<Prisma.$PlantPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
+  scheduledOperations<T extends Prisma.Schedule$scheduledOperationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Schedule$scheduledOperationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ScheduledOperationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  resourceReservations<T extends Prisma.Schedule$resourceReservationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Schedule$resourceReservationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ResourceReservationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1054,6 +1327,7 @@ export interface ScheduleFieldRefs {
   readonly id: Prisma.FieldRef<"Schedule", 'String'>
   readonly plantId: Prisma.FieldRef<"Schedule", 'String'>
   readonly versionNumber: Prisma.FieldRef<"Schedule", 'Int'>
+  readonly status: Prisma.FieldRef<"Schedule", 'ScheduleStatus'>
   readonly kpiOnTimePct: Prisma.FieldRef<"Schedule", 'Float'>
   readonly kpiUtilizationPct: Prisma.FieldRef<"Schedule", 'Float'>
   readonly publishedAt: Prisma.FieldRef<"Schedule", 'DateTime'>
@@ -1456,6 +1730,54 @@ export type ScheduleDeleteManyArgs<ExtArgs extends runtime.Types.Extensions.Inte
    * Limit how many Schedules to delete.
    */
   limit?: number
+}
+
+/**
+ * Schedule.scheduledOperations
+ */
+export type Schedule$scheduledOperationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ScheduledOperation
+   */
+  select?: Prisma.ScheduledOperationSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ScheduledOperation
+   */
+  omit?: Prisma.ScheduledOperationOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ScheduledOperationInclude<ExtArgs> | null
+  where?: Prisma.ScheduledOperationWhereInput
+  orderBy?: Prisma.ScheduledOperationOrderByWithRelationInput | Prisma.ScheduledOperationOrderByWithRelationInput[]
+  cursor?: Prisma.ScheduledOperationWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ScheduledOperationScalarFieldEnum | Prisma.ScheduledOperationScalarFieldEnum[]
+}
+
+/**
+ * Schedule.resourceReservations
+ */
+export type Schedule$resourceReservationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ResourceReservation
+   */
+  select?: Prisma.ResourceReservationSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ResourceReservation
+   */
+  omit?: Prisma.ResourceReservationOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ResourceReservationInclude<ExtArgs> | null
+  where?: Prisma.ResourceReservationWhereInput
+  orderBy?: Prisma.ResourceReservationOrderByWithRelationInput | Prisma.ResourceReservationOrderByWithRelationInput[]
+  cursor?: Prisma.ResourceReservationWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ResourceReservationScalarFieldEnum | Prisma.ResourceReservationScalarFieldEnum[]
 }
 
 /**

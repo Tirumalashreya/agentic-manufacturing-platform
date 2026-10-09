@@ -45,6 +45,7 @@ export type ScheduleRunMinAggregateOutputType = {
   finishedAt: Date | null
   durationMs: number | null
   conflictsDetected: number | null
+  failureReason: string | null
 }
 
 export type ScheduleRunMaxAggregateOutputType = {
@@ -56,6 +57,7 @@ export type ScheduleRunMaxAggregateOutputType = {
   finishedAt: Date | null
   durationMs: number | null
   conflictsDetected: number | null
+  failureReason: string | null
 }
 
 export type ScheduleRunCountAggregateOutputType = {
@@ -67,6 +69,7 @@ export type ScheduleRunCountAggregateOutputType = {
   finishedAt: number
   durationMs: number
   conflictsDetected: number
+  failureReason: number
   _all: number
 }
 
@@ -90,6 +93,7 @@ export type ScheduleRunMinAggregateInputType = {
   finishedAt?: true
   durationMs?: true
   conflictsDetected?: true
+  failureReason?: true
 }
 
 export type ScheduleRunMaxAggregateInputType = {
@@ -101,6 +105,7 @@ export type ScheduleRunMaxAggregateInputType = {
   finishedAt?: true
   durationMs?: true
   conflictsDetected?: true
+  failureReason?: true
 }
 
 export type ScheduleRunCountAggregateInputType = {
@@ -112,6 +117,7 @@ export type ScheduleRunCountAggregateInputType = {
   finishedAt?: true
   durationMs?: true
   conflictsDetected?: true
+  failureReason?: true
   _all?: true
 }
 
@@ -210,6 +216,7 @@ export type ScheduleRunGroupByOutputType = {
   finishedAt: Date | null
   durationMs: number | null
   conflictsDetected: number
+  failureReason: string | null
   _count: ScheduleRunCountAggregateOutputType | null
   _avg: ScheduleRunAvgAggregateOutputType | null
   _sum: ScheduleRunSumAggregateOutputType | null
@@ -244,6 +251,7 @@ export type ScheduleRunWhereInput = {
   finishedAt?: Prisma.DateTimeNullableFilter<"ScheduleRun"> | Date | string | null
   durationMs?: Prisma.IntNullableFilter<"ScheduleRun"> | number | null
   conflictsDetected?: Prisma.IntFilter<"ScheduleRun"> | number
+  failureReason?: Prisma.StringNullableFilter<"ScheduleRun"> | string | null
   plant?: Prisma.XOR<Prisma.PlantScalarRelationFilter, Prisma.PlantWhereInput>
 }
 
@@ -256,6 +264,7 @@ export type ScheduleRunOrderByWithRelationInput = {
   finishedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   durationMs?: Prisma.SortOrderInput | Prisma.SortOrder
   conflictsDetected?: Prisma.SortOrder
+  failureReason?: Prisma.SortOrderInput | Prisma.SortOrder
   plant?: Prisma.PlantOrderByWithRelationInput
 }
 
@@ -271,6 +280,7 @@ export type ScheduleRunWhereUniqueInput = Prisma.AtLeast<{
   finishedAt?: Prisma.DateTimeNullableFilter<"ScheduleRun"> | Date | string | null
   durationMs?: Prisma.IntNullableFilter<"ScheduleRun"> | number | null
   conflictsDetected?: Prisma.IntFilter<"ScheduleRun"> | number
+  failureReason?: Prisma.StringNullableFilter<"ScheduleRun"> | string | null
   plant?: Prisma.XOR<Prisma.PlantScalarRelationFilter, Prisma.PlantWhereInput>
 }, "id">
 
@@ -283,6 +293,7 @@ export type ScheduleRunOrderByWithAggregationInput = {
   finishedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   durationMs?: Prisma.SortOrderInput | Prisma.SortOrder
   conflictsDetected?: Prisma.SortOrder
+  failureReason?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.ScheduleRunCountOrderByAggregateInput
   _avg?: Prisma.ScheduleRunAvgOrderByAggregateInput
   _max?: Prisma.ScheduleRunMaxOrderByAggregateInput
@@ -302,6 +313,7 @@ export type ScheduleRunScalarWhereWithAggregatesInput = {
   finishedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"ScheduleRun"> | Date | string | null
   durationMs?: Prisma.IntNullableWithAggregatesFilter<"ScheduleRun"> | number | null
   conflictsDetected?: Prisma.IntWithAggregatesFilter<"ScheduleRun"> | number
+  failureReason?: Prisma.StringNullableWithAggregatesFilter<"ScheduleRun"> | string | null
 }
 
 export type ScheduleRunCreateInput = {
@@ -312,6 +324,7 @@ export type ScheduleRunCreateInput = {
   finishedAt?: Date | string | null
   durationMs?: number | null
   conflictsDetected?: number
+  failureReason?: string | null
   plant: Prisma.PlantCreateNestedOneWithoutScheduleRunsInput
 }
 
@@ -324,6 +337,7 @@ export type ScheduleRunUncheckedCreateInput = {
   finishedAt?: Date | string | null
   durationMs?: number | null
   conflictsDetected?: number
+  failureReason?: string | null
 }
 
 export type ScheduleRunUpdateInput = {
@@ -334,6 +348,7 @@ export type ScheduleRunUpdateInput = {
   finishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   durationMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   conflictsDetected?: Prisma.IntFieldUpdateOperationsInput | number
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   plant?: Prisma.PlantUpdateOneRequiredWithoutScheduleRunsNestedInput
 }
 
@@ -346,6 +361,7 @@ export type ScheduleRunUncheckedUpdateInput = {
   finishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   durationMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   conflictsDetected?: Prisma.IntFieldUpdateOperationsInput | number
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ScheduleRunCreateManyInput = {
@@ -357,6 +373,7 @@ export type ScheduleRunCreateManyInput = {
   finishedAt?: Date | string | null
   durationMs?: number | null
   conflictsDetected?: number
+  failureReason?: string | null
 }
 
 export type ScheduleRunUpdateManyMutationInput = {
@@ -367,6 +384,7 @@ export type ScheduleRunUpdateManyMutationInput = {
   finishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   durationMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   conflictsDetected?: Prisma.IntFieldUpdateOperationsInput | number
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ScheduleRunUncheckedUpdateManyInput = {
@@ -378,6 +396,7 @@ export type ScheduleRunUncheckedUpdateManyInput = {
   finishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   durationMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   conflictsDetected?: Prisma.IntFieldUpdateOperationsInput | number
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ScheduleRunListRelationFilter = {
@@ -399,6 +418,7 @@ export type ScheduleRunCountOrderByAggregateInput = {
   finishedAt?: Prisma.SortOrder
   durationMs?: Prisma.SortOrder
   conflictsDetected?: Prisma.SortOrder
+  failureReason?: Prisma.SortOrder
 }
 
 export type ScheduleRunAvgOrderByAggregateInput = {
@@ -415,6 +435,7 @@ export type ScheduleRunMaxOrderByAggregateInput = {
   finishedAt?: Prisma.SortOrder
   durationMs?: Prisma.SortOrder
   conflictsDetected?: Prisma.SortOrder
+  failureReason?: Prisma.SortOrder
 }
 
 export type ScheduleRunMinOrderByAggregateInput = {
@@ -426,6 +447,7 @@ export type ScheduleRunMinOrderByAggregateInput = {
   finishedAt?: Prisma.SortOrder
   durationMs?: Prisma.SortOrder
   conflictsDetected?: Prisma.SortOrder
+  failureReason?: Prisma.SortOrder
 }
 
 export type ScheduleRunSumOrderByAggregateInput = {
@@ -491,6 +513,7 @@ export type ScheduleRunCreateWithoutPlantInput = {
   finishedAt?: Date | string | null
   durationMs?: number | null
   conflictsDetected?: number
+  failureReason?: string | null
 }
 
 export type ScheduleRunUncheckedCreateWithoutPlantInput = {
@@ -501,6 +524,7 @@ export type ScheduleRunUncheckedCreateWithoutPlantInput = {
   finishedAt?: Date | string | null
   durationMs?: number | null
   conflictsDetected?: number
+  failureReason?: string | null
 }
 
 export type ScheduleRunCreateOrConnectWithoutPlantInput = {
@@ -541,6 +565,7 @@ export type ScheduleRunScalarWhereInput = {
   finishedAt?: Prisma.DateTimeNullableFilter<"ScheduleRun"> | Date | string | null
   durationMs?: Prisma.IntNullableFilter<"ScheduleRun"> | number | null
   conflictsDetected?: Prisma.IntFilter<"ScheduleRun"> | number
+  failureReason?: Prisma.StringNullableFilter<"ScheduleRun"> | string | null
 }
 
 export type ScheduleRunCreateManyPlantInput = {
@@ -551,6 +576,7 @@ export type ScheduleRunCreateManyPlantInput = {
   finishedAt?: Date | string | null
   durationMs?: number | null
   conflictsDetected?: number
+  failureReason?: string | null
 }
 
 export type ScheduleRunUpdateWithoutPlantInput = {
@@ -561,6 +587,7 @@ export type ScheduleRunUpdateWithoutPlantInput = {
   finishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   durationMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   conflictsDetected?: Prisma.IntFieldUpdateOperationsInput | number
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ScheduleRunUncheckedUpdateWithoutPlantInput = {
@@ -571,6 +598,7 @@ export type ScheduleRunUncheckedUpdateWithoutPlantInput = {
   finishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   durationMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   conflictsDetected?: Prisma.IntFieldUpdateOperationsInput | number
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ScheduleRunUncheckedUpdateManyWithoutPlantInput = {
@@ -581,6 +609,7 @@ export type ScheduleRunUncheckedUpdateManyWithoutPlantInput = {
   finishedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   durationMs?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   conflictsDetected?: Prisma.IntFieldUpdateOperationsInput | number
+  failureReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 
@@ -594,6 +623,7 @@ export type ScheduleRunSelect<ExtArgs extends runtime.Types.Extensions.InternalA
   finishedAt?: boolean
   durationMs?: boolean
   conflictsDetected?: boolean
+  failureReason?: boolean
   plant?: boolean | Prisma.PlantDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["scheduleRun"]>
 
@@ -606,6 +636,7 @@ export type ScheduleRunSelectCreateManyAndReturn<ExtArgs extends runtime.Types.E
   finishedAt?: boolean
   durationMs?: boolean
   conflictsDetected?: boolean
+  failureReason?: boolean
   plant?: boolean | Prisma.PlantDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["scheduleRun"]>
 
@@ -618,6 +649,7 @@ export type ScheduleRunSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.E
   finishedAt?: boolean
   durationMs?: boolean
   conflictsDetected?: boolean
+  failureReason?: boolean
   plant?: boolean | Prisma.PlantDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["scheduleRun"]>
 
@@ -630,9 +662,10 @@ export type ScheduleRunSelectScalar = {
   finishedAt?: boolean
   durationMs?: boolean
   conflictsDetected?: boolean
+  failureReason?: boolean
 }
 
-export type ScheduleRunOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "plantId" | "scope" | "status" | "startedAt" | "finishedAt" | "durationMs" | "conflictsDetected", ExtArgs["result"]["scheduleRun"]>
+export type ScheduleRunOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "plantId" | "scope" | "status" | "startedAt" | "finishedAt" | "durationMs" | "conflictsDetected" | "failureReason", ExtArgs["result"]["scheduleRun"]>
 export type ScheduleRunInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   plant?: boolean | Prisma.PlantDefaultArgs<ExtArgs>
 }
@@ -657,6 +690,7 @@ export type $ScheduleRunPayload<ExtArgs extends runtime.Types.Extensions.Interna
     finishedAt: Date | null
     durationMs: number | null
     conflictsDetected: number
+    failureReason: string | null
   }, ExtArgs["result"]["scheduleRun"]>
   composites: {}
 }
@@ -1089,6 +1123,7 @@ export interface ScheduleRunFieldRefs {
   readonly finishedAt: Prisma.FieldRef<"ScheduleRun", 'DateTime'>
   readonly durationMs: Prisma.FieldRef<"ScheduleRun", 'Int'>
   readonly conflictsDetected: Prisma.FieldRef<"ScheduleRun", 'Int'>
+  readonly failureReason: Prisma.FieldRef<"ScheduleRun", 'String'>
 }
     
 

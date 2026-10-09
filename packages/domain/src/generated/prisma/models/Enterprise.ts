@@ -200,6 +200,11 @@ export type EnterpriseWhereInput = {
   createdAt?: Prisma.DateTimeFilter<"Enterprise"> | Date | string
   sites?: Prisma.SiteListRelationFilter
   users?: Prisma.UserListRelationFilter
+  customers?: Prisma.CustomerListRelationFilter
+  salesOrders?: Prisma.SalesOrderListRelationFilter
+  productionOrders?: Prisma.ProductionOrderListRelationFilter
+  inventory?: Prisma.InventoryListRelationFilter
+  idempotencyKeys?: Prisma.IdempotencyKeyListRelationFilter
 }
 
 export type EnterpriseOrderByWithRelationInput = {
@@ -212,6 +217,11 @@ export type EnterpriseOrderByWithRelationInput = {
   createdAt?: Prisma.SortOrder
   sites?: Prisma.SiteOrderByRelationAggregateInput
   users?: Prisma.UserOrderByRelationAggregateInput
+  customers?: Prisma.CustomerOrderByRelationAggregateInput
+  salesOrders?: Prisma.SalesOrderOrderByRelationAggregateInput
+  productionOrders?: Prisma.ProductionOrderOrderByRelationAggregateInput
+  inventory?: Prisma.InventoryOrderByRelationAggregateInput
+  idempotencyKeys?: Prisma.IdempotencyKeyOrderByRelationAggregateInput
 }
 
 export type EnterpriseWhereUniqueInput = Prisma.AtLeast<{
@@ -227,6 +237,11 @@ export type EnterpriseWhereUniqueInput = Prisma.AtLeast<{
   createdAt?: Prisma.DateTimeFilter<"Enterprise"> | Date | string
   sites?: Prisma.SiteListRelationFilter
   users?: Prisma.UserListRelationFilter
+  customers?: Prisma.CustomerListRelationFilter
+  salesOrders?: Prisma.SalesOrderListRelationFilter
+  productionOrders?: Prisma.ProductionOrderListRelationFilter
+  inventory?: Prisma.InventoryListRelationFilter
+  idempotencyKeys?: Prisma.IdempotencyKeyListRelationFilter
 }, "id">
 
 export type EnterpriseOrderByWithAggregationInput = {
@@ -265,6 +280,11 @@ export type EnterpriseCreateInput = {
   createdAt?: Date | string
   sites?: Prisma.SiteCreateNestedManyWithoutEnterpriseInput
   users?: Prisma.UserCreateNestedManyWithoutEnterpriseInput
+  customers?: Prisma.CustomerCreateNestedManyWithoutEnterpriseInput
+  salesOrders?: Prisma.SalesOrderCreateNestedManyWithoutEnterpriseInput
+  productionOrders?: Prisma.ProductionOrderCreateNestedManyWithoutEnterpriseInput
+  inventory?: Prisma.InventoryCreateNestedManyWithoutEnterpriseInput
+  idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUncheckedCreateInput = {
@@ -277,6 +297,11 @@ export type EnterpriseUncheckedCreateInput = {
   createdAt?: Date | string
   sites?: Prisma.SiteUncheckedCreateNestedManyWithoutEnterpriseInput
   users?: Prisma.UserUncheckedCreateNestedManyWithoutEnterpriseInput
+  customers?: Prisma.CustomerUncheckedCreateNestedManyWithoutEnterpriseInput
+  salesOrders?: Prisma.SalesOrderUncheckedCreateNestedManyWithoutEnterpriseInput
+  productionOrders?: Prisma.ProductionOrderUncheckedCreateNestedManyWithoutEnterpriseInput
+  inventory?: Prisma.InventoryUncheckedCreateNestedManyWithoutEnterpriseInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUpdateInput = {
@@ -289,6 +314,11 @@ export type EnterpriseUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sites?: Prisma.SiteUpdateManyWithoutEnterpriseNestedInput
   users?: Prisma.UserUpdateManyWithoutEnterpriseNestedInput
+  customers?: Prisma.CustomerUpdateManyWithoutEnterpriseNestedInput
+  salesOrders?: Prisma.SalesOrderUpdateManyWithoutEnterpriseNestedInput
+  productionOrders?: Prisma.ProductionOrderUpdateManyWithoutEnterpriseNestedInput
+  inventory?: Prisma.InventoryUpdateManyWithoutEnterpriseNestedInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseUncheckedUpdateInput = {
@@ -301,6 +331,11 @@ export type EnterpriseUncheckedUpdateInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sites?: Prisma.SiteUncheckedUpdateManyWithoutEnterpriseNestedInput
   users?: Prisma.UserUncheckedUpdateManyWithoutEnterpriseNestedInput
+  customers?: Prisma.CustomerUncheckedUpdateManyWithoutEnterpriseNestedInput
+  salesOrders?: Prisma.SalesOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
+  productionOrders?: Prisma.ProductionOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
+  inventory?: Prisma.InventoryUncheckedUpdateManyWithoutEnterpriseNestedInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseCreateManyInput = {
@@ -407,6 +442,76 @@ export type EnterpriseUpdateOneRequiredWithoutSitesNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.EnterpriseUpdateToOneWithWhereWithoutSitesInput, Prisma.EnterpriseUpdateWithoutSitesInput>, Prisma.EnterpriseUncheckedUpdateWithoutSitesInput>
 }
 
+export type EnterpriseCreateNestedOneWithoutCustomersInput = {
+  create?: Prisma.XOR<Prisma.EnterpriseCreateWithoutCustomersInput, Prisma.EnterpriseUncheckedCreateWithoutCustomersInput>
+  connectOrCreate?: Prisma.EnterpriseCreateOrConnectWithoutCustomersInput
+  connect?: Prisma.EnterpriseWhereUniqueInput
+}
+
+export type EnterpriseUpdateOneRequiredWithoutCustomersNestedInput = {
+  create?: Prisma.XOR<Prisma.EnterpriseCreateWithoutCustomersInput, Prisma.EnterpriseUncheckedCreateWithoutCustomersInput>
+  connectOrCreate?: Prisma.EnterpriseCreateOrConnectWithoutCustomersInput
+  upsert?: Prisma.EnterpriseUpsertWithoutCustomersInput
+  connect?: Prisma.EnterpriseWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.EnterpriseUpdateToOneWithWhereWithoutCustomersInput, Prisma.EnterpriseUpdateWithoutCustomersInput>, Prisma.EnterpriseUncheckedUpdateWithoutCustomersInput>
+}
+
+export type EnterpriseCreateNestedOneWithoutSalesOrdersInput = {
+  create?: Prisma.XOR<Prisma.EnterpriseCreateWithoutSalesOrdersInput, Prisma.EnterpriseUncheckedCreateWithoutSalesOrdersInput>
+  connectOrCreate?: Prisma.EnterpriseCreateOrConnectWithoutSalesOrdersInput
+  connect?: Prisma.EnterpriseWhereUniqueInput
+}
+
+export type EnterpriseUpdateOneRequiredWithoutSalesOrdersNestedInput = {
+  create?: Prisma.XOR<Prisma.EnterpriseCreateWithoutSalesOrdersInput, Prisma.EnterpriseUncheckedCreateWithoutSalesOrdersInput>
+  connectOrCreate?: Prisma.EnterpriseCreateOrConnectWithoutSalesOrdersInput
+  upsert?: Prisma.EnterpriseUpsertWithoutSalesOrdersInput
+  connect?: Prisma.EnterpriseWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.EnterpriseUpdateToOneWithWhereWithoutSalesOrdersInput, Prisma.EnterpriseUpdateWithoutSalesOrdersInput>, Prisma.EnterpriseUncheckedUpdateWithoutSalesOrdersInput>
+}
+
+export type EnterpriseCreateNestedOneWithoutProductionOrdersInput = {
+  create?: Prisma.XOR<Prisma.EnterpriseCreateWithoutProductionOrdersInput, Prisma.EnterpriseUncheckedCreateWithoutProductionOrdersInput>
+  connectOrCreate?: Prisma.EnterpriseCreateOrConnectWithoutProductionOrdersInput
+  connect?: Prisma.EnterpriseWhereUniqueInput
+}
+
+export type EnterpriseUpdateOneRequiredWithoutProductionOrdersNestedInput = {
+  create?: Prisma.XOR<Prisma.EnterpriseCreateWithoutProductionOrdersInput, Prisma.EnterpriseUncheckedCreateWithoutProductionOrdersInput>
+  connectOrCreate?: Prisma.EnterpriseCreateOrConnectWithoutProductionOrdersInput
+  upsert?: Prisma.EnterpriseUpsertWithoutProductionOrdersInput
+  connect?: Prisma.EnterpriseWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.EnterpriseUpdateToOneWithWhereWithoutProductionOrdersInput, Prisma.EnterpriseUpdateWithoutProductionOrdersInput>, Prisma.EnterpriseUncheckedUpdateWithoutProductionOrdersInput>
+}
+
+export type EnterpriseCreateNestedOneWithoutInventoryInput = {
+  create?: Prisma.XOR<Prisma.EnterpriseCreateWithoutInventoryInput, Prisma.EnterpriseUncheckedCreateWithoutInventoryInput>
+  connectOrCreate?: Prisma.EnterpriseCreateOrConnectWithoutInventoryInput
+  connect?: Prisma.EnterpriseWhereUniqueInput
+}
+
+export type EnterpriseUpdateOneRequiredWithoutInventoryNestedInput = {
+  create?: Prisma.XOR<Prisma.EnterpriseCreateWithoutInventoryInput, Prisma.EnterpriseUncheckedCreateWithoutInventoryInput>
+  connectOrCreate?: Prisma.EnterpriseCreateOrConnectWithoutInventoryInput
+  upsert?: Prisma.EnterpriseUpsertWithoutInventoryInput
+  connect?: Prisma.EnterpriseWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.EnterpriseUpdateToOneWithWhereWithoutInventoryInput, Prisma.EnterpriseUpdateWithoutInventoryInput>, Prisma.EnterpriseUncheckedUpdateWithoutInventoryInput>
+}
+
+export type EnterpriseCreateNestedOneWithoutIdempotencyKeysInput = {
+  create?: Prisma.XOR<Prisma.EnterpriseCreateWithoutIdempotencyKeysInput, Prisma.EnterpriseUncheckedCreateWithoutIdempotencyKeysInput>
+  connectOrCreate?: Prisma.EnterpriseCreateOrConnectWithoutIdempotencyKeysInput
+  connect?: Prisma.EnterpriseWhereUniqueInput
+}
+
+export type EnterpriseUpdateOneRequiredWithoutIdempotencyKeysNestedInput = {
+  create?: Prisma.XOR<Prisma.EnterpriseCreateWithoutIdempotencyKeysInput, Prisma.EnterpriseUncheckedCreateWithoutIdempotencyKeysInput>
+  connectOrCreate?: Prisma.EnterpriseCreateOrConnectWithoutIdempotencyKeysInput
+  upsert?: Prisma.EnterpriseUpsertWithoutIdempotencyKeysInput
+  connect?: Prisma.EnterpriseWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.EnterpriseUpdateToOneWithWhereWithoutIdempotencyKeysInput, Prisma.EnterpriseUpdateWithoutIdempotencyKeysInput>, Prisma.EnterpriseUncheckedUpdateWithoutIdempotencyKeysInput>
+}
+
 export type EnterpriseCreateWithoutUsersInput = {
   id?: string
   name: string
@@ -416,6 +521,11 @@ export type EnterpriseCreateWithoutUsersInput = {
   trialEndsAt?: Date | string | null
   createdAt?: Date | string
   sites?: Prisma.SiteCreateNestedManyWithoutEnterpriseInput
+  customers?: Prisma.CustomerCreateNestedManyWithoutEnterpriseInput
+  salesOrders?: Prisma.SalesOrderCreateNestedManyWithoutEnterpriseInput
+  productionOrders?: Prisma.ProductionOrderCreateNestedManyWithoutEnterpriseInput
+  inventory?: Prisma.InventoryCreateNestedManyWithoutEnterpriseInput
+  idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUncheckedCreateWithoutUsersInput = {
@@ -427,6 +537,11 @@ export type EnterpriseUncheckedCreateWithoutUsersInput = {
   trialEndsAt?: Date | string | null
   createdAt?: Date | string
   sites?: Prisma.SiteUncheckedCreateNestedManyWithoutEnterpriseInput
+  customers?: Prisma.CustomerUncheckedCreateNestedManyWithoutEnterpriseInput
+  salesOrders?: Prisma.SalesOrderUncheckedCreateNestedManyWithoutEnterpriseInput
+  productionOrders?: Prisma.ProductionOrderUncheckedCreateNestedManyWithoutEnterpriseInput
+  inventory?: Prisma.InventoryUncheckedCreateNestedManyWithoutEnterpriseInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseCreateOrConnectWithoutUsersInput = {
@@ -454,6 +569,11 @@ export type EnterpriseUpdateWithoutUsersInput = {
   trialEndsAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sites?: Prisma.SiteUpdateManyWithoutEnterpriseNestedInput
+  customers?: Prisma.CustomerUpdateManyWithoutEnterpriseNestedInput
+  salesOrders?: Prisma.SalesOrderUpdateManyWithoutEnterpriseNestedInput
+  productionOrders?: Prisma.ProductionOrderUpdateManyWithoutEnterpriseNestedInput
+  inventory?: Prisma.InventoryUpdateManyWithoutEnterpriseNestedInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseUncheckedUpdateWithoutUsersInput = {
@@ -465,6 +585,11 @@ export type EnterpriseUncheckedUpdateWithoutUsersInput = {
   trialEndsAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   sites?: Prisma.SiteUncheckedUpdateManyWithoutEnterpriseNestedInput
+  customers?: Prisma.CustomerUncheckedUpdateManyWithoutEnterpriseNestedInput
+  salesOrders?: Prisma.SalesOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
+  productionOrders?: Prisma.ProductionOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
+  inventory?: Prisma.InventoryUncheckedUpdateManyWithoutEnterpriseNestedInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseCreateWithoutSitesInput = {
@@ -476,6 +601,11 @@ export type EnterpriseCreateWithoutSitesInput = {
   trialEndsAt?: Date | string | null
   createdAt?: Date | string
   users?: Prisma.UserCreateNestedManyWithoutEnterpriseInput
+  customers?: Prisma.CustomerCreateNestedManyWithoutEnterpriseInput
+  salesOrders?: Prisma.SalesOrderCreateNestedManyWithoutEnterpriseInput
+  productionOrders?: Prisma.ProductionOrderCreateNestedManyWithoutEnterpriseInput
+  inventory?: Prisma.InventoryCreateNestedManyWithoutEnterpriseInput
+  idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUncheckedCreateWithoutSitesInput = {
@@ -487,6 +617,11 @@ export type EnterpriseUncheckedCreateWithoutSitesInput = {
   trialEndsAt?: Date | string | null
   createdAt?: Date | string
   users?: Prisma.UserUncheckedCreateNestedManyWithoutEnterpriseInput
+  customers?: Prisma.CustomerUncheckedCreateNestedManyWithoutEnterpriseInput
+  salesOrders?: Prisma.SalesOrderUncheckedCreateNestedManyWithoutEnterpriseInput
+  productionOrders?: Prisma.ProductionOrderUncheckedCreateNestedManyWithoutEnterpriseInput
+  inventory?: Prisma.InventoryUncheckedCreateNestedManyWithoutEnterpriseInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseCreateOrConnectWithoutSitesInput = {
@@ -514,6 +649,11 @@ export type EnterpriseUpdateWithoutSitesInput = {
   trialEndsAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   users?: Prisma.UserUpdateManyWithoutEnterpriseNestedInput
+  customers?: Prisma.CustomerUpdateManyWithoutEnterpriseNestedInput
+  salesOrders?: Prisma.SalesOrderUpdateManyWithoutEnterpriseNestedInput
+  productionOrders?: Prisma.ProductionOrderUpdateManyWithoutEnterpriseNestedInput
+  inventory?: Prisma.InventoryUpdateManyWithoutEnterpriseNestedInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseUncheckedUpdateWithoutSitesInput = {
@@ -525,6 +665,411 @@ export type EnterpriseUncheckedUpdateWithoutSitesInput = {
   trialEndsAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   users?: Prisma.UserUncheckedUpdateManyWithoutEnterpriseNestedInput
+  customers?: Prisma.CustomerUncheckedUpdateManyWithoutEnterpriseNestedInput
+  salesOrders?: Prisma.SalesOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
+  productionOrders?: Prisma.ProductionOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
+  inventory?: Prisma.InventoryUncheckedUpdateManyWithoutEnterpriseNestedInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
+}
+
+export type EnterpriseCreateWithoutCustomersInput = {
+  id?: string
+  name: string
+  timezone: string
+  currency: string
+  tier?: $Enums.SubscriptionTier
+  trialEndsAt?: Date | string | null
+  createdAt?: Date | string
+  sites?: Prisma.SiteCreateNestedManyWithoutEnterpriseInput
+  users?: Prisma.UserCreateNestedManyWithoutEnterpriseInput
+  salesOrders?: Prisma.SalesOrderCreateNestedManyWithoutEnterpriseInput
+  productionOrders?: Prisma.ProductionOrderCreateNestedManyWithoutEnterpriseInput
+  inventory?: Prisma.InventoryCreateNestedManyWithoutEnterpriseInput
+  idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
+}
+
+export type EnterpriseUncheckedCreateWithoutCustomersInput = {
+  id?: string
+  name: string
+  timezone: string
+  currency: string
+  tier?: $Enums.SubscriptionTier
+  trialEndsAt?: Date | string | null
+  createdAt?: Date | string
+  sites?: Prisma.SiteUncheckedCreateNestedManyWithoutEnterpriseInput
+  users?: Prisma.UserUncheckedCreateNestedManyWithoutEnterpriseInput
+  salesOrders?: Prisma.SalesOrderUncheckedCreateNestedManyWithoutEnterpriseInput
+  productionOrders?: Prisma.ProductionOrderUncheckedCreateNestedManyWithoutEnterpriseInput
+  inventory?: Prisma.InventoryUncheckedCreateNestedManyWithoutEnterpriseInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
+}
+
+export type EnterpriseCreateOrConnectWithoutCustomersInput = {
+  where: Prisma.EnterpriseWhereUniqueInput
+  create: Prisma.XOR<Prisma.EnterpriseCreateWithoutCustomersInput, Prisma.EnterpriseUncheckedCreateWithoutCustomersInput>
+}
+
+export type EnterpriseUpsertWithoutCustomersInput = {
+  update: Prisma.XOR<Prisma.EnterpriseUpdateWithoutCustomersInput, Prisma.EnterpriseUncheckedUpdateWithoutCustomersInput>
+  create: Prisma.XOR<Prisma.EnterpriseCreateWithoutCustomersInput, Prisma.EnterpriseUncheckedCreateWithoutCustomersInput>
+  where?: Prisma.EnterpriseWhereInput
+}
+
+export type EnterpriseUpdateToOneWithWhereWithoutCustomersInput = {
+  where?: Prisma.EnterpriseWhereInput
+  data: Prisma.XOR<Prisma.EnterpriseUpdateWithoutCustomersInput, Prisma.EnterpriseUncheckedUpdateWithoutCustomersInput>
+}
+
+export type EnterpriseUpdateWithoutCustomersInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  tier?: Prisma.EnumSubscriptionTierFieldUpdateOperationsInput | $Enums.SubscriptionTier
+  trialEndsAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sites?: Prisma.SiteUpdateManyWithoutEnterpriseNestedInput
+  users?: Prisma.UserUpdateManyWithoutEnterpriseNestedInput
+  salesOrders?: Prisma.SalesOrderUpdateManyWithoutEnterpriseNestedInput
+  productionOrders?: Prisma.ProductionOrderUpdateManyWithoutEnterpriseNestedInput
+  inventory?: Prisma.InventoryUpdateManyWithoutEnterpriseNestedInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
+}
+
+export type EnterpriseUncheckedUpdateWithoutCustomersInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  tier?: Prisma.EnumSubscriptionTierFieldUpdateOperationsInput | $Enums.SubscriptionTier
+  trialEndsAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sites?: Prisma.SiteUncheckedUpdateManyWithoutEnterpriseNestedInput
+  users?: Prisma.UserUncheckedUpdateManyWithoutEnterpriseNestedInput
+  salesOrders?: Prisma.SalesOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
+  productionOrders?: Prisma.ProductionOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
+  inventory?: Prisma.InventoryUncheckedUpdateManyWithoutEnterpriseNestedInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
+}
+
+export type EnterpriseCreateWithoutSalesOrdersInput = {
+  id?: string
+  name: string
+  timezone: string
+  currency: string
+  tier?: $Enums.SubscriptionTier
+  trialEndsAt?: Date | string | null
+  createdAt?: Date | string
+  sites?: Prisma.SiteCreateNestedManyWithoutEnterpriseInput
+  users?: Prisma.UserCreateNestedManyWithoutEnterpriseInput
+  customers?: Prisma.CustomerCreateNestedManyWithoutEnterpriseInput
+  productionOrders?: Prisma.ProductionOrderCreateNestedManyWithoutEnterpriseInput
+  inventory?: Prisma.InventoryCreateNestedManyWithoutEnterpriseInput
+  idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
+}
+
+export type EnterpriseUncheckedCreateWithoutSalesOrdersInput = {
+  id?: string
+  name: string
+  timezone: string
+  currency: string
+  tier?: $Enums.SubscriptionTier
+  trialEndsAt?: Date | string | null
+  createdAt?: Date | string
+  sites?: Prisma.SiteUncheckedCreateNestedManyWithoutEnterpriseInput
+  users?: Prisma.UserUncheckedCreateNestedManyWithoutEnterpriseInput
+  customers?: Prisma.CustomerUncheckedCreateNestedManyWithoutEnterpriseInput
+  productionOrders?: Prisma.ProductionOrderUncheckedCreateNestedManyWithoutEnterpriseInput
+  inventory?: Prisma.InventoryUncheckedCreateNestedManyWithoutEnterpriseInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
+}
+
+export type EnterpriseCreateOrConnectWithoutSalesOrdersInput = {
+  where: Prisma.EnterpriseWhereUniqueInput
+  create: Prisma.XOR<Prisma.EnterpriseCreateWithoutSalesOrdersInput, Prisma.EnterpriseUncheckedCreateWithoutSalesOrdersInput>
+}
+
+export type EnterpriseUpsertWithoutSalesOrdersInput = {
+  update: Prisma.XOR<Prisma.EnterpriseUpdateWithoutSalesOrdersInput, Prisma.EnterpriseUncheckedUpdateWithoutSalesOrdersInput>
+  create: Prisma.XOR<Prisma.EnterpriseCreateWithoutSalesOrdersInput, Prisma.EnterpriseUncheckedCreateWithoutSalesOrdersInput>
+  where?: Prisma.EnterpriseWhereInput
+}
+
+export type EnterpriseUpdateToOneWithWhereWithoutSalesOrdersInput = {
+  where?: Prisma.EnterpriseWhereInput
+  data: Prisma.XOR<Prisma.EnterpriseUpdateWithoutSalesOrdersInput, Prisma.EnterpriseUncheckedUpdateWithoutSalesOrdersInput>
+}
+
+export type EnterpriseUpdateWithoutSalesOrdersInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  tier?: Prisma.EnumSubscriptionTierFieldUpdateOperationsInput | $Enums.SubscriptionTier
+  trialEndsAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sites?: Prisma.SiteUpdateManyWithoutEnterpriseNestedInput
+  users?: Prisma.UserUpdateManyWithoutEnterpriseNestedInput
+  customers?: Prisma.CustomerUpdateManyWithoutEnterpriseNestedInput
+  productionOrders?: Prisma.ProductionOrderUpdateManyWithoutEnterpriseNestedInput
+  inventory?: Prisma.InventoryUpdateManyWithoutEnterpriseNestedInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
+}
+
+export type EnterpriseUncheckedUpdateWithoutSalesOrdersInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  tier?: Prisma.EnumSubscriptionTierFieldUpdateOperationsInput | $Enums.SubscriptionTier
+  trialEndsAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sites?: Prisma.SiteUncheckedUpdateManyWithoutEnterpriseNestedInput
+  users?: Prisma.UserUncheckedUpdateManyWithoutEnterpriseNestedInput
+  customers?: Prisma.CustomerUncheckedUpdateManyWithoutEnterpriseNestedInput
+  productionOrders?: Prisma.ProductionOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
+  inventory?: Prisma.InventoryUncheckedUpdateManyWithoutEnterpriseNestedInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
+}
+
+export type EnterpriseCreateWithoutProductionOrdersInput = {
+  id?: string
+  name: string
+  timezone: string
+  currency: string
+  tier?: $Enums.SubscriptionTier
+  trialEndsAt?: Date | string | null
+  createdAt?: Date | string
+  sites?: Prisma.SiteCreateNestedManyWithoutEnterpriseInput
+  users?: Prisma.UserCreateNestedManyWithoutEnterpriseInput
+  customers?: Prisma.CustomerCreateNestedManyWithoutEnterpriseInput
+  salesOrders?: Prisma.SalesOrderCreateNestedManyWithoutEnterpriseInput
+  inventory?: Prisma.InventoryCreateNestedManyWithoutEnterpriseInput
+  idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
+}
+
+export type EnterpriseUncheckedCreateWithoutProductionOrdersInput = {
+  id?: string
+  name: string
+  timezone: string
+  currency: string
+  tier?: $Enums.SubscriptionTier
+  trialEndsAt?: Date | string | null
+  createdAt?: Date | string
+  sites?: Prisma.SiteUncheckedCreateNestedManyWithoutEnterpriseInput
+  users?: Prisma.UserUncheckedCreateNestedManyWithoutEnterpriseInput
+  customers?: Prisma.CustomerUncheckedCreateNestedManyWithoutEnterpriseInput
+  salesOrders?: Prisma.SalesOrderUncheckedCreateNestedManyWithoutEnterpriseInput
+  inventory?: Prisma.InventoryUncheckedCreateNestedManyWithoutEnterpriseInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
+}
+
+export type EnterpriseCreateOrConnectWithoutProductionOrdersInput = {
+  where: Prisma.EnterpriseWhereUniqueInput
+  create: Prisma.XOR<Prisma.EnterpriseCreateWithoutProductionOrdersInput, Prisma.EnterpriseUncheckedCreateWithoutProductionOrdersInput>
+}
+
+export type EnterpriseUpsertWithoutProductionOrdersInput = {
+  update: Prisma.XOR<Prisma.EnterpriseUpdateWithoutProductionOrdersInput, Prisma.EnterpriseUncheckedUpdateWithoutProductionOrdersInput>
+  create: Prisma.XOR<Prisma.EnterpriseCreateWithoutProductionOrdersInput, Prisma.EnterpriseUncheckedCreateWithoutProductionOrdersInput>
+  where?: Prisma.EnterpriseWhereInput
+}
+
+export type EnterpriseUpdateToOneWithWhereWithoutProductionOrdersInput = {
+  where?: Prisma.EnterpriseWhereInput
+  data: Prisma.XOR<Prisma.EnterpriseUpdateWithoutProductionOrdersInput, Prisma.EnterpriseUncheckedUpdateWithoutProductionOrdersInput>
+}
+
+export type EnterpriseUpdateWithoutProductionOrdersInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  tier?: Prisma.EnumSubscriptionTierFieldUpdateOperationsInput | $Enums.SubscriptionTier
+  trialEndsAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sites?: Prisma.SiteUpdateManyWithoutEnterpriseNestedInput
+  users?: Prisma.UserUpdateManyWithoutEnterpriseNestedInput
+  customers?: Prisma.CustomerUpdateManyWithoutEnterpriseNestedInput
+  salesOrders?: Prisma.SalesOrderUpdateManyWithoutEnterpriseNestedInput
+  inventory?: Prisma.InventoryUpdateManyWithoutEnterpriseNestedInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
+}
+
+export type EnterpriseUncheckedUpdateWithoutProductionOrdersInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  tier?: Prisma.EnumSubscriptionTierFieldUpdateOperationsInput | $Enums.SubscriptionTier
+  trialEndsAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sites?: Prisma.SiteUncheckedUpdateManyWithoutEnterpriseNestedInput
+  users?: Prisma.UserUncheckedUpdateManyWithoutEnterpriseNestedInput
+  customers?: Prisma.CustomerUncheckedUpdateManyWithoutEnterpriseNestedInput
+  salesOrders?: Prisma.SalesOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
+  inventory?: Prisma.InventoryUncheckedUpdateManyWithoutEnterpriseNestedInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
+}
+
+export type EnterpriseCreateWithoutInventoryInput = {
+  id?: string
+  name: string
+  timezone: string
+  currency: string
+  tier?: $Enums.SubscriptionTier
+  trialEndsAt?: Date | string | null
+  createdAt?: Date | string
+  sites?: Prisma.SiteCreateNestedManyWithoutEnterpriseInput
+  users?: Prisma.UserCreateNestedManyWithoutEnterpriseInput
+  customers?: Prisma.CustomerCreateNestedManyWithoutEnterpriseInput
+  salesOrders?: Prisma.SalesOrderCreateNestedManyWithoutEnterpriseInput
+  productionOrders?: Prisma.ProductionOrderCreateNestedManyWithoutEnterpriseInput
+  idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
+}
+
+export type EnterpriseUncheckedCreateWithoutInventoryInput = {
+  id?: string
+  name: string
+  timezone: string
+  currency: string
+  tier?: $Enums.SubscriptionTier
+  trialEndsAt?: Date | string | null
+  createdAt?: Date | string
+  sites?: Prisma.SiteUncheckedCreateNestedManyWithoutEnterpriseInput
+  users?: Prisma.UserUncheckedCreateNestedManyWithoutEnterpriseInput
+  customers?: Prisma.CustomerUncheckedCreateNestedManyWithoutEnterpriseInput
+  salesOrders?: Prisma.SalesOrderUncheckedCreateNestedManyWithoutEnterpriseInput
+  productionOrders?: Prisma.ProductionOrderUncheckedCreateNestedManyWithoutEnterpriseInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
+}
+
+export type EnterpriseCreateOrConnectWithoutInventoryInput = {
+  where: Prisma.EnterpriseWhereUniqueInput
+  create: Prisma.XOR<Prisma.EnterpriseCreateWithoutInventoryInput, Prisma.EnterpriseUncheckedCreateWithoutInventoryInput>
+}
+
+export type EnterpriseUpsertWithoutInventoryInput = {
+  update: Prisma.XOR<Prisma.EnterpriseUpdateWithoutInventoryInput, Prisma.EnterpriseUncheckedUpdateWithoutInventoryInput>
+  create: Prisma.XOR<Prisma.EnterpriseCreateWithoutInventoryInput, Prisma.EnterpriseUncheckedCreateWithoutInventoryInput>
+  where?: Prisma.EnterpriseWhereInput
+}
+
+export type EnterpriseUpdateToOneWithWhereWithoutInventoryInput = {
+  where?: Prisma.EnterpriseWhereInput
+  data: Prisma.XOR<Prisma.EnterpriseUpdateWithoutInventoryInput, Prisma.EnterpriseUncheckedUpdateWithoutInventoryInput>
+}
+
+export type EnterpriseUpdateWithoutInventoryInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  tier?: Prisma.EnumSubscriptionTierFieldUpdateOperationsInput | $Enums.SubscriptionTier
+  trialEndsAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sites?: Prisma.SiteUpdateManyWithoutEnterpriseNestedInput
+  users?: Prisma.UserUpdateManyWithoutEnterpriseNestedInput
+  customers?: Prisma.CustomerUpdateManyWithoutEnterpriseNestedInput
+  salesOrders?: Prisma.SalesOrderUpdateManyWithoutEnterpriseNestedInput
+  productionOrders?: Prisma.ProductionOrderUpdateManyWithoutEnterpriseNestedInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
+}
+
+export type EnterpriseUncheckedUpdateWithoutInventoryInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  tier?: Prisma.EnumSubscriptionTierFieldUpdateOperationsInput | $Enums.SubscriptionTier
+  trialEndsAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sites?: Prisma.SiteUncheckedUpdateManyWithoutEnterpriseNestedInput
+  users?: Prisma.UserUncheckedUpdateManyWithoutEnterpriseNestedInput
+  customers?: Prisma.CustomerUncheckedUpdateManyWithoutEnterpriseNestedInput
+  salesOrders?: Prisma.SalesOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
+  productionOrders?: Prisma.ProductionOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
+}
+
+export type EnterpriseCreateWithoutIdempotencyKeysInput = {
+  id?: string
+  name: string
+  timezone: string
+  currency: string
+  tier?: $Enums.SubscriptionTier
+  trialEndsAt?: Date | string | null
+  createdAt?: Date | string
+  sites?: Prisma.SiteCreateNestedManyWithoutEnterpriseInput
+  users?: Prisma.UserCreateNestedManyWithoutEnterpriseInput
+  customers?: Prisma.CustomerCreateNestedManyWithoutEnterpriseInput
+  salesOrders?: Prisma.SalesOrderCreateNestedManyWithoutEnterpriseInput
+  productionOrders?: Prisma.ProductionOrderCreateNestedManyWithoutEnterpriseInput
+  inventory?: Prisma.InventoryCreateNestedManyWithoutEnterpriseInput
+}
+
+export type EnterpriseUncheckedCreateWithoutIdempotencyKeysInput = {
+  id?: string
+  name: string
+  timezone: string
+  currency: string
+  tier?: $Enums.SubscriptionTier
+  trialEndsAt?: Date | string | null
+  createdAt?: Date | string
+  sites?: Prisma.SiteUncheckedCreateNestedManyWithoutEnterpriseInput
+  users?: Prisma.UserUncheckedCreateNestedManyWithoutEnterpriseInput
+  customers?: Prisma.CustomerUncheckedCreateNestedManyWithoutEnterpriseInput
+  salesOrders?: Prisma.SalesOrderUncheckedCreateNestedManyWithoutEnterpriseInput
+  productionOrders?: Prisma.ProductionOrderUncheckedCreateNestedManyWithoutEnterpriseInput
+  inventory?: Prisma.InventoryUncheckedCreateNestedManyWithoutEnterpriseInput
+}
+
+export type EnterpriseCreateOrConnectWithoutIdempotencyKeysInput = {
+  where: Prisma.EnterpriseWhereUniqueInput
+  create: Prisma.XOR<Prisma.EnterpriseCreateWithoutIdempotencyKeysInput, Prisma.EnterpriseUncheckedCreateWithoutIdempotencyKeysInput>
+}
+
+export type EnterpriseUpsertWithoutIdempotencyKeysInput = {
+  update: Prisma.XOR<Prisma.EnterpriseUpdateWithoutIdempotencyKeysInput, Prisma.EnterpriseUncheckedUpdateWithoutIdempotencyKeysInput>
+  create: Prisma.XOR<Prisma.EnterpriseCreateWithoutIdempotencyKeysInput, Prisma.EnterpriseUncheckedCreateWithoutIdempotencyKeysInput>
+  where?: Prisma.EnterpriseWhereInput
+}
+
+export type EnterpriseUpdateToOneWithWhereWithoutIdempotencyKeysInput = {
+  where?: Prisma.EnterpriseWhereInput
+  data: Prisma.XOR<Prisma.EnterpriseUpdateWithoutIdempotencyKeysInput, Prisma.EnterpriseUncheckedUpdateWithoutIdempotencyKeysInput>
+}
+
+export type EnterpriseUpdateWithoutIdempotencyKeysInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  tier?: Prisma.EnumSubscriptionTierFieldUpdateOperationsInput | $Enums.SubscriptionTier
+  trialEndsAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sites?: Prisma.SiteUpdateManyWithoutEnterpriseNestedInput
+  users?: Prisma.UserUpdateManyWithoutEnterpriseNestedInput
+  customers?: Prisma.CustomerUpdateManyWithoutEnterpriseNestedInput
+  salesOrders?: Prisma.SalesOrderUpdateManyWithoutEnterpriseNestedInput
+  productionOrders?: Prisma.ProductionOrderUpdateManyWithoutEnterpriseNestedInput
+  inventory?: Prisma.InventoryUpdateManyWithoutEnterpriseNestedInput
+}
+
+export type EnterpriseUncheckedUpdateWithoutIdempotencyKeysInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  tier?: Prisma.EnumSubscriptionTierFieldUpdateOperationsInput | $Enums.SubscriptionTier
+  trialEndsAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sites?: Prisma.SiteUncheckedUpdateManyWithoutEnterpriseNestedInput
+  users?: Prisma.UserUncheckedUpdateManyWithoutEnterpriseNestedInput
+  customers?: Prisma.CustomerUncheckedUpdateManyWithoutEnterpriseNestedInput
+  salesOrders?: Prisma.SalesOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
+  productionOrders?: Prisma.ProductionOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
+  inventory?: Prisma.InventoryUncheckedUpdateManyWithoutEnterpriseNestedInput
 }
 
 
@@ -535,11 +1080,21 @@ export type EnterpriseUncheckedUpdateWithoutSitesInput = {
 export type EnterpriseCountOutputType = {
   sites: number
   users: number
+  customers: number
+  salesOrders: number
+  productionOrders: number
+  inventory: number
+  idempotencyKeys: number
 }
 
 export type EnterpriseCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   sites?: boolean | EnterpriseCountOutputTypeCountSitesArgs
   users?: boolean | EnterpriseCountOutputTypeCountUsersArgs
+  customers?: boolean | EnterpriseCountOutputTypeCountCustomersArgs
+  salesOrders?: boolean | EnterpriseCountOutputTypeCountSalesOrdersArgs
+  productionOrders?: boolean | EnterpriseCountOutputTypeCountProductionOrdersArgs
+  inventory?: boolean | EnterpriseCountOutputTypeCountInventoryArgs
+  idempotencyKeys?: boolean | EnterpriseCountOutputTypeCountIdempotencyKeysArgs
 }
 
 /**
@@ -566,6 +1121,41 @@ export type EnterpriseCountOutputTypeCountUsersArgs<ExtArgs extends runtime.Type
   where?: Prisma.UserWhereInput
 }
 
+/**
+ * EnterpriseCountOutputType without action
+ */
+export type EnterpriseCountOutputTypeCountCustomersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.CustomerWhereInput
+}
+
+/**
+ * EnterpriseCountOutputType without action
+ */
+export type EnterpriseCountOutputTypeCountSalesOrdersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.SalesOrderWhereInput
+}
+
+/**
+ * EnterpriseCountOutputType without action
+ */
+export type EnterpriseCountOutputTypeCountProductionOrdersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ProductionOrderWhereInput
+}
+
+/**
+ * EnterpriseCountOutputType without action
+ */
+export type EnterpriseCountOutputTypeCountInventoryArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.InventoryWhereInput
+}
+
+/**
+ * EnterpriseCountOutputType without action
+ */
+export type EnterpriseCountOutputTypeCountIdempotencyKeysArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.IdempotencyKeyWhereInput
+}
+
 
 export type EnterpriseSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -577,6 +1167,11 @@ export type EnterpriseSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   createdAt?: boolean
   sites?: boolean | Prisma.Enterprise$sitesArgs<ExtArgs>
   users?: boolean | Prisma.Enterprise$usersArgs<ExtArgs>
+  customers?: boolean | Prisma.Enterprise$customersArgs<ExtArgs>
+  salesOrders?: boolean | Prisma.Enterprise$salesOrdersArgs<ExtArgs>
+  productionOrders?: boolean | Prisma.Enterprise$productionOrdersArgs<ExtArgs>
+  inventory?: boolean | Prisma.Enterprise$inventoryArgs<ExtArgs>
+  idempotencyKeys?: boolean | Prisma.Enterprise$idempotencyKeysArgs<ExtArgs>
   _count?: boolean | Prisma.EnterpriseCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["enterprise"]>
 
@@ -614,6 +1209,11 @@ export type EnterpriseOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs
 export type EnterpriseInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   sites?: boolean | Prisma.Enterprise$sitesArgs<ExtArgs>
   users?: boolean | Prisma.Enterprise$usersArgs<ExtArgs>
+  customers?: boolean | Prisma.Enterprise$customersArgs<ExtArgs>
+  salesOrders?: boolean | Prisma.Enterprise$salesOrdersArgs<ExtArgs>
+  productionOrders?: boolean | Prisma.Enterprise$productionOrdersArgs<ExtArgs>
+  inventory?: boolean | Prisma.Enterprise$inventoryArgs<ExtArgs>
+  idempotencyKeys?: boolean | Prisma.Enterprise$idempotencyKeysArgs<ExtArgs>
   _count?: boolean | Prisma.EnterpriseCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type EnterpriseIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -624,6 +1224,11 @@ export type $EnterprisePayload<ExtArgs extends runtime.Types.Extensions.Internal
   objects: {
     sites: Prisma.$SitePayload<ExtArgs>[]
     users: Prisma.$UserPayload<ExtArgs>[]
+    customers: Prisma.$CustomerPayload<ExtArgs>[]
+    salesOrders: Prisma.$SalesOrderPayload<ExtArgs>[]
+    productionOrders: Prisma.$ProductionOrderPayload<ExtArgs>[]
+    inventory: Prisma.$InventoryPayload<ExtArgs>[]
+    idempotencyKeys: Prisma.$IdempotencyKeyPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1029,6 +1634,11 @@ export interface Prisma__EnterpriseClient<T, Null = never, ExtArgs extends runti
   readonly [Symbol.toStringTag]: "PrismaPromise"
   sites<T extends Prisma.Enterprise$sitesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Enterprise$sitesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SitePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   users<T extends Prisma.Enterprise$usersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Enterprise$usersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  customers<T extends Prisma.Enterprise$customersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Enterprise$customersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$CustomerPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  salesOrders<T extends Prisma.Enterprise$salesOrdersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Enterprise$salesOrdersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$SalesOrderPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  productionOrders<T extends Prisma.Enterprise$productionOrdersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Enterprise$productionOrdersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ProductionOrderPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  inventory<T extends Prisma.Enterprise$inventoryArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Enterprise$inventoryArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$InventoryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  idempotencyKeys<T extends Prisma.Enterprise$idempotencyKeysArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Enterprise$idempotencyKeysArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$IdempotencyKeyPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1503,6 +2113,126 @@ export type Enterprise$usersArgs<ExtArgs extends runtime.Types.Extensions.Intern
   take?: number
   skip?: number
   distinct?: Prisma.UserScalarFieldEnum | Prisma.UserScalarFieldEnum[]
+}
+
+/**
+ * Enterprise.customers
+ */
+export type Enterprise$customersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Customer
+   */
+  select?: Prisma.CustomerSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Customer
+   */
+  omit?: Prisma.CustomerOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.CustomerInclude<ExtArgs> | null
+  where?: Prisma.CustomerWhereInput
+  orderBy?: Prisma.CustomerOrderByWithRelationInput | Prisma.CustomerOrderByWithRelationInput[]
+  cursor?: Prisma.CustomerWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.CustomerScalarFieldEnum | Prisma.CustomerScalarFieldEnum[]
+}
+
+/**
+ * Enterprise.salesOrders
+ */
+export type Enterprise$salesOrdersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the SalesOrder
+   */
+  select?: Prisma.SalesOrderSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the SalesOrder
+   */
+  omit?: Prisma.SalesOrderOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.SalesOrderInclude<ExtArgs> | null
+  where?: Prisma.SalesOrderWhereInput
+  orderBy?: Prisma.SalesOrderOrderByWithRelationInput | Prisma.SalesOrderOrderByWithRelationInput[]
+  cursor?: Prisma.SalesOrderWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.SalesOrderScalarFieldEnum | Prisma.SalesOrderScalarFieldEnum[]
+}
+
+/**
+ * Enterprise.productionOrders
+ */
+export type Enterprise$productionOrdersArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ProductionOrder
+   */
+  select?: Prisma.ProductionOrderSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ProductionOrder
+   */
+  omit?: Prisma.ProductionOrderOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ProductionOrderInclude<ExtArgs> | null
+  where?: Prisma.ProductionOrderWhereInput
+  orderBy?: Prisma.ProductionOrderOrderByWithRelationInput | Prisma.ProductionOrderOrderByWithRelationInput[]
+  cursor?: Prisma.ProductionOrderWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ProductionOrderScalarFieldEnum | Prisma.ProductionOrderScalarFieldEnum[]
+}
+
+/**
+ * Enterprise.inventory
+ */
+export type Enterprise$inventoryArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Inventory
+   */
+  select?: Prisma.InventorySelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Inventory
+   */
+  omit?: Prisma.InventoryOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.InventoryInclude<ExtArgs> | null
+  where?: Prisma.InventoryWhereInput
+  orderBy?: Prisma.InventoryOrderByWithRelationInput | Prisma.InventoryOrderByWithRelationInput[]
+  cursor?: Prisma.InventoryWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.InventoryScalarFieldEnum | Prisma.InventoryScalarFieldEnum[]
+}
+
+/**
+ * Enterprise.idempotencyKeys
+ */
+export type Enterprise$idempotencyKeysArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the IdempotencyKey
+   */
+  select?: Prisma.IdempotencyKeySelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the IdempotencyKey
+   */
+  omit?: Prisma.IdempotencyKeyOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.IdempotencyKeyInclude<ExtArgs> | null
+  where?: Prisma.IdempotencyKeyWhereInput
+  orderBy?: Prisma.IdempotencyKeyOrderByWithRelationInput | Prisma.IdempotencyKeyOrderByWithRelationInput[]
+  cursor?: Prisma.IdempotencyKeyWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.IdempotencyKeyScalarFieldEnum | Prisma.IdempotencyKeyScalarFieldEnum[]
 }
 
 /**

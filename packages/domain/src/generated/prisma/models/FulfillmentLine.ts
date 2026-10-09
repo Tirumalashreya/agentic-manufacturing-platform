@@ -42,6 +42,7 @@ export type FulfillmentLineMinAggregateOutputType = {
   sourceLocation: string | null
   destination: string | null
   status: $Enums.FulfillmentLineStatus | null
+  reason: string | null
   promisedDate: Date | null
   actualDate: Date | null
   productionOrderId: string | null
@@ -60,6 +61,7 @@ export type FulfillmentLineMaxAggregateOutputType = {
   sourceLocation: string | null
   destination: string | null
   status: $Enums.FulfillmentLineStatus | null
+  reason: string | null
   promisedDate: Date | null
   actualDate: Date | null
   productionOrderId: string | null
@@ -78,6 +80,7 @@ export type FulfillmentLineCountAggregateOutputType = {
   sourceLocation: number
   destination: number
   status: number
+  reason: number
   promisedDate: number
   actualDate: number
   productionOrderId: number
@@ -106,6 +109,7 @@ export type FulfillmentLineMinAggregateInputType = {
   sourceLocation?: true
   destination?: true
   status?: true
+  reason?: true
   promisedDate?: true
   actualDate?: true
   productionOrderId?: true
@@ -124,6 +128,7 @@ export type FulfillmentLineMaxAggregateInputType = {
   sourceLocation?: true
   destination?: true
   status?: true
+  reason?: true
   promisedDate?: true
   actualDate?: true
   productionOrderId?: true
@@ -142,6 +147,7 @@ export type FulfillmentLineCountAggregateInputType = {
   sourceLocation?: true
   destination?: true
   status?: true
+  reason?: true
   promisedDate?: true
   actualDate?: true
   productionOrderId?: true
@@ -247,6 +253,7 @@ export type FulfillmentLineGroupByOutputType = {
   sourceLocation: string | null
   destination: string | null
   status: $Enums.FulfillmentLineStatus
+  reason: string | null
   promisedDate: Date | null
   actualDate: Date | null
   productionOrderId: string | null
@@ -288,6 +295,7 @@ export type FulfillmentLineWhereInput = {
   sourceLocation?: Prisma.StringNullableFilter<"FulfillmentLine"> | string | null
   destination?: Prisma.StringNullableFilter<"FulfillmentLine"> | string | null
   status?: Prisma.EnumFulfillmentLineStatusFilter<"FulfillmentLine"> | $Enums.FulfillmentLineStatus
+  reason?: Prisma.StringNullableFilter<"FulfillmentLine"> | string | null
   promisedDate?: Prisma.DateTimeNullableFilter<"FulfillmentLine"> | Date | string | null
   actualDate?: Prisma.DateTimeNullableFilter<"FulfillmentLine"> | Date | string | null
   productionOrderId?: Prisma.StringNullableFilter<"FulfillmentLine"> | string | null
@@ -308,6 +316,7 @@ export type FulfillmentLineOrderByWithRelationInput = {
   sourceLocation?: Prisma.SortOrderInput | Prisma.SortOrder
   destination?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
+  reason?: Prisma.SortOrderInput | Prisma.SortOrder
   promisedDate?: Prisma.SortOrderInput | Prisma.SortOrder
   actualDate?: Prisma.SortOrderInput | Prisma.SortOrder
   productionOrderId?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -331,6 +340,7 @@ export type FulfillmentLineWhereUniqueInput = Prisma.AtLeast<{
   sourceLocation?: Prisma.StringNullableFilter<"FulfillmentLine"> | string | null
   destination?: Prisma.StringNullableFilter<"FulfillmentLine"> | string | null
   status?: Prisma.EnumFulfillmentLineStatusFilter<"FulfillmentLine"> | $Enums.FulfillmentLineStatus
+  reason?: Prisma.StringNullableFilter<"FulfillmentLine"> | string | null
   promisedDate?: Prisma.DateTimeNullableFilter<"FulfillmentLine"> | Date | string | null
   actualDate?: Prisma.DateTimeNullableFilter<"FulfillmentLine"> | Date | string | null
   productionOrderId?: Prisma.StringNullableFilter<"FulfillmentLine"> | string | null
@@ -351,6 +361,7 @@ export type FulfillmentLineOrderByWithAggregationInput = {
   sourceLocation?: Prisma.SortOrderInput | Prisma.SortOrder
   destination?: Prisma.SortOrderInput | Prisma.SortOrder
   status?: Prisma.SortOrder
+  reason?: Prisma.SortOrderInput | Prisma.SortOrder
   promisedDate?: Prisma.SortOrderInput | Prisma.SortOrder
   actualDate?: Prisma.SortOrderInput | Prisma.SortOrder
   productionOrderId?: Prisma.SortOrderInput | Prisma.SortOrder
@@ -377,6 +388,7 @@ export type FulfillmentLineScalarWhereWithAggregatesInput = {
   sourceLocation?: Prisma.StringNullableWithAggregatesFilter<"FulfillmentLine"> | string | null
   destination?: Prisma.StringNullableWithAggregatesFilter<"FulfillmentLine"> | string | null
   status?: Prisma.EnumFulfillmentLineStatusWithAggregatesFilter<"FulfillmentLine"> | $Enums.FulfillmentLineStatus
+  reason?: Prisma.StringNullableWithAggregatesFilter<"FulfillmentLine"> | string | null
   promisedDate?: Prisma.DateTimeNullableWithAggregatesFilter<"FulfillmentLine"> | Date | string | null
   actualDate?: Prisma.DateTimeNullableWithAggregatesFilter<"FulfillmentLine"> | Date | string | null
   productionOrderId?: Prisma.StringNullableWithAggregatesFilter<"FulfillmentLine"> | string | null
@@ -394,6 +406,7 @@ export type FulfillmentLineCreateInput = {
   sourceLocation?: string | null
   destination?: string | null
   status?: $Enums.FulfillmentLineStatus
+  reason?: string | null
   promisedDate?: Date | string | null
   actualDate?: Date | string | null
   executionReference?: string | null
@@ -413,6 +426,7 @@ export type FulfillmentLineUncheckedCreateInput = {
   sourceLocation?: string | null
   destination?: string | null
   status?: $Enums.FulfillmentLineStatus
+  reason?: string | null
   promisedDate?: Date | string | null
   actualDate?: Date | string | null
   productionOrderId?: string | null
@@ -430,6 +444,7 @@ export type FulfillmentLineUpdateInput = {
   sourceLocation?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   destination?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumFulfillmentLineStatusFieldUpdateOperationsInput | $Enums.FulfillmentLineStatus
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   promisedDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   actualDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   executionReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -449,6 +464,7 @@ export type FulfillmentLineUncheckedUpdateInput = {
   sourceLocation?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   destination?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumFulfillmentLineStatusFieldUpdateOperationsInput | $Enums.FulfillmentLineStatus
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   promisedDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   actualDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   productionOrderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -467,6 +483,7 @@ export type FulfillmentLineCreateManyInput = {
   sourceLocation?: string | null
   destination?: string | null
   status?: $Enums.FulfillmentLineStatus
+  reason?: string | null
   promisedDate?: Date | string | null
   actualDate?: Date | string | null
   productionOrderId?: string | null
@@ -484,6 +501,7 @@ export type FulfillmentLineUpdateManyMutationInput = {
   sourceLocation?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   destination?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumFulfillmentLineStatusFieldUpdateOperationsInput | $Enums.FulfillmentLineStatus
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   promisedDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   actualDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   executionReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -501,6 +519,7 @@ export type FulfillmentLineUncheckedUpdateManyInput = {
   sourceLocation?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   destination?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumFulfillmentLineStatusFieldUpdateOperationsInput | $Enums.FulfillmentLineStatus
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   promisedDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   actualDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   productionOrderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -529,6 +548,7 @@ export type FulfillmentLineCountOrderByAggregateInput = {
   sourceLocation?: Prisma.SortOrder
   destination?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  reason?: Prisma.SortOrder
   promisedDate?: Prisma.SortOrder
   actualDate?: Prisma.SortOrder
   productionOrderId?: Prisma.SortOrder
@@ -551,6 +571,7 @@ export type FulfillmentLineMaxOrderByAggregateInput = {
   sourceLocation?: Prisma.SortOrder
   destination?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  reason?: Prisma.SortOrder
   promisedDate?: Prisma.SortOrder
   actualDate?: Prisma.SortOrder
   productionOrderId?: Prisma.SortOrder
@@ -569,6 +590,7 @@ export type FulfillmentLineMinOrderByAggregateInput = {
   sourceLocation?: Prisma.SortOrder
   destination?: Prisma.SortOrder
   status?: Prisma.SortOrder
+  reason?: Prisma.SortOrder
   promisedDate?: Prisma.SortOrder
   actualDate?: Prisma.SortOrder
   productionOrderId?: Prisma.SortOrder
@@ -682,6 +704,7 @@ export type FulfillmentLineCreateWithoutProductionOrderInput = {
   sourceLocation?: string | null
   destination?: string | null
   status?: $Enums.FulfillmentLineStatus
+  reason?: string | null
   promisedDate?: Date | string | null
   actualDate?: Date | string | null
   executionReference?: string | null
@@ -700,6 +723,7 @@ export type FulfillmentLineUncheckedCreateWithoutProductionOrderInput = {
   sourceLocation?: string | null
   destination?: string | null
   status?: $Enums.FulfillmentLineStatus
+  reason?: string | null
   promisedDate?: Date | string | null
   actualDate?: Date | string | null
   executionReference?: string | null
@@ -746,6 +770,7 @@ export type FulfillmentLineScalarWhereInput = {
   sourceLocation?: Prisma.StringNullableFilter<"FulfillmentLine"> | string | null
   destination?: Prisma.StringNullableFilter<"FulfillmentLine"> | string | null
   status?: Prisma.EnumFulfillmentLineStatusFilter<"FulfillmentLine"> | $Enums.FulfillmentLineStatus
+  reason?: Prisma.StringNullableFilter<"FulfillmentLine"> | string | null
   promisedDate?: Prisma.DateTimeNullableFilter<"FulfillmentLine"> | Date | string | null
   actualDate?: Prisma.DateTimeNullableFilter<"FulfillmentLine"> | Date | string | null
   productionOrderId?: Prisma.StringNullableFilter<"FulfillmentLine"> | string | null
@@ -763,6 +788,7 @@ export type FulfillmentLineCreateWithoutFulfillmentPlanInput = {
   sourceLocation?: string | null
   destination?: string | null
   status?: $Enums.FulfillmentLineStatus
+  reason?: string | null
   promisedDate?: Date | string | null
   actualDate?: Date | string | null
   executionReference?: string | null
@@ -780,6 +806,7 @@ export type FulfillmentLineUncheckedCreateWithoutFulfillmentPlanInput = {
   sourceLocation?: string | null
   destination?: string | null
   status?: $Enums.FulfillmentLineStatus
+  reason?: string | null
   promisedDate?: Date | string | null
   actualDate?: Date | string | null
   productionOrderId?: string | null
@@ -824,6 +851,7 @@ export type FulfillmentLineCreateManyProductionOrderInput = {
   sourceLocation?: string | null
   destination?: string | null
   status?: $Enums.FulfillmentLineStatus
+  reason?: string | null
   promisedDate?: Date | string | null
   actualDate?: Date | string | null
   executionReference?: string | null
@@ -840,6 +868,7 @@ export type FulfillmentLineUpdateWithoutProductionOrderInput = {
   sourceLocation?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   destination?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumFulfillmentLineStatusFieldUpdateOperationsInput | $Enums.FulfillmentLineStatus
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   promisedDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   actualDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   executionReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -858,6 +887,7 @@ export type FulfillmentLineUncheckedUpdateWithoutProductionOrderInput = {
   sourceLocation?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   destination?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumFulfillmentLineStatusFieldUpdateOperationsInput | $Enums.FulfillmentLineStatus
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   promisedDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   actualDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   executionReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -875,6 +905,7 @@ export type FulfillmentLineUncheckedUpdateManyWithoutProductionOrderInput = {
   sourceLocation?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   destination?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumFulfillmentLineStatusFieldUpdateOperationsInput | $Enums.FulfillmentLineStatus
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   promisedDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   actualDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   executionReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -891,6 +922,7 @@ export type FulfillmentLineCreateManyFulfillmentPlanInput = {
   sourceLocation?: string | null
   destination?: string | null
   status?: $Enums.FulfillmentLineStatus
+  reason?: string | null
   promisedDate?: Date | string | null
   actualDate?: Date | string | null
   productionOrderId?: string | null
@@ -908,6 +940,7 @@ export type FulfillmentLineUpdateWithoutFulfillmentPlanInput = {
   sourceLocation?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   destination?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumFulfillmentLineStatusFieldUpdateOperationsInput | $Enums.FulfillmentLineStatus
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   promisedDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   actualDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   executionReference?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -925,6 +958,7 @@ export type FulfillmentLineUncheckedUpdateWithoutFulfillmentPlanInput = {
   sourceLocation?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   destination?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumFulfillmentLineStatusFieldUpdateOperationsInput | $Enums.FulfillmentLineStatus
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   promisedDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   actualDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   productionOrderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -942,6 +976,7 @@ export type FulfillmentLineUncheckedUpdateManyWithoutFulfillmentPlanInput = {
   sourceLocation?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   destination?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   status?: Prisma.EnumFulfillmentLineStatusFieldUpdateOperationsInput | $Enums.FulfillmentLineStatus
+  reason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   promisedDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   actualDate?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   productionOrderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
@@ -962,6 +997,7 @@ export type FulfillmentLineSelect<ExtArgs extends runtime.Types.Extensions.Inter
   sourceLocation?: boolean
   destination?: boolean
   status?: boolean
+  reason?: boolean
   promisedDate?: boolean
   actualDate?: boolean
   productionOrderId?: boolean
@@ -982,6 +1018,7 @@ export type FulfillmentLineSelectCreateManyAndReturn<ExtArgs extends runtime.Typ
   sourceLocation?: boolean
   destination?: boolean
   status?: boolean
+  reason?: boolean
   promisedDate?: boolean
   actualDate?: boolean
   productionOrderId?: boolean
@@ -1002,6 +1039,7 @@ export type FulfillmentLineSelectUpdateManyAndReturn<ExtArgs extends runtime.Typ
   sourceLocation?: boolean
   destination?: boolean
   status?: boolean
+  reason?: boolean
   promisedDate?: boolean
   actualDate?: boolean
   productionOrderId?: boolean
@@ -1022,6 +1060,7 @@ export type FulfillmentLineSelectScalar = {
   sourceLocation?: boolean
   destination?: boolean
   status?: boolean
+  reason?: boolean
   promisedDate?: boolean
   actualDate?: boolean
   productionOrderId?: boolean
@@ -1032,7 +1071,7 @@ export type FulfillmentLineSelectScalar = {
   updatedAt?: boolean
 }
 
-export type FulfillmentLineOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "fulfillmentPlanId" | "sourceType" | "quantity" | "sourceLocation" | "destination" | "status" | "promisedDate" | "actualDate" | "productionOrderId" | "executionReference" | "vendorId" | "vendorName" | "createdAt" | "updatedAt", ExtArgs["result"]["fulfillmentLine"]>
+export type FulfillmentLineOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "fulfillmentPlanId" | "sourceType" | "quantity" | "sourceLocation" | "destination" | "status" | "reason" | "promisedDate" | "actualDate" | "productionOrderId" | "executionReference" | "vendorId" | "vendorName" | "createdAt" | "updatedAt", ExtArgs["result"]["fulfillmentLine"]>
 export type FulfillmentLineInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   fulfillmentPlan?: boolean | Prisma.FulfillmentPlanDefaultArgs<ExtArgs>
   productionOrder?: boolean | Prisma.FulfillmentLine$productionOrderArgs<ExtArgs>
@@ -1060,6 +1099,7 @@ export type $FulfillmentLinePayload<ExtArgs extends runtime.Types.Extensions.Int
     sourceLocation: string | null
     destination: string | null
     status: $Enums.FulfillmentLineStatus
+    reason: string | null
     promisedDate: Date | null
     actualDate: Date | null
     productionOrderId: string | null
@@ -1500,6 +1540,7 @@ export interface FulfillmentLineFieldRefs {
   readonly sourceLocation: Prisma.FieldRef<"FulfillmentLine", 'String'>
   readonly destination: Prisma.FieldRef<"FulfillmentLine", 'String'>
   readonly status: Prisma.FieldRef<"FulfillmentLine", 'FulfillmentLineStatus'>
+  readonly reason: Prisma.FieldRef<"FulfillmentLine", 'String'>
   readonly promisedDate: Prisma.FieldRef<"FulfillmentLine", 'DateTime'>
   readonly actualDate: Prisma.FieldRef<"FulfillmentLine", 'DateTime'>
   readonly productionOrderId: Prisma.FieldRef<"FulfillmentLine", 'String'>

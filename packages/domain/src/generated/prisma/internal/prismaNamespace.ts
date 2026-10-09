@@ -447,7 +447,9 @@ export const ModelName = {
   ScheduleRun: 'ScheduleRun',
   MachineEvent: 'MachineEvent',
   SensorReading: 'SensorReading',
+  IdempotencyKey: 'IdempotencyKey',
   ScheduleAuditLog: 'ScheduleAuditLog',
+  AuditLog: 'AuditLog',
   ChangeoverMatrix: 'ChangeoverMatrix',
   AgentPipelineRun: 'AgentPipelineRun',
   AgentStageResult: 'AgentStageResult'
@@ -466,7 +468,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "verificationToken" | "passwordResetToken" | "enterprise" | "site" | "plant" | "productionLine" | "workCenter" | "machine" | "machineCapability" | "skill" | "operator" | "operatorSkill" | "shift" | "workCenterShift" | "operatorShift" | "factoryCalendar" | "factoryCalendarDay" | "holidayCalendar" | "holiday" | "product" | "bOM" | "bOMLine" | "routing" | "routingOperation" | "routingOpDependency" | "customer" | "salesOrder" | "productionOrder" | "orderLine" | "fulfillmentPlan" | "fulfillmentLine" | "productionOrderDependency" | "scheduledOperation" | "qualityInspection" | "productionException" | "tool" | "toolUsage" | "inventory" | "vendor" | "vendorProduct" | "purchaseOrder" | "inventoryMovement" | "maintenancePlan" | "maintenanceOrder" | "resourceReservation" | "schedule" | "scheduleRun" | "machineEvent" | "sensorReading" | "scheduleAuditLog" | "changeoverMatrix" | "agentPipelineRun" | "agentStageResult"
+    modelProps: "user" | "verificationToken" | "passwordResetToken" | "enterprise" | "site" | "plant" | "productionLine" | "workCenter" | "machine" | "machineCapability" | "skill" | "operator" | "operatorSkill" | "shift" | "workCenterShift" | "operatorShift" | "factoryCalendar" | "factoryCalendarDay" | "holidayCalendar" | "holiday" | "product" | "bOM" | "bOMLine" | "routing" | "routingOperation" | "routingOpDependency" | "customer" | "salesOrder" | "productionOrder" | "orderLine" | "fulfillmentPlan" | "fulfillmentLine" | "productionOrderDependency" | "scheduledOperation" | "qualityInspection" | "productionException" | "tool" | "toolUsage" | "inventory" | "vendor" | "vendorProduct" | "purchaseOrder" | "inventoryMovement" | "maintenancePlan" | "maintenanceOrder" | "resourceReservation" | "schedule" | "scheduleRun" | "machineEvent" | "sensorReading" | "idempotencyKey" | "scheduleAuditLog" | "auditLog" | "changeoverMatrix" | "agentPipelineRun" | "agentStageResult"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -4170,6 +4172,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    IdempotencyKey: {
+      payload: Prisma.$IdempotencyKeyPayload<ExtArgs>
+      fields: Prisma.IdempotencyKeyFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.IdempotencyKeyFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$IdempotencyKeyPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.IdempotencyKeyFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$IdempotencyKeyPayload>
+        }
+        findFirst: {
+          args: Prisma.IdempotencyKeyFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$IdempotencyKeyPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.IdempotencyKeyFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$IdempotencyKeyPayload>
+        }
+        findMany: {
+          args: Prisma.IdempotencyKeyFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$IdempotencyKeyPayload>[]
+        }
+        create: {
+          args: Prisma.IdempotencyKeyCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$IdempotencyKeyPayload>
+        }
+        createMany: {
+          args: Prisma.IdempotencyKeyCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.IdempotencyKeyCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$IdempotencyKeyPayload>[]
+        }
+        delete: {
+          args: Prisma.IdempotencyKeyDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$IdempotencyKeyPayload>
+        }
+        update: {
+          args: Prisma.IdempotencyKeyUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$IdempotencyKeyPayload>
+        }
+        deleteMany: {
+          args: Prisma.IdempotencyKeyDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.IdempotencyKeyUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.IdempotencyKeyUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$IdempotencyKeyPayload>[]
+        }
+        upsert: {
+          args: Prisma.IdempotencyKeyUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$IdempotencyKeyPayload>
+        }
+        aggregate: {
+          args: Prisma.IdempotencyKeyAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateIdempotencyKey>
+        }
+        groupBy: {
+          args: Prisma.IdempotencyKeyGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.IdempotencyKeyGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.IdempotencyKeyCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.IdempotencyKeyCountAggregateOutputType> | number
+        }
+      }
+    }
     ScheduleAuditLog: {
       payload: Prisma.$ScheduleAuditLogPayload<ExtArgs>
       fields: Prisma.ScheduleAuditLogFieldRefs
@@ -4241,6 +4317,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.ScheduleAuditLogCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.ScheduleAuditLogCountAggregateOutputType> | number
+        }
+      }
+    }
+    AuditLog: {
+      payload: Prisma.$AuditLogPayload<ExtArgs>
+      fields: Prisma.AuditLogFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.AuditLogFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AuditLogPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.AuditLogFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AuditLogPayload>
+        }
+        findFirst: {
+          args: Prisma.AuditLogFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AuditLogPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.AuditLogFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AuditLogPayload>
+        }
+        findMany: {
+          args: Prisma.AuditLogFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AuditLogPayload>[]
+        }
+        create: {
+          args: Prisma.AuditLogCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AuditLogPayload>
+        }
+        createMany: {
+          args: Prisma.AuditLogCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.AuditLogCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AuditLogPayload>[]
+        }
+        delete: {
+          args: Prisma.AuditLogDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AuditLogPayload>
+        }
+        update: {
+          args: Prisma.AuditLogUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AuditLogPayload>
+        }
+        deleteMany: {
+          args: Prisma.AuditLogDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.AuditLogUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.AuditLogUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AuditLogPayload>[]
+        }
+        upsert: {
+          args: Prisma.AuditLogUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$AuditLogPayload>
+        }
+        aggregate: {
+          args: Prisma.AuditLogAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateAuditLog>
+        }
+        groupBy: {
+          args: Prisma.AuditLogGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AuditLogGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.AuditLogCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AuditLogCountAggregateOutputType> | number
         }
       }
     }
@@ -4823,7 +4973,9 @@ export const CustomerScalarFieldEnum = {
   name: 'name',
   tier: 'tier',
   slaDays: 'slaDays',
-  penaltyPerDay: 'penaltyPerDay'
+  penaltyPerDay: 'penaltyPerDay',
+  enterpriseId: 'enterpriseId',
+  externalCustomerId: 'externalCustomerId'
 } as const
 
 export type CustomerScalarFieldEnum = (typeof CustomerScalarFieldEnum)[keyof typeof CustomerScalarFieldEnum]
@@ -4844,7 +4996,8 @@ export const SalesOrderScalarFieldEnum = {
   createdBy: 'createdBy',
   updatedAt: 'updatedAt',
   revision: 'revision',
-  externalOrderId: 'externalOrderId'
+  externalOrderId: 'externalOrderId',
+  enterpriseId: 'enterpriseId'
 } as const
 
 export type SalesOrderScalarFieldEnum = (typeof SalesOrderScalarFieldEnum)[keyof typeof SalesOrderScalarFieldEnum]
@@ -4865,7 +5018,8 @@ export const ProductionOrderScalarFieldEnum = {
   manualOverride: 'manualOverride',
   metadata: 'metadata',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  enterpriseId: 'enterpriseId'
 } as const
 
 export type ProductionOrderScalarFieldEnum = (typeof ProductionOrderScalarFieldEnum)[keyof typeof ProductionOrderScalarFieldEnum]
@@ -4907,6 +5061,7 @@ export const FulfillmentLineScalarFieldEnum = {
   sourceLocation: 'sourceLocation',
   destination: 'destination',
   status: 'status',
+  reason: 'reason',
   promisedDate: 'promisedDate',
   actualDate: 'actualDate',
   productionOrderId: 'productionOrderId',
@@ -4942,6 +5097,8 @@ export const ScheduledOperationScalarFieldEnum = {
   status: 'status',
   deviationMinutes: 'deviationMinutes',
   rejectionReason: 'rejectionReason',
+  scheduleVersionId: 'scheduleVersionId',
+  supersededAt: 'supersededAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -4999,7 +5156,8 @@ export const InventoryScalarFieldEnum = {
   location: 'location',
   qtyUnrestricted: 'qtyUnrestricted',
   qtyReserved: 'qtyReserved',
-  qtyInTransit: 'qtyInTransit'
+  qtyInTransit: 'qtyInTransit',
+  enterpriseId: 'enterpriseId'
 } as const
 
 export type InventoryScalarFieldEnum = (typeof InventoryScalarFieldEnum)[keyof typeof InventoryScalarFieldEnum]
@@ -5087,7 +5245,8 @@ export const ResourceReservationScalarFieldEnum = {
   startTime: 'startTime',
   endTime: 'endTime',
   state: 'state',
-  createdAt: 'createdAt'
+  createdAt: 'createdAt',
+  scheduleVersionId: 'scheduleVersionId'
 } as const
 
 export type ResourceReservationScalarFieldEnum = (typeof ResourceReservationScalarFieldEnum)[keyof typeof ResourceReservationScalarFieldEnum]
@@ -5097,6 +5256,7 @@ export const ScheduleScalarFieldEnum = {
   id: 'id',
   plantId: 'plantId',
   versionNumber: 'versionNumber',
+  status: 'status',
   kpiOnTimePct: 'kpiOnTimePct',
   kpiUtilizationPct: 'kpiUtilizationPct',
   publishedAt: 'publishedAt',
@@ -5114,7 +5274,8 @@ export const ScheduleRunScalarFieldEnum = {
   startedAt: 'startedAt',
   finishedAt: 'finishedAt',
   durationMs: 'durationMs',
-  conflictsDetected: 'conflictsDetected'
+  conflictsDetected: 'conflictsDetected',
+  failureReason: 'failureReason'
 } as const
 
 export type ScheduleRunScalarFieldEnum = (typeof ScheduleRunScalarFieldEnum)[keyof typeof ScheduleRunScalarFieldEnum]
@@ -5143,6 +5304,20 @@ export const SensorReadingScalarFieldEnum = {
 export type SensorReadingScalarFieldEnum = (typeof SensorReadingScalarFieldEnum)[keyof typeof SensorReadingScalarFieldEnum]
 
 
+export const IdempotencyKeyScalarFieldEnum = {
+  id: 'id',
+  enterpriseId: 'enterpriseId',
+  key: 'key',
+  operation: 'operation',
+  requestHash: 'requestHash',
+  resultJson: 'resultJson',
+  statusCode: 'statusCode',
+  createdAt: 'createdAt'
+} as const
+
+export type IdempotencyKeyScalarFieldEnum = (typeof IdempotencyKeyScalarFieldEnum)[keyof typeof IdempotencyKeyScalarFieldEnum]
+
+
 export const ScheduleAuditLogScalarFieldEnum = {
   id: 'id',
   entityType: 'entityType',
@@ -5153,6 +5328,22 @@ export const ScheduleAuditLogScalarFieldEnum = {
 } as const
 
 export type ScheduleAuditLogScalarFieldEnum = (typeof ScheduleAuditLogScalarFieldEnum)[keyof typeof ScheduleAuditLogScalarFieldEnum]
+
+
+export const AuditLogScalarFieldEnum = {
+  id: 'id',
+  entityType: 'entityType',
+  entityId: 'entityId',
+  action: 'action',
+  actorId: 'actorId',
+  enterpriseId: 'enterpriseId',
+  traceId: 'traceId',
+  before: 'before',
+  after: 'after',
+  loggedAt: 'loggedAt'
+} as const
+
+export type AuditLogScalarFieldEnum = (typeof AuditLogScalarFieldEnum)[keyof typeof AuditLogScalarFieldEnum]
 
 
 export const ChangeoverMatrixScalarFieldEnum = {
@@ -5182,7 +5373,10 @@ export const AgentPipelineRunScalarFieldEnum = {
   rejectedAt: 'rejectedAt',
   rejectedBy: 'rejectedBy',
   executedAt: 'executedAt',
-  executionResult: 'executionResult'
+  executionResult: 'executionResult',
+  enterpriseId: 'enterpriseId',
+  proposalHash: 'proposalHash',
+  approvalCreatedAt: 'approvalCreatedAt'
 } as const
 
 export type AgentPipelineRunScalarFieldEnum = (typeof AgentPipelineRunScalarFieldEnum)[keyof typeof AgentPipelineRunScalarFieldEnum]
@@ -5628,6 +5822,20 @@ export type ListEnumReservationStateFieldRefInput<$PrismaModel> = FieldRefInputT
 
 
 /**
+ * Reference to a field of type 'ScheduleStatus'
+ */
+export type EnumScheduleStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ScheduleStatus'>
+    
+
+
+/**
+ * Reference to a field of type 'ScheduleStatus[]'
+ */
+export type ListEnumScheduleStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ScheduleStatus[]'>
+    
+
+
+/**
  * Reference to a field of type 'ScheduleRunScope'
  */
 export type EnumScheduleRunScopeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ScheduleRunScope'>
@@ -5855,7 +6063,9 @@ export type GlobalOmitConfig = {
   scheduleRun?: Prisma.ScheduleRunOmit
   machineEvent?: Prisma.MachineEventOmit
   sensorReading?: Prisma.SensorReadingOmit
+  idempotencyKey?: Prisma.IdempotencyKeyOmit
   scheduleAuditLog?: Prisma.ScheduleAuditLogOmit
+  auditLog?: Prisma.AuditLogOmit
   changeoverMatrix?: Prisma.ChangeoverMatrixOmit
   agentPipelineRun?: Prisma.AgentPipelineRunOmit
   agentStageResult?: Prisma.AgentStageResultOmit

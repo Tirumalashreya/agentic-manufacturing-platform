@@ -47,6 +47,8 @@ export type ScheduledOperationMinAggregateOutputType = {
   status: $Enums.ScheduledOpStatus | null
   deviationMinutes: number | null
   rejectionReason: string | null
+  scheduleVersionId: string | null
+  supersededAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -64,6 +66,8 @@ export type ScheduledOperationMaxAggregateOutputType = {
   status: $Enums.ScheduledOpStatus | null
   deviationMinutes: number | null
   rejectionReason: string | null
+  scheduleVersionId: string | null
+  supersededAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -81,6 +85,8 @@ export type ScheduledOperationCountAggregateOutputType = {
   status: number
   deviationMinutes: number
   rejectionReason: number
+  scheduleVersionId: number
+  supersededAt: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -108,6 +114,8 @@ export type ScheduledOperationMinAggregateInputType = {
   status?: true
   deviationMinutes?: true
   rejectionReason?: true
+  scheduleVersionId?: true
+  supersededAt?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -125,6 +133,8 @@ export type ScheduledOperationMaxAggregateInputType = {
   status?: true
   deviationMinutes?: true
   rejectionReason?: true
+  scheduleVersionId?: true
+  supersededAt?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -142,6 +152,8 @@ export type ScheduledOperationCountAggregateInputType = {
   status?: true
   deviationMinutes?: true
   rejectionReason?: true
+  scheduleVersionId?: true
+  supersededAt?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -246,6 +258,8 @@ export type ScheduledOperationGroupByOutputType = {
   status: $Enums.ScheduledOpStatus
   deviationMinutes: number | null
   rejectionReason: string | null
+  scheduleVersionId: string | null
+  supersededAt: Date | null
   createdAt: Date
   updatedAt: Date
   _count: ScheduledOperationCountAggregateOutputType | null
@@ -286,12 +300,15 @@ export type ScheduledOperationWhereInput = {
   status?: Prisma.EnumScheduledOpStatusFilter<"ScheduledOperation"> | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.IntNullableFilter<"ScheduledOperation"> | number | null
   rejectionReason?: Prisma.StringNullableFilter<"ScheduledOperation"> | string | null
+  scheduleVersionId?: Prisma.StringNullableFilter<"ScheduledOperation"> | string | null
+  supersededAt?: Prisma.DateTimeNullableFilter<"ScheduledOperation"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"ScheduledOperation"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"ScheduledOperation"> | Date | string
   productionOrder?: Prisma.XOR<Prisma.ProductionOrderScalarRelationFilter, Prisma.ProductionOrderWhereInput>
   routingOperation?: Prisma.XOR<Prisma.RoutingOperationNullableScalarRelationFilter, Prisma.RoutingOperationWhereInput> | null
   machine?: Prisma.XOR<Prisma.MachineNullableScalarRelationFilter, Prisma.MachineWhereInput> | null
   operator?: Prisma.XOR<Prisma.OperatorNullableScalarRelationFilter, Prisma.OperatorWhereInput> | null
+  scheduleVersion?: Prisma.XOR<Prisma.ScheduleNullableScalarRelationFilter, Prisma.ScheduleWhereInput> | null
   toolUsages?: Prisma.ToolUsageListRelationFilter
   reservations?: Prisma.ResourceReservationListRelationFilter
   exceptions?: Prisma.ProductionExceptionListRelationFilter
@@ -311,12 +328,15 @@ export type ScheduledOperationOrderByWithRelationInput = {
   status?: Prisma.SortOrder
   deviationMinutes?: Prisma.SortOrderInput | Prisma.SortOrder
   rejectionReason?: Prisma.SortOrderInput | Prisma.SortOrder
+  scheduleVersionId?: Prisma.SortOrderInput | Prisma.SortOrder
+  supersededAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   productionOrder?: Prisma.ProductionOrderOrderByWithRelationInput
   routingOperation?: Prisma.RoutingOperationOrderByWithRelationInput
   machine?: Prisma.MachineOrderByWithRelationInput
   operator?: Prisma.OperatorOrderByWithRelationInput
+  scheduleVersion?: Prisma.ScheduleOrderByWithRelationInput
   toolUsages?: Prisma.ToolUsageOrderByRelationAggregateInput
   reservations?: Prisma.ResourceReservationOrderByRelationAggregateInput
   exceptions?: Prisma.ProductionExceptionOrderByRelationAggregateInput
@@ -339,12 +359,15 @@ export type ScheduledOperationWhereUniqueInput = Prisma.AtLeast<{
   status?: Prisma.EnumScheduledOpStatusFilter<"ScheduledOperation"> | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.IntNullableFilter<"ScheduledOperation"> | number | null
   rejectionReason?: Prisma.StringNullableFilter<"ScheduledOperation"> | string | null
+  scheduleVersionId?: Prisma.StringNullableFilter<"ScheduledOperation"> | string | null
+  supersededAt?: Prisma.DateTimeNullableFilter<"ScheduledOperation"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"ScheduledOperation"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"ScheduledOperation"> | Date | string
   productionOrder?: Prisma.XOR<Prisma.ProductionOrderScalarRelationFilter, Prisma.ProductionOrderWhereInput>
   routingOperation?: Prisma.XOR<Prisma.RoutingOperationNullableScalarRelationFilter, Prisma.RoutingOperationWhereInput> | null
   machine?: Prisma.XOR<Prisma.MachineNullableScalarRelationFilter, Prisma.MachineWhereInput> | null
   operator?: Prisma.XOR<Prisma.OperatorNullableScalarRelationFilter, Prisma.OperatorWhereInput> | null
+  scheduleVersion?: Prisma.XOR<Prisma.ScheduleNullableScalarRelationFilter, Prisma.ScheduleWhereInput> | null
   toolUsages?: Prisma.ToolUsageListRelationFilter
   reservations?: Prisma.ResourceReservationListRelationFilter
   exceptions?: Prisma.ProductionExceptionListRelationFilter
@@ -364,6 +387,8 @@ export type ScheduledOperationOrderByWithAggregationInput = {
   status?: Prisma.SortOrder
   deviationMinutes?: Prisma.SortOrderInput | Prisma.SortOrder
   rejectionReason?: Prisma.SortOrderInput | Prisma.SortOrder
+  scheduleVersionId?: Prisma.SortOrderInput | Prisma.SortOrder
+  supersededAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.ScheduledOperationCountOrderByAggregateInput
@@ -389,6 +414,8 @@ export type ScheduledOperationScalarWhereWithAggregatesInput = {
   status?: Prisma.EnumScheduledOpStatusWithAggregatesFilter<"ScheduledOperation"> | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.IntNullableWithAggregatesFilter<"ScheduledOperation"> | number | null
   rejectionReason?: Prisma.StringNullableWithAggregatesFilter<"ScheduledOperation"> | string | null
+  scheduleVersionId?: Prisma.StringNullableWithAggregatesFilter<"ScheduledOperation"> | string | null
+  supersededAt?: Prisma.DateTimeNullableWithAggregatesFilter<"ScheduledOperation"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"ScheduledOperation"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"ScheduledOperation"> | Date | string
 }
@@ -402,12 +429,14 @@ export type ScheduledOperationCreateInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   productionOrder: Prisma.ProductionOrderCreateNestedOneWithoutScheduledOperationsInput
   routingOperation?: Prisma.RoutingOperationCreateNestedOneWithoutScheduledOperationsInput
   machine?: Prisma.MachineCreateNestedOneWithoutScheduledOperationsInput
   operator?: Prisma.OperatorCreateNestedOneWithoutScheduledOperationsInput
+  scheduleVersion?: Prisma.ScheduleCreateNestedOneWithoutScheduledOperationsInput
   toolUsages?: Prisma.ToolUsageCreateNestedManyWithoutScheduledOperationInput
   reservations?: Prisma.ResourceReservationCreateNestedManyWithoutScheduledOperationInput
   exceptions?: Prisma.ProductionExceptionCreateNestedManyWithoutScheduledOperationInput
@@ -427,6 +456,8 @@ export type ScheduledOperationUncheckedCreateInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  scheduleVersionId?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   toolUsages?: Prisma.ToolUsageUncheckedCreateNestedManyWithoutScheduledOperationInput
@@ -444,12 +475,14 @@ export type ScheduledOperationUpdateInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   productionOrder?: Prisma.ProductionOrderUpdateOneRequiredWithoutScheduledOperationsNestedInput
   routingOperation?: Prisma.RoutingOperationUpdateOneWithoutScheduledOperationsNestedInput
   machine?: Prisma.MachineUpdateOneWithoutScheduledOperationsNestedInput
   operator?: Prisma.OperatorUpdateOneWithoutScheduledOperationsNestedInput
+  scheduleVersion?: Prisma.ScheduleUpdateOneWithoutScheduledOperationsNestedInput
   toolUsages?: Prisma.ToolUsageUpdateManyWithoutScheduledOperationNestedInput
   reservations?: Prisma.ResourceReservationUpdateManyWithoutScheduledOperationNestedInput
   exceptions?: Prisma.ProductionExceptionUpdateManyWithoutScheduledOperationNestedInput
@@ -469,6 +502,8 @@ export type ScheduledOperationUncheckedUpdateInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   toolUsages?: Prisma.ToolUsageUncheckedUpdateManyWithoutScheduledOperationNestedInput
@@ -490,6 +525,8 @@ export type ScheduledOperationCreateManyInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  scheduleVersionId?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -503,6 +540,7 @@ export type ScheduledOperationUpdateManyMutationInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -520,6 +558,8 @@ export type ScheduledOperationUncheckedUpdateManyInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -547,6 +587,8 @@ export type ScheduledOperationCountOrderByAggregateInput = {
   status?: Prisma.SortOrder
   deviationMinutes?: Prisma.SortOrder
   rejectionReason?: Prisma.SortOrder
+  scheduleVersionId?: Prisma.SortOrder
+  supersededAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -568,6 +610,8 @@ export type ScheduledOperationMaxOrderByAggregateInput = {
   status?: Prisma.SortOrder
   deviationMinutes?: Prisma.SortOrder
   rejectionReason?: Prisma.SortOrder
+  scheduleVersionId?: Prisma.SortOrder
+  supersededAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -585,6 +629,8 @@ export type ScheduledOperationMinOrderByAggregateInput = {
   status?: Prisma.SortOrder
   deviationMinutes?: Prisma.SortOrder
   rejectionReason?: Prisma.SortOrder
+  scheduleVersionId?: Prisma.SortOrder
+  supersededAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -833,6 +879,48 @@ export type ScheduledOperationUpdateOneWithoutReservationsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.ScheduledOperationUpdateToOneWithWhereWithoutReservationsInput, Prisma.ScheduledOperationUpdateWithoutReservationsInput>, Prisma.ScheduledOperationUncheckedUpdateWithoutReservationsInput>
 }
 
+export type ScheduledOperationCreateNestedManyWithoutScheduleVersionInput = {
+  create?: Prisma.XOR<Prisma.ScheduledOperationCreateWithoutScheduleVersionInput, Prisma.ScheduledOperationUncheckedCreateWithoutScheduleVersionInput> | Prisma.ScheduledOperationCreateWithoutScheduleVersionInput[] | Prisma.ScheduledOperationUncheckedCreateWithoutScheduleVersionInput[]
+  connectOrCreate?: Prisma.ScheduledOperationCreateOrConnectWithoutScheduleVersionInput | Prisma.ScheduledOperationCreateOrConnectWithoutScheduleVersionInput[]
+  createMany?: Prisma.ScheduledOperationCreateManyScheduleVersionInputEnvelope
+  connect?: Prisma.ScheduledOperationWhereUniqueInput | Prisma.ScheduledOperationWhereUniqueInput[]
+}
+
+export type ScheduledOperationUncheckedCreateNestedManyWithoutScheduleVersionInput = {
+  create?: Prisma.XOR<Prisma.ScheduledOperationCreateWithoutScheduleVersionInput, Prisma.ScheduledOperationUncheckedCreateWithoutScheduleVersionInput> | Prisma.ScheduledOperationCreateWithoutScheduleVersionInput[] | Prisma.ScheduledOperationUncheckedCreateWithoutScheduleVersionInput[]
+  connectOrCreate?: Prisma.ScheduledOperationCreateOrConnectWithoutScheduleVersionInput | Prisma.ScheduledOperationCreateOrConnectWithoutScheduleVersionInput[]
+  createMany?: Prisma.ScheduledOperationCreateManyScheduleVersionInputEnvelope
+  connect?: Prisma.ScheduledOperationWhereUniqueInput | Prisma.ScheduledOperationWhereUniqueInput[]
+}
+
+export type ScheduledOperationUpdateManyWithoutScheduleVersionNestedInput = {
+  create?: Prisma.XOR<Prisma.ScheduledOperationCreateWithoutScheduleVersionInput, Prisma.ScheduledOperationUncheckedCreateWithoutScheduleVersionInput> | Prisma.ScheduledOperationCreateWithoutScheduleVersionInput[] | Prisma.ScheduledOperationUncheckedCreateWithoutScheduleVersionInput[]
+  connectOrCreate?: Prisma.ScheduledOperationCreateOrConnectWithoutScheduleVersionInput | Prisma.ScheduledOperationCreateOrConnectWithoutScheduleVersionInput[]
+  upsert?: Prisma.ScheduledOperationUpsertWithWhereUniqueWithoutScheduleVersionInput | Prisma.ScheduledOperationUpsertWithWhereUniqueWithoutScheduleVersionInput[]
+  createMany?: Prisma.ScheduledOperationCreateManyScheduleVersionInputEnvelope
+  set?: Prisma.ScheduledOperationWhereUniqueInput | Prisma.ScheduledOperationWhereUniqueInput[]
+  disconnect?: Prisma.ScheduledOperationWhereUniqueInput | Prisma.ScheduledOperationWhereUniqueInput[]
+  delete?: Prisma.ScheduledOperationWhereUniqueInput | Prisma.ScheduledOperationWhereUniqueInput[]
+  connect?: Prisma.ScheduledOperationWhereUniqueInput | Prisma.ScheduledOperationWhereUniqueInput[]
+  update?: Prisma.ScheduledOperationUpdateWithWhereUniqueWithoutScheduleVersionInput | Prisma.ScheduledOperationUpdateWithWhereUniqueWithoutScheduleVersionInput[]
+  updateMany?: Prisma.ScheduledOperationUpdateManyWithWhereWithoutScheduleVersionInput | Prisma.ScheduledOperationUpdateManyWithWhereWithoutScheduleVersionInput[]
+  deleteMany?: Prisma.ScheduledOperationScalarWhereInput | Prisma.ScheduledOperationScalarWhereInput[]
+}
+
+export type ScheduledOperationUncheckedUpdateManyWithoutScheduleVersionNestedInput = {
+  create?: Prisma.XOR<Prisma.ScheduledOperationCreateWithoutScheduleVersionInput, Prisma.ScheduledOperationUncheckedCreateWithoutScheduleVersionInput> | Prisma.ScheduledOperationCreateWithoutScheduleVersionInput[] | Prisma.ScheduledOperationUncheckedCreateWithoutScheduleVersionInput[]
+  connectOrCreate?: Prisma.ScheduledOperationCreateOrConnectWithoutScheduleVersionInput | Prisma.ScheduledOperationCreateOrConnectWithoutScheduleVersionInput[]
+  upsert?: Prisma.ScheduledOperationUpsertWithWhereUniqueWithoutScheduleVersionInput | Prisma.ScheduledOperationUpsertWithWhereUniqueWithoutScheduleVersionInput[]
+  createMany?: Prisma.ScheduledOperationCreateManyScheduleVersionInputEnvelope
+  set?: Prisma.ScheduledOperationWhereUniqueInput | Prisma.ScheduledOperationWhereUniqueInput[]
+  disconnect?: Prisma.ScheduledOperationWhereUniqueInput | Prisma.ScheduledOperationWhereUniqueInput[]
+  delete?: Prisma.ScheduledOperationWhereUniqueInput | Prisma.ScheduledOperationWhereUniqueInput[]
+  connect?: Prisma.ScheduledOperationWhereUniqueInput | Prisma.ScheduledOperationWhereUniqueInput[]
+  update?: Prisma.ScheduledOperationUpdateWithWhereUniqueWithoutScheduleVersionInput | Prisma.ScheduledOperationUpdateWithWhereUniqueWithoutScheduleVersionInput[]
+  updateMany?: Prisma.ScheduledOperationUpdateManyWithWhereWithoutScheduleVersionInput | Prisma.ScheduledOperationUpdateManyWithWhereWithoutScheduleVersionInput[]
+  deleteMany?: Prisma.ScheduledOperationScalarWhereInput | Prisma.ScheduledOperationScalarWhereInput[]
+}
+
 export type ScheduledOperationCreateWithoutMachineInput = {
   id?: string
   scheduledStart: Date | string
@@ -842,11 +930,13 @@ export type ScheduledOperationCreateWithoutMachineInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   productionOrder: Prisma.ProductionOrderCreateNestedOneWithoutScheduledOperationsInput
   routingOperation?: Prisma.RoutingOperationCreateNestedOneWithoutScheduledOperationsInput
   operator?: Prisma.OperatorCreateNestedOneWithoutScheduledOperationsInput
+  scheduleVersion?: Prisma.ScheduleCreateNestedOneWithoutScheduledOperationsInput
   toolUsages?: Prisma.ToolUsageCreateNestedManyWithoutScheduledOperationInput
   reservations?: Prisma.ResourceReservationCreateNestedManyWithoutScheduledOperationInput
   exceptions?: Prisma.ProductionExceptionCreateNestedManyWithoutScheduledOperationInput
@@ -865,6 +955,8 @@ export type ScheduledOperationUncheckedCreateWithoutMachineInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  scheduleVersionId?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   toolUsages?: Prisma.ToolUsageUncheckedCreateNestedManyWithoutScheduledOperationInput
@@ -915,6 +1007,8 @@ export type ScheduledOperationScalarWhereInput = {
   status?: Prisma.EnumScheduledOpStatusFilter<"ScheduledOperation"> | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.IntNullableFilter<"ScheduledOperation"> | number | null
   rejectionReason?: Prisma.StringNullableFilter<"ScheduledOperation"> | string | null
+  scheduleVersionId?: Prisma.StringNullableFilter<"ScheduledOperation"> | string | null
+  supersededAt?: Prisma.DateTimeNullableFilter<"ScheduledOperation"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"ScheduledOperation"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"ScheduledOperation"> | Date | string
 }
@@ -928,11 +1022,13 @@ export type ScheduledOperationCreateWithoutOperatorInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   productionOrder: Prisma.ProductionOrderCreateNestedOneWithoutScheduledOperationsInput
   routingOperation?: Prisma.RoutingOperationCreateNestedOneWithoutScheduledOperationsInput
   machine?: Prisma.MachineCreateNestedOneWithoutScheduledOperationsInput
+  scheduleVersion?: Prisma.ScheduleCreateNestedOneWithoutScheduledOperationsInput
   toolUsages?: Prisma.ToolUsageCreateNestedManyWithoutScheduledOperationInput
   reservations?: Prisma.ResourceReservationCreateNestedManyWithoutScheduledOperationInput
   exceptions?: Prisma.ProductionExceptionCreateNestedManyWithoutScheduledOperationInput
@@ -951,6 +1047,8 @@ export type ScheduledOperationUncheckedCreateWithoutOperatorInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  scheduleVersionId?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   toolUsages?: Prisma.ToolUsageUncheckedCreateNestedManyWithoutScheduledOperationInput
@@ -994,11 +1092,13 @@ export type ScheduledOperationCreateWithoutRoutingOperationInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   productionOrder: Prisma.ProductionOrderCreateNestedOneWithoutScheduledOperationsInput
   machine?: Prisma.MachineCreateNestedOneWithoutScheduledOperationsInput
   operator?: Prisma.OperatorCreateNestedOneWithoutScheduledOperationsInput
+  scheduleVersion?: Prisma.ScheduleCreateNestedOneWithoutScheduledOperationsInput
   toolUsages?: Prisma.ToolUsageCreateNestedManyWithoutScheduledOperationInput
   reservations?: Prisma.ResourceReservationCreateNestedManyWithoutScheduledOperationInput
   exceptions?: Prisma.ProductionExceptionCreateNestedManyWithoutScheduledOperationInput
@@ -1017,6 +1117,8 @@ export type ScheduledOperationUncheckedCreateWithoutRoutingOperationInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  scheduleVersionId?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   toolUsages?: Prisma.ToolUsageUncheckedCreateNestedManyWithoutScheduledOperationInput
@@ -1060,11 +1162,13 @@ export type ScheduledOperationCreateWithoutProductionOrderInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   routingOperation?: Prisma.RoutingOperationCreateNestedOneWithoutScheduledOperationsInput
   machine?: Prisma.MachineCreateNestedOneWithoutScheduledOperationsInput
   operator?: Prisma.OperatorCreateNestedOneWithoutScheduledOperationsInput
+  scheduleVersion?: Prisma.ScheduleCreateNestedOneWithoutScheduledOperationsInput
   toolUsages?: Prisma.ToolUsageCreateNestedManyWithoutScheduledOperationInput
   reservations?: Prisma.ResourceReservationCreateNestedManyWithoutScheduledOperationInput
   exceptions?: Prisma.ProductionExceptionCreateNestedManyWithoutScheduledOperationInput
@@ -1083,6 +1187,8 @@ export type ScheduledOperationUncheckedCreateWithoutProductionOrderInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  scheduleVersionId?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   toolUsages?: Prisma.ToolUsageUncheckedCreateNestedManyWithoutScheduledOperationInput
@@ -1126,12 +1232,14 @@ export type ScheduledOperationCreateWithoutQualityInspectionsInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   productionOrder: Prisma.ProductionOrderCreateNestedOneWithoutScheduledOperationsInput
   routingOperation?: Prisma.RoutingOperationCreateNestedOneWithoutScheduledOperationsInput
   machine?: Prisma.MachineCreateNestedOneWithoutScheduledOperationsInput
   operator?: Prisma.OperatorCreateNestedOneWithoutScheduledOperationsInput
+  scheduleVersion?: Prisma.ScheduleCreateNestedOneWithoutScheduledOperationsInput
   toolUsages?: Prisma.ToolUsageCreateNestedManyWithoutScheduledOperationInput
   reservations?: Prisma.ResourceReservationCreateNestedManyWithoutScheduledOperationInput
   exceptions?: Prisma.ProductionExceptionCreateNestedManyWithoutScheduledOperationInput
@@ -1150,6 +1258,8 @@ export type ScheduledOperationUncheckedCreateWithoutQualityInspectionsInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  scheduleVersionId?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   toolUsages?: Prisma.ToolUsageUncheckedCreateNestedManyWithoutScheduledOperationInput
@@ -1182,12 +1292,14 @@ export type ScheduledOperationUpdateWithoutQualityInspectionsInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   productionOrder?: Prisma.ProductionOrderUpdateOneRequiredWithoutScheduledOperationsNestedInput
   routingOperation?: Prisma.RoutingOperationUpdateOneWithoutScheduledOperationsNestedInput
   machine?: Prisma.MachineUpdateOneWithoutScheduledOperationsNestedInput
   operator?: Prisma.OperatorUpdateOneWithoutScheduledOperationsNestedInput
+  scheduleVersion?: Prisma.ScheduleUpdateOneWithoutScheduledOperationsNestedInput
   toolUsages?: Prisma.ToolUsageUpdateManyWithoutScheduledOperationNestedInput
   reservations?: Prisma.ResourceReservationUpdateManyWithoutScheduledOperationNestedInput
   exceptions?: Prisma.ProductionExceptionUpdateManyWithoutScheduledOperationNestedInput
@@ -1206,6 +1318,8 @@ export type ScheduledOperationUncheckedUpdateWithoutQualityInspectionsInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   toolUsages?: Prisma.ToolUsageUncheckedUpdateManyWithoutScheduledOperationNestedInput
@@ -1222,12 +1336,14 @@ export type ScheduledOperationCreateWithoutExceptionsInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   productionOrder: Prisma.ProductionOrderCreateNestedOneWithoutScheduledOperationsInput
   routingOperation?: Prisma.RoutingOperationCreateNestedOneWithoutScheduledOperationsInput
   machine?: Prisma.MachineCreateNestedOneWithoutScheduledOperationsInput
   operator?: Prisma.OperatorCreateNestedOneWithoutScheduledOperationsInput
+  scheduleVersion?: Prisma.ScheduleCreateNestedOneWithoutScheduledOperationsInput
   toolUsages?: Prisma.ToolUsageCreateNestedManyWithoutScheduledOperationInput
   reservations?: Prisma.ResourceReservationCreateNestedManyWithoutScheduledOperationInput
   qualityInspections?: Prisma.QualityInspectionCreateNestedManyWithoutScheduledOperationInput
@@ -1246,6 +1362,8 @@ export type ScheduledOperationUncheckedCreateWithoutExceptionsInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  scheduleVersionId?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   toolUsages?: Prisma.ToolUsageUncheckedCreateNestedManyWithoutScheduledOperationInput
@@ -1278,12 +1396,14 @@ export type ScheduledOperationUpdateWithoutExceptionsInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   productionOrder?: Prisma.ProductionOrderUpdateOneRequiredWithoutScheduledOperationsNestedInput
   routingOperation?: Prisma.RoutingOperationUpdateOneWithoutScheduledOperationsNestedInput
   machine?: Prisma.MachineUpdateOneWithoutScheduledOperationsNestedInput
   operator?: Prisma.OperatorUpdateOneWithoutScheduledOperationsNestedInput
+  scheduleVersion?: Prisma.ScheduleUpdateOneWithoutScheduledOperationsNestedInput
   toolUsages?: Prisma.ToolUsageUpdateManyWithoutScheduledOperationNestedInput
   reservations?: Prisma.ResourceReservationUpdateManyWithoutScheduledOperationNestedInput
   qualityInspections?: Prisma.QualityInspectionUpdateManyWithoutScheduledOperationNestedInput
@@ -1302,6 +1422,8 @@ export type ScheduledOperationUncheckedUpdateWithoutExceptionsInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   toolUsages?: Prisma.ToolUsageUncheckedUpdateManyWithoutScheduledOperationNestedInput
@@ -1318,12 +1440,14 @@ export type ScheduledOperationCreateWithoutToolUsagesInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   productionOrder: Prisma.ProductionOrderCreateNestedOneWithoutScheduledOperationsInput
   routingOperation?: Prisma.RoutingOperationCreateNestedOneWithoutScheduledOperationsInput
   machine?: Prisma.MachineCreateNestedOneWithoutScheduledOperationsInput
   operator?: Prisma.OperatorCreateNestedOneWithoutScheduledOperationsInput
+  scheduleVersion?: Prisma.ScheduleCreateNestedOneWithoutScheduledOperationsInput
   reservations?: Prisma.ResourceReservationCreateNestedManyWithoutScheduledOperationInput
   exceptions?: Prisma.ProductionExceptionCreateNestedManyWithoutScheduledOperationInput
   qualityInspections?: Prisma.QualityInspectionCreateNestedManyWithoutScheduledOperationInput
@@ -1342,6 +1466,8 @@ export type ScheduledOperationUncheckedCreateWithoutToolUsagesInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  scheduleVersionId?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   reservations?: Prisma.ResourceReservationUncheckedCreateNestedManyWithoutScheduledOperationInput
@@ -1374,12 +1500,14 @@ export type ScheduledOperationUpdateWithoutToolUsagesInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   productionOrder?: Prisma.ProductionOrderUpdateOneRequiredWithoutScheduledOperationsNestedInput
   routingOperation?: Prisma.RoutingOperationUpdateOneWithoutScheduledOperationsNestedInput
   machine?: Prisma.MachineUpdateOneWithoutScheduledOperationsNestedInput
   operator?: Prisma.OperatorUpdateOneWithoutScheduledOperationsNestedInput
+  scheduleVersion?: Prisma.ScheduleUpdateOneWithoutScheduledOperationsNestedInput
   reservations?: Prisma.ResourceReservationUpdateManyWithoutScheduledOperationNestedInput
   exceptions?: Prisma.ProductionExceptionUpdateManyWithoutScheduledOperationNestedInput
   qualityInspections?: Prisma.QualityInspectionUpdateManyWithoutScheduledOperationNestedInput
@@ -1398,6 +1526,8 @@ export type ScheduledOperationUncheckedUpdateWithoutToolUsagesInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   reservations?: Prisma.ResourceReservationUncheckedUpdateManyWithoutScheduledOperationNestedInput
@@ -1414,12 +1544,14 @@ export type ScheduledOperationCreateWithoutReservationsInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   productionOrder: Prisma.ProductionOrderCreateNestedOneWithoutScheduledOperationsInput
   routingOperation?: Prisma.RoutingOperationCreateNestedOneWithoutScheduledOperationsInput
   machine?: Prisma.MachineCreateNestedOneWithoutScheduledOperationsInput
   operator?: Prisma.OperatorCreateNestedOneWithoutScheduledOperationsInput
+  scheduleVersion?: Prisma.ScheduleCreateNestedOneWithoutScheduledOperationsInput
   toolUsages?: Prisma.ToolUsageCreateNestedManyWithoutScheduledOperationInput
   exceptions?: Prisma.ProductionExceptionCreateNestedManyWithoutScheduledOperationInput
   qualityInspections?: Prisma.QualityInspectionCreateNestedManyWithoutScheduledOperationInput
@@ -1438,6 +1570,8 @@ export type ScheduledOperationUncheckedCreateWithoutReservationsInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  scheduleVersionId?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   toolUsages?: Prisma.ToolUsageUncheckedCreateNestedManyWithoutScheduledOperationInput
@@ -1470,12 +1604,14 @@ export type ScheduledOperationUpdateWithoutReservationsInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   productionOrder?: Prisma.ProductionOrderUpdateOneRequiredWithoutScheduledOperationsNestedInput
   routingOperation?: Prisma.RoutingOperationUpdateOneWithoutScheduledOperationsNestedInput
   machine?: Prisma.MachineUpdateOneWithoutScheduledOperationsNestedInput
   operator?: Prisma.OperatorUpdateOneWithoutScheduledOperationsNestedInput
+  scheduleVersion?: Prisma.ScheduleUpdateOneWithoutScheduledOperationsNestedInput
   toolUsages?: Prisma.ToolUsageUpdateManyWithoutScheduledOperationNestedInput
   exceptions?: Prisma.ProductionExceptionUpdateManyWithoutScheduledOperationNestedInput
   qualityInspections?: Prisma.QualityInspectionUpdateManyWithoutScheduledOperationNestedInput
@@ -1494,11 +1630,83 @@ export type ScheduledOperationUncheckedUpdateWithoutReservationsInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   toolUsages?: Prisma.ToolUsageUncheckedUpdateManyWithoutScheduledOperationNestedInput
   exceptions?: Prisma.ProductionExceptionUncheckedUpdateManyWithoutScheduledOperationNestedInput
   qualityInspections?: Prisma.QualityInspectionUncheckedUpdateManyWithoutScheduledOperationNestedInput
+}
+
+export type ScheduledOperationCreateWithoutScheduleVersionInput = {
+  id?: string
+  scheduledStart: Date | string
+  scheduledEnd: Date | string
+  actualStart?: Date | string | null
+  actualEnd?: Date | string | null
+  status?: $Enums.ScheduledOpStatus
+  deviationMinutes?: number | null
+  rejectionReason?: string | null
+  supersededAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  productionOrder: Prisma.ProductionOrderCreateNestedOneWithoutScheduledOperationsInput
+  routingOperation?: Prisma.RoutingOperationCreateNestedOneWithoutScheduledOperationsInput
+  machine?: Prisma.MachineCreateNestedOneWithoutScheduledOperationsInput
+  operator?: Prisma.OperatorCreateNestedOneWithoutScheduledOperationsInput
+  toolUsages?: Prisma.ToolUsageCreateNestedManyWithoutScheduledOperationInput
+  reservations?: Prisma.ResourceReservationCreateNestedManyWithoutScheduledOperationInput
+  exceptions?: Prisma.ProductionExceptionCreateNestedManyWithoutScheduledOperationInput
+  qualityInspections?: Prisma.QualityInspectionCreateNestedManyWithoutScheduledOperationInput
+}
+
+export type ScheduledOperationUncheckedCreateWithoutScheduleVersionInput = {
+  id?: string
+  productionOrderId: string
+  routingOperationId?: string | null
+  machineId?: string | null
+  operatorId?: string | null
+  scheduledStart: Date | string
+  scheduledEnd: Date | string
+  actualStart?: Date | string | null
+  actualEnd?: Date | string | null
+  status?: $Enums.ScheduledOpStatus
+  deviationMinutes?: number | null
+  rejectionReason?: string | null
+  supersededAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  toolUsages?: Prisma.ToolUsageUncheckedCreateNestedManyWithoutScheduledOperationInput
+  reservations?: Prisma.ResourceReservationUncheckedCreateNestedManyWithoutScheduledOperationInput
+  exceptions?: Prisma.ProductionExceptionUncheckedCreateNestedManyWithoutScheduledOperationInput
+  qualityInspections?: Prisma.QualityInspectionUncheckedCreateNestedManyWithoutScheduledOperationInput
+}
+
+export type ScheduledOperationCreateOrConnectWithoutScheduleVersionInput = {
+  where: Prisma.ScheduledOperationWhereUniqueInput
+  create: Prisma.XOR<Prisma.ScheduledOperationCreateWithoutScheduleVersionInput, Prisma.ScheduledOperationUncheckedCreateWithoutScheduleVersionInput>
+}
+
+export type ScheduledOperationCreateManyScheduleVersionInputEnvelope = {
+  data: Prisma.ScheduledOperationCreateManyScheduleVersionInput | Prisma.ScheduledOperationCreateManyScheduleVersionInput[]
+  skipDuplicates?: boolean
+}
+
+export type ScheduledOperationUpsertWithWhereUniqueWithoutScheduleVersionInput = {
+  where: Prisma.ScheduledOperationWhereUniqueInput
+  update: Prisma.XOR<Prisma.ScheduledOperationUpdateWithoutScheduleVersionInput, Prisma.ScheduledOperationUncheckedUpdateWithoutScheduleVersionInput>
+  create: Prisma.XOR<Prisma.ScheduledOperationCreateWithoutScheduleVersionInput, Prisma.ScheduledOperationUncheckedCreateWithoutScheduleVersionInput>
+}
+
+export type ScheduledOperationUpdateWithWhereUniqueWithoutScheduleVersionInput = {
+  where: Prisma.ScheduledOperationWhereUniqueInput
+  data: Prisma.XOR<Prisma.ScheduledOperationUpdateWithoutScheduleVersionInput, Prisma.ScheduledOperationUncheckedUpdateWithoutScheduleVersionInput>
+}
+
+export type ScheduledOperationUpdateManyWithWhereWithoutScheduleVersionInput = {
+  where: Prisma.ScheduledOperationScalarWhereInput
+  data: Prisma.XOR<Prisma.ScheduledOperationUpdateManyMutationInput, Prisma.ScheduledOperationUncheckedUpdateManyWithoutScheduleVersionInput>
 }
 
 export type ScheduledOperationCreateManyMachineInput = {
@@ -1513,6 +1721,8 @@ export type ScheduledOperationCreateManyMachineInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  scheduleVersionId?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1526,11 +1736,13 @@ export type ScheduledOperationUpdateWithoutMachineInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   productionOrder?: Prisma.ProductionOrderUpdateOneRequiredWithoutScheduledOperationsNestedInput
   routingOperation?: Prisma.RoutingOperationUpdateOneWithoutScheduledOperationsNestedInput
   operator?: Prisma.OperatorUpdateOneWithoutScheduledOperationsNestedInput
+  scheduleVersion?: Prisma.ScheduleUpdateOneWithoutScheduledOperationsNestedInput
   toolUsages?: Prisma.ToolUsageUpdateManyWithoutScheduledOperationNestedInput
   reservations?: Prisma.ResourceReservationUpdateManyWithoutScheduledOperationNestedInput
   exceptions?: Prisma.ProductionExceptionUpdateManyWithoutScheduledOperationNestedInput
@@ -1549,6 +1761,8 @@ export type ScheduledOperationUncheckedUpdateWithoutMachineInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   toolUsages?: Prisma.ToolUsageUncheckedUpdateManyWithoutScheduledOperationNestedInput
@@ -1569,6 +1783,8 @@ export type ScheduledOperationUncheckedUpdateManyWithoutMachineInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1585,6 +1801,8 @@ export type ScheduledOperationCreateManyOperatorInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  scheduleVersionId?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1598,11 +1816,13 @@ export type ScheduledOperationUpdateWithoutOperatorInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   productionOrder?: Prisma.ProductionOrderUpdateOneRequiredWithoutScheduledOperationsNestedInput
   routingOperation?: Prisma.RoutingOperationUpdateOneWithoutScheduledOperationsNestedInput
   machine?: Prisma.MachineUpdateOneWithoutScheduledOperationsNestedInput
+  scheduleVersion?: Prisma.ScheduleUpdateOneWithoutScheduledOperationsNestedInput
   toolUsages?: Prisma.ToolUsageUpdateManyWithoutScheduledOperationNestedInput
   reservations?: Prisma.ResourceReservationUpdateManyWithoutScheduledOperationNestedInput
   exceptions?: Prisma.ProductionExceptionUpdateManyWithoutScheduledOperationNestedInput
@@ -1621,6 +1841,8 @@ export type ScheduledOperationUncheckedUpdateWithoutOperatorInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   toolUsages?: Prisma.ToolUsageUncheckedUpdateManyWithoutScheduledOperationNestedInput
@@ -1641,6 +1863,8 @@ export type ScheduledOperationUncheckedUpdateManyWithoutOperatorInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1657,6 +1881,8 @@ export type ScheduledOperationCreateManyRoutingOperationInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  scheduleVersionId?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1670,11 +1896,13 @@ export type ScheduledOperationUpdateWithoutRoutingOperationInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   productionOrder?: Prisma.ProductionOrderUpdateOneRequiredWithoutScheduledOperationsNestedInput
   machine?: Prisma.MachineUpdateOneWithoutScheduledOperationsNestedInput
   operator?: Prisma.OperatorUpdateOneWithoutScheduledOperationsNestedInput
+  scheduleVersion?: Prisma.ScheduleUpdateOneWithoutScheduledOperationsNestedInput
   toolUsages?: Prisma.ToolUsageUpdateManyWithoutScheduledOperationNestedInput
   reservations?: Prisma.ResourceReservationUpdateManyWithoutScheduledOperationNestedInput
   exceptions?: Prisma.ProductionExceptionUpdateManyWithoutScheduledOperationNestedInput
@@ -1693,6 +1921,8 @@ export type ScheduledOperationUncheckedUpdateWithoutRoutingOperationInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   toolUsages?: Prisma.ToolUsageUncheckedUpdateManyWithoutScheduledOperationNestedInput
@@ -1713,6 +1943,8 @@ export type ScheduledOperationUncheckedUpdateManyWithoutRoutingOperationInput = 
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1729,6 +1961,8 @@ export type ScheduledOperationCreateManyProductionOrderInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  scheduleVersionId?: string | null
+  supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1742,11 +1976,13 @@ export type ScheduledOperationUpdateWithoutProductionOrderInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   routingOperation?: Prisma.RoutingOperationUpdateOneWithoutScheduledOperationsNestedInput
   machine?: Prisma.MachineUpdateOneWithoutScheduledOperationsNestedInput
   operator?: Prisma.OperatorUpdateOneWithoutScheduledOperationsNestedInput
+  scheduleVersion?: Prisma.ScheduleUpdateOneWithoutScheduledOperationsNestedInput
   toolUsages?: Prisma.ToolUsageUpdateManyWithoutScheduledOperationNestedInput
   reservations?: Prisma.ResourceReservationUpdateManyWithoutScheduledOperationNestedInput
   exceptions?: Prisma.ProductionExceptionUpdateManyWithoutScheduledOperationNestedInput
@@ -1765,6 +2001,8 @@ export type ScheduledOperationUncheckedUpdateWithoutProductionOrderInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   toolUsages?: Prisma.ToolUsageUncheckedUpdateManyWithoutScheduledOperationNestedInput
@@ -1785,6 +2023,88 @@ export type ScheduledOperationUncheckedUpdateManyWithoutProductionOrderInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type ScheduledOperationCreateManyScheduleVersionInput = {
+  id?: string
+  productionOrderId: string
+  routingOperationId?: string | null
+  machineId?: string | null
+  operatorId?: string | null
+  scheduledStart: Date | string
+  scheduledEnd: Date | string
+  actualStart?: Date | string | null
+  actualEnd?: Date | string | null
+  status?: $Enums.ScheduledOpStatus
+  deviationMinutes?: number | null
+  rejectionReason?: string | null
+  supersededAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type ScheduledOperationUpdateWithoutScheduleVersionInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  scheduledStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  scheduledEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  actualStart?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  actualEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
+  deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  productionOrder?: Prisma.ProductionOrderUpdateOneRequiredWithoutScheduledOperationsNestedInput
+  routingOperation?: Prisma.RoutingOperationUpdateOneWithoutScheduledOperationsNestedInput
+  machine?: Prisma.MachineUpdateOneWithoutScheduledOperationsNestedInput
+  operator?: Prisma.OperatorUpdateOneWithoutScheduledOperationsNestedInput
+  toolUsages?: Prisma.ToolUsageUpdateManyWithoutScheduledOperationNestedInput
+  reservations?: Prisma.ResourceReservationUpdateManyWithoutScheduledOperationNestedInput
+  exceptions?: Prisma.ProductionExceptionUpdateManyWithoutScheduledOperationNestedInput
+  qualityInspections?: Prisma.QualityInspectionUpdateManyWithoutScheduledOperationNestedInput
+}
+
+export type ScheduledOperationUncheckedUpdateWithoutScheduleVersionInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  productionOrderId?: Prisma.StringFieldUpdateOperationsInput | string
+  routingOperationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  machineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  operatorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  scheduledStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  scheduledEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  actualStart?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  actualEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
+  deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  toolUsages?: Prisma.ToolUsageUncheckedUpdateManyWithoutScheduledOperationNestedInput
+  reservations?: Prisma.ResourceReservationUncheckedUpdateManyWithoutScheduledOperationNestedInput
+  exceptions?: Prisma.ProductionExceptionUncheckedUpdateManyWithoutScheduledOperationNestedInput
+  qualityInspections?: Prisma.QualityInspectionUncheckedUpdateManyWithoutScheduledOperationNestedInput
+}
+
+export type ScheduledOperationUncheckedUpdateManyWithoutScheduleVersionInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  productionOrderId?: Prisma.StringFieldUpdateOperationsInput | string
+  routingOperationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  machineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  operatorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  scheduledStart?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  scheduledEnd?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  actualStart?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  actualEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
+  deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
+  rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1860,12 +2180,15 @@ export type ScheduledOperationSelect<ExtArgs extends runtime.Types.Extensions.In
   status?: boolean
   deviationMinutes?: boolean
   rejectionReason?: boolean
+  scheduleVersionId?: boolean
+  supersededAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   productionOrder?: boolean | Prisma.ProductionOrderDefaultArgs<ExtArgs>
   routingOperation?: boolean | Prisma.ScheduledOperation$routingOperationArgs<ExtArgs>
   machine?: boolean | Prisma.ScheduledOperation$machineArgs<ExtArgs>
   operator?: boolean | Prisma.ScheduledOperation$operatorArgs<ExtArgs>
+  scheduleVersion?: boolean | Prisma.ScheduledOperation$scheduleVersionArgs<ExtArgs>
   toolUsages?: boolean | Prisma.ScheduledOperation$toolUsagesArgs<ExtArgs>
   reservations?: boolean | Prisma.ScheduledOperation$reservationsArgs<ExtArgs>
   exceptions?: boolean | Prisma.ScheduledOperation$exceptionsArgs<ExtArgs>
@@ -1886,12 +2209,15 @@ export type ScheduledOperationSelectCreateManyAndReturn<ExtArgs extends runtime.
   status?: boolean
   deviationMinutes?: boolean
   rejectionReason?: boolean
+  scheduleVersionId?: boolean
+  supersededAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   productionOrder?: boolean | Prisma.ProductionOrderDefaultArgs<ExtArgs>
   routingOperation?: boolean | Prisma.ScheduledOperation$routingOperationArgs<ExtArgs>
   machine?: boolean | Prisma.ScheduledOperation$machineArgs<ExtArgs>
   operator?: boolean | Prisma.ScheduledOperation$operatorArgs<ExtArgs>
+  scheduleVersion?: boolean | Prisma.ScheduledOperation$scheduleVersionArgs<ExtArgs>
 }, ExtArgs["result"]["scheduledOperation"]>
 
 export type ScheduledOperationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -1907,12 +2233,15 @@ export type ScheduledOperationSelectUpdateManyAndReturn<ExtArgs extends runtime.
   status?: boolean
   deviationMinutes?: boolean
   rejectionReason?: boolean
+  scheduleVersionId?: boolean
+  supersededAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   productionOrder?: boolean | Prisma.ProductionOrderDefaultArgs<ExtArgs>
   routingOperation?: boolean | Prisma.ScheduledOperation$routingOperationArgs<ExtArgs>
   machine?: boolean | Prisma.ScheduledOperation$machineArgs<ExtArgs>
   operator?: boolean | Prisma.ScheduledOperation$operatorArgs<ExtArgs>
+  scheduleVersion?: boolean | Prisma.ScheduledOperation$scheduleVersionArgs<ExtArgs>
 }, ExtArgs["result"]["scheduledOperation"]>
 
 export type ScheduledOperationSelectScalar = {
@@ -1928,16 +2257,19 @@ export type ScheduledOperationSelectScalar = {
   status?: boolean
   deviationMinutes?: boolean
   rejectionReason?: boolean
+  scheduleVersionId?: boolean
+  supersededAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type ScheduledOperationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "productionOrderId" | "routingOperationId" | "machineId" | "operatorId" | "scheduledStart" | "scheduledEnd" | "actualStart" | "actualEnd" | "status" | "deviationMinutes" | "rejectionReason" | "createdAt" | "updatedAt", ExtArgs["result"]["scheduledOperation"]>
+export type ScheduledOperationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "productionOrderId" | "routingOperationId" | "machineId" | "operatorId" | "scheduledStart" | "scheduledEnd" | "actualStart" | "actualEnd" | "status" | "deviationMinutes" | "rejectionReason" | "scheduleVersionId" | "supersededAt" | "createdAt" | "updatedAt", ExtArgs["result"]["scheduledOperation"]>
 export type ScheduledOperationInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   productionOrder?: boolean | Prisma.ProductionOrderDefaultArgs<ExtArgs>
   routingOperation?: boolean | Prisma.ScheduledOperation$routingOperationArgs<ExtArgs>
   machine?: boolean | Prisma.ScheduledOperation$machineArgs<ExtArgs>
   operator?: boolean | Prisma.ScheduledOperation$operatorArgs<ExtArgs>
+  scheduleVersion?: boolean | Prisma.ScheduledOperation$scheduleVersionArgs<ExtArgs>
   toolUsages?: boolean | Prisma.ScheduledOperation$toolUsagesArgs<ExtArgs>
   reservations?: boolean | Prisma.ScheduledOperation$reservationsArgs<ExtArgs>
   exceptions?: boolean | Prisma.ScheduledOperation$exceptionsArgs<ExtArgs>
@@ -1949,12 +2281,14 @@ export type ScheduledOperationIncludeCreateManyAndReturn<ExtArgs extends runtime
   routingOperation?: boolean | Prisma.ScheduledOperation$routingOperationArgs<ExtArgs>
   machine?: boolean | Prisma.ScheduledOperation$machineArgs<ExtArgs>
   operator?: boolean | Prisma.ScheduledOperation$operatorArgs<ExtArgs>
+  scheduleVersion?: boolean | Prisma.ScheduledOperation$scheduleVersionArgs<ExtArgs>
 }
 export type ScheduledOperationIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   productionOrder?: boolean | Prisma.ProductionOrderDefaultArgs<ExtArgs>
   routingOperation?: boolean | Prisma.ScheduledOperation$routingOperationArgs<ExtArgs>
   machine?: boolean | Prisma.ScheduledOperation$machineArgs<ExtArgs>
   operator?: boolean | Prisma.ScheduledOperation$operatorArgs<ExtArgs>
+  scheduleVersion?: boolean | Prisma.ScheduledOperation$scheduleVersionArgs<ExtArgs>
 }
 
 export type $ScheduledOperationPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1964,6 +2298,7 @@ export type $ScheduledOperationPayload<ExtArgs extends runtime.Types.Extensions.
     routingOperation: Prisma.$RoutingOperationPayload<ExtArgs> | null
     machine: Prisma.$MachinePayload<ExtArgs> | null
     operator: Prisma.$OperatorPayload<ExtArgs> | null
+    scheduleVersion: Prisma.$SchedulePayload<ExtArgs> | null
     toolUsages: Prisma.$ToolUsagePayload<ExtArgs>[]
     reservations: Prisma.$ResourceReservationPayload<ExtArgs>[]
     exceptions: Prisma.$ProductionExceptionPayload<ExtArgs>[]
@@ -1982,6 +2317,8 @@ export type $ScheduledOperationPayload<ExtArgs extends runtime.Types.Extensions.
     status: $Enums.ScheduledOpStatus
     deviationMinutes: number | null
     rejectionReason: string | null
+    scheduleVersionId: string | null
+    supersededAt: Date | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["scheduledOperation"]>
@@ -2382,6 +2719,7 @@ export interface Prisma__ScheduledOperationClient<T, Null = never, ExtArgs exten
   routingOperation<T extends Prisma.ScheduledOperation$routingOperationArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ScheduledOperation$routingOperationArgs<ExtArgs>>): Prisma.Prisma__RoutingOperationClient<runtime.Types.Result.GetResult<Prisma.$RoutingOperationPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   machine<T extends Prisma.ScheduledOperation$machineArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ScheduledOperation$machineArgs<ExtArgs>>): Prisma.Prisma__MachineClient<runtime.Types.Result.GetResult<Prisma.$MachinePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   operator<T extends Prisma.ScheduledOperation$operatorArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ScheduledOperation$operatorArgs<ExtArgs>>): Prisma.Prisma__OperatorClient<runtime.Types.Result.GetResult<Prisma.$OperatorPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  scheduleVersion<T extends Prisma.ScheduledOperation$scheduleVersionArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ScheduledOperation$scheduleVersionArgs<ExtArgs>>): Prisma.Prisma__ScheduleClient<runtime.Types.Result.GetResult<Prisma.$SchedulePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   toolUsages<T extends Prisma.ScheduledOperation$toolUsagesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ScheduledOperation$toolUsagesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ToolUsagePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   reservations<T extends Prisma.ScheduledOperation$reservationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ScheduledOperation$reservationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ResourceReservationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   exceptions<T extends Prisma.ScheduledOperation$exceptionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ScheduledOperation$exceptionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ProductionExceptionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
@@ -2427,6 +2765,8 @@ export interface ScheduledOperationFieldRefs {
   readonly status: Prisma.FieldRef<"ScheduledOperation", 'ScheduledOpStatus'>
   readonly deviationMinutes: Prisma.FieldRef<"ScheduledOperation", 'Int'>
   readonly rejectionReason: Prisma.FieldRef<"ScheduledOperation", 'String'>
+  readonly scheduleVersionId: Prisma.FieldRef<"ScheduledOperation", 'String'>
+  readonly supersededAt: Prisma.FieldRef<"ScheduledOperation", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"ScheduledOperation", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"ScheduledOperation", 'DateTime'>
 }
@@ -2884,6 +3224,25 @@ export type ScheduledOperation$operatorArgs<ExtArgs extends runtime.Types.Extens
    */
   include?: Prisma.OperatorInclude<ExtArgs> | null
   where?: Prisma.OperatorWhereInput
+}
+
+/**
+ * ScheduledOperation.scheduleVersion
+ */
+export type ScheduledOperation$scheduleVersionArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Schedule
+   */
+  select?: Prisma.ScheduleSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Schedule
+   */
+  omit?: Prisma.ScheduleOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ScheduleInclude<ExtArgs> | null
+  where?: Prisma.ScheduleWhereInput
 }
 
 /**

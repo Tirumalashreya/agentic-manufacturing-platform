@@ -25,3 +25,4 @@ export * from "./constraint-engine";
 export * from "./capacity-engine";
 export * from "./shift-expansion";
 export * from "./scheduling-types";
+export * from "./promise-risk";

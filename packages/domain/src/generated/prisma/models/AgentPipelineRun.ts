@@ -39,6 +39,9 @@ export type AgentPipelineRunMinAggregateOutputType = {
   rejectedAt: Date | null
   rejectedBy: string | null
   executedAt: Date | null
+  enterpriseId: string | null
+  proposalHash: string | null
+  approvalCreatedAt: Date | null
 }
 
 export type AgentPipelineRunMaxAggregateOutputType = {
@@ -56,6 +59,9 @@ export type AgentPipelineRunMaxAggregateOutputType = {
   rejectedAt: Date | null
   rejectedBy: string | null
   executedAt: Date | null
+  enterpriseId: string | null
+  proposalHash: string | null
+  approvalCreatedAt: Date | null
 }
 
 export type AgentPipelineRunCountAggregateOutputType = {
@@ -75,6 +81,9 @@ export type AgentPipelineRunCountAggregateOutputType = {
   rejectedBy: number
   executedAt: number
   executionResult: number
+  enterpriseId: number
+  proposalHash: number
+  approvalCreatedAt: number
   _all: number
 }
 
@@ -94,6 +103,9 @@ export type AgentPipelineRunMinAggregateInputType = {
   rejectedAt?: true
   rejectedBy?: true
   executedAt?: true
+  enterpriseId?: true
+  proposalHash?: true
+  approvalCreatedAt?: true
 }
 
 export type AgentPipelineRunMaxAggregateInputType = {
@@ -111,6 +123,9 @@ export type AgentPipelineRunMaxAggregateInputType = {
   rejectedAt?: true
   rejectedBy?: true
   executedAt?: true
+  enterpriseId?: true
+  proposalHash?: true
+  approvalCreatedAt?: true
 }
 
 export type AgentPipelineRunCountAggregateInputType = {
@@ -130,6 +145,9 @@ export type AgentPipelineRunCountAggregateInputType = {
   rejectedBy?: true
   executedAt?: true
   executionResult?: true
+  enterpriseId?: true
+  proposalHash?: true
+  approvalCreatedAt?: true
   _all?: true
 }
 
@@ -222,6 +240,9 @@ export type AgentPipelineRunGroupByOutputType = {
   rejectedBy: string | null
   executedAt: Date | null
   executionResult: runtime.JsonValue | null
+  enterpriseId: string | null
+  proposalHash: string | null
+  approvalCreatedAt: Date | null
   _count: AgentPipelineRunCountAggregateOutputType | null
   _min: AgentPipelineRunMinAggregateOutputType | null
   _max: AgentPipelineRunMaxAggregateOutputType | null
@@ -262,6 +283,9 @@ export type AgentPipelineRunWhereInput = {
   rejectedBy?: Prisma.StringNullableFilter<"AgentPipelineRun"> | string | null
   executedAt?: Prisma.DateTimeNullableFilter<"AgentPipelineRun"> | Date | string | null
   executionResult?: Prisma.JsonNullableFilter<"AgentPipelineRun">
+  enterpriseId?: Prisma.StringNullableFilter<"AgentPipelineRun"> | string | null
+  proposalHash?: Prisma.StringNullableFilter<"AgentPipelineRun"> | string | null
+  approvalCreatedAt?: Prisma.DateTimeNullableFilter<"AgentPipelineRun"> | Date | string | null
   stages?: Prisma.AgentStageResultListRelationFilter
 }
 
@@ -282,6 +306,9 @@ export type AgentPipelineRunOrderByWithRelationInput = {
   rejectedBy?: Prisma.SortOrderInput | Prisma.SortOrder
   executedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   executionResult?: Prisma.SortOrderInput | Prisma.SortOrder
+  enterpriseId?: Prisma.SortOrderInput | Prisma.SortOrder
+  proposalHash?: Prisma.SortOrderInput | Prisma.SortOrder
+  approvalCreatedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   stages?: Prisma.AgentStageResultOrderByRelationAggregateInput
 }
 
@@ -305,6 +332,9 @@ export type AgentPipelineRunWhereUniqueInput = Prisma.AtLeast<{
   rejectedBy?: Prisma.StringNullableFilter<"AgentPipelineRun"> | string | null
   executedAt?: Prisma.DateTimeNullableFilter<"AgentPipelineRun"> | Date | string | null
   executionResult?: Prisma.JsonNullableFilter<"AgentPipelineRun">
+  enterpriseId?: Prisma.StringNullableFilter<"AgentPipelineRun"> | string | null
+  proposalHash?: Prisma.StringNullableFilter<"AgentPipelineRun"> | string | null
+  approvalCreatedAt?: Prisma.DateTimeNullableFilter<"AgentPipelineRun"> | Date | string | null
   stages?: Prisma.AgentStageResultListRelationFilter
 }, "id">
 
@@ -325,6 +355,9 @@ export type AgentPipelineRunOrderByWithAggregationInput = {
   rejectedBy?: Prisma.SortOrderInput | Prisma.SortOrder
   executedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   executionResult?: Prisma.SortOrderInput | Prisma.SortOrder
+  enterpriseId?: Prisma.SortOrderInput | Prisma.SortOrder
+  proposalHash?: Prisma.SortOrderInput | Prisma.SortOrder
+  approvalCreatedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.AgentPipelineRunCountOrderByAggregateInput
   _max?: Prisma.AgentPipelineRunMaxOrderByAggregateInput
   _min?: Prisma.AgentPipelineRunMinOrderByAggregateInput
@@ -350,6 +383,9 @@ export type AgentPipelineRunScalarWhereWithAggregatesInput = {
   rejectedBy?: Prisma.StringNullableWithAggregatesFilter<"AgentPipelineRun"> | string | null
   executedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"AgentPipelineRun"> | Date | string | null
   executionResult?: Prisma.JsonNullableWithAggregatesFilter<"AgentPipelineRun">
+  enterpriseId?: Prisma.StringNullableWithAggregatesFilter<"AgentPipelineRun"> | string | null
+  proposalHash?: Prisma.StringNullableWithAggregatesFilter<"AgentPipelineRun"> | string | null
+  approvalCreatedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"AgentPipelineRun"> | Date | string | null
 }
 
 export type AgentPipelineRunCreateInput = {
@@ -369,6 +405,9 @@ export type AgentPipelineRunCreateInput = {
   rejectedBy?: string | null
   executedAt?: Date | string | null
   executionResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  enterpriseId?: string | null
+  proposalHash?: string | null
+  approvalCreatedAt?: Date | string | null
   stages?: Prisma.AgentStageResultCreateNestedManyWithoutRunInput
 }
 
@@ -389,6 +428,9 @@ export type AgentPipelineRunUncheckedCreateInput = {
   rejectedBy?: string | null
   executedAt?: Date | string | null
   executionResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  enterpriseId?: string | null
+  proposalHash?: string | null
+  approvalCreatedAt?: Date | string | null
   stages?: Prisma.AgentStageResultUncheckedCreateNestedManyWithoutRunInput
 }
 
@@ -409,6 +451,9 @@ export type AgentPipelineRunUpdateInput = {
   rejectedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   executedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   executionResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  enterpriseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  proposalHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approvalCreatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   stages?: Prisma.AgentStageResultUpdateManyWithoutRunNestedInput
 }
 
@@ -429,6 +474,9 @@ export type AgentPipelineRunUncheckedUpdateInput = {
   rejectedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   executedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   executionResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  enterpriseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  proposalHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approvalCreatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   stages?: Prisma.AgentStageResultUncheckedUpdateManyWithoutRunNestedInput
 }
 
@@ -449,6 +497,9 @@ export type AgentPipelineRunCreateManyInput = {
   rejectedBy?: string | null
   executedAt?: Date | string | null
   executionResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  enterpriseId?: string | null
+  proposalHash?: string | null
+  approvalCreatedAt?: Date | string | null
 }
 
 export type AgentPipelineRunUpdateManyMutationInput = {
@@ -468,6 +519,9 @@ export type AgentPipelineRunUpdateManyMutationInput = {
   rejectedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   executedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   executionResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  enterpriseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  proposalHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approvalCreatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type AgentPipelineRunUncheckedUpdateManyInput = {
@@ -487,6 +541,9 @@ export type AgentPipelineRunUncheckedUpdateManyInput = {
   rejectedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   executedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   executionResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  enterpriseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  proposalHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approvalCreatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type AgentPipelineRunCountOrderByAggregateInput = {
@@ -506,6 +563,9 @@ export type AgentPipelineRunCountOrderByAggregateInput = {
   rejectedBy?: Prisma.SortOrder
   executedAt?: Prisma.SortOrder
   executionResult?: Prisma.SortOrder
+  enterpriseId?: Prisma.SortOrder
+  proposalHash?: Prisma.SortOrder
+  approvalCreatedAt?: Prisma.SortOrder
 }
 
 export type AgentPipelineRunMaxOrderByAggregateInput = {
@@ -523,6 +583,9 @@ export type AgentPipelineRunMaxOrderByAggregateInput = {
   rejectedAt?: Prisma.SortOrder
   rejectedBy?: Prisma.SortOrder
   executedAt?: Prisma.SortOrder
+  enterpriseId?: Prisma.SortOrder
+  proposalHash?: Prisma.SortOrder
+  approvalCreatedAt?: Prisma.SortOrder
 }
 
 export type AgentPipelineRunMinOrderByAggregateInput = {
@@ -540,6 +603,9 @@ export type AgentPipelineRunMinOrderByAggregateInput = {
   rejectedAt?: Prisma.SortOrder
   rejectedBy?: Prisma.SortOrder
   executedAt?: Prisma.SortOrder
+  enterpriseId?: Prisma.SortOrder
+  proposalHash?: Prisma.SortOrder
+  approvalCreatedAt?: Prisma.SortOrder
 }
 
 export type AgentPipelineRunScalarRelationFilter = {
@@ -578,6 +644,9 @@ export type AgentPipelineRunCreateWithoutStagesInput = {
   rejectedBy?: string | null
   executedAt?: Date | string | null
   executionResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  enterpriseId?: string | null
+  proposalHash?: string | null
+  approvalCreatedAt?: Date | string | null
 }
 
 export type AgentPipelineRunUncheckedCreateWithoutStagesInput = {
@@ -597,6 +666,9 @@ export type AgentPipelineRunUncheckedCreateWithoutStagesInput = {
   rejectedBy?: string | null
   executedAt?: Date | string | null
   executionResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  enterpriseId?: string | null
+  proposalHash?: string | null
+  approvalCreatedAt?: Date | string | null
 }
 
 export type AgentPipelineRunCreateOrConnectWithoutStagesInput = {
@@ -632,6 +704,9 @@ export type AgentPipelineRunUpdateWithoutStagesInput = {
   rejectedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   executedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   executionResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  enterpriseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  proposalHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approvalCreatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 export type AgentPipelineRunUncheckedUpdateWithoutStagesInput = {
@@ -651,6 +726,9 @@ export type AgentPipelineRunUncheckedUpdateWithoutStagesInput = {
   rejectedBy?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   executedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   executionResult?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  enterpriseId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  proposalHash?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  approvalCreatedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
 }
 
 
@@ -701,6 +779,9 @@ export type AgentPipelineRunSelect<ExtArgs extends runtime.Types.Extensions.Inte
   rejectedBy?: boolean
   executedAt?: boolean
   executionResult?: boolean
+  enterpriseId?: boolean
+  proposalHash?: boolean
+  approvalCreatedAt?: boolean
   stages?: boolean | Prisma.AgentPipelineRun$stagesArgs<ExtArgs>
   _count?: boolean | Prisma.AgentPipelineRunCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["agentPipelineRun"]>
@@ -722,6 +803,9 @@ export type AgentPipelineRunSelectCreateManyAndReturn<ExtArgs extends runtime.Ty
   rejectedBy?: boolean
   executedAt?: boolean
   executionResult?: boolean
+  enterpriseId?: boolean
+  proposalHash?: boolean
+  approvalCreatedAt?: boolean
 }, ExtArgs["result"]["agentPipelineRun"]>
 
 export type AgentPipelineRunSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -741,6 +825,9 @@ export type AgentPipelineRunSelectUpdateManyAndReturn<ExtArgs extends runtime.Ty
   rejectedBy?: boolean
   executedAt?: boolean
   executionResult?: boolean
+  enterpriseId?: boolean
+  proposalHash?: boolean
+  approvalCreatedAt?: boolean
 }, ExtArgs["result"]["agentPipelineRun"]>
 
 export type AgentPipelineRunSelectScalar = {
@@ -760,9 +847,12 @@ export type AgentPipelineRunSelectScalar = {
   rejectedBy?: boolean
   executedAt?: boolean
   executionResult?: boolean
+  enterpriseId?: boolean
+  proposalHash?: boolean
+  approvalCreatedAt?: boolean
 }
 
-export type AgentPipelineRunOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "status" | "currentStage" | "createdAt" | "finishedAt" | "requestedBy" | "approvalAction" | "approvalStatus" | "approvalPayload" | "approvalExpiresAt" | "approvedAt" | "approvedBy" | "rejectedAt" | "rejectedBy" | "executedAt" | "executionResult", ExtArgs["result"]["agentPipelineRun"]>
+export type AgentPipelineRunOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "status" | "currentStage" | "createdAt" | "finishedAt" | "requestedBy" | "approvalAction" | "approvalStatus" | "approvalPayload" | "approvalExpiresAt" | "approvedAt" | "approvedBy" | "rejectedAt" | "rejectedBy" | "executedAt" | "executionResult" | "enterpriseId" | "proposalHash" | "approvalCreatedAt", ExtArgs["result"]["agentPipelineRun"]>
 export type AgentPipelineRunInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   stages?: boolean | Prisma.AgentPipelineRun$stagesArgs<ExtArgs>
   _count?: boolean | Prisma.AgentPipelineRunCountOutputTypeDefaultArgs<ExtArgs>
@@ -792,6 +882,9 @@ export type $AgentPipelineRunPayload<ExtArgs extends runtime.Types.Extensions.In
     rejectedBy: string | null
     executedAt: Date | null
     executionResult: runtime.JsonValue | null
+    enterpriseId: string | null
+    proposalHash: string | null
+    approvalCreatedAt: Date | null
   }, ExtArgs["result"]["agentPipelineRun"]>
   composites: {}
 }
@@ -1232,6 +1325,9 @@ export interface AgentPipelineRunFieldRefs {
   readonly rejectedBy: Prisma.FieldRef<"AgentPipelineRun", 'String'>
   readonly executedAt: Prisma.FieldRef<"AgentPipelineRun", 'DateTime'>
   readonly executionResult: Prisma.FieldRef<"AgentPipelineRun", 'Json'>
+  readonly enterpriseId: Prisma.FieldRef<"AgentPipelineRun", 'String'>
+  readonly proposalHash: Prisma.FieldRef<"AgentPipelineRun", 'String'>
+  readonly approvalCreatedAt: Prisma.FieldRef<"AgentPipelineRun", 'DateTime'>
 }
     
 

@@ -34,6 +34,7 @@ export type ResourceReservationMinAggregateOutputType = {
   endTime: Date | null
   state: $Enums.ReservationState | null
   createdAt: Date | null
+  scheduleVersionId: string | null
 }
 
 export type ResourceReservationMaxAggregateOutputType = {
@@ -46,6 +47,7 @@ export type ResourceReservationMaxAggregateOutputType = {
   endTime: Date | null
   state: $Enums.ReservationState | null
   createdAt: Date | null
+  scheduleVersionId: string | null
 }
 
 export type ResourceReservationCountAggregateOutputType = {
@@ -58,6 +60,7 @@ export type ResourceReservationCountAggregateOutputType = {
   endTime: number
   state: number
   createdAt: number
+  scheduleVersionId: number
   _all: number
 }
 
@@ -72,6 +75,7 @@ export type ResourceReservationMinAggregateInputType = {
   endTime?: true
   state?: true
   createdAt?: true
+  scheduleVersionId?: true
 }
 
 export type ResourceReservationMaxAggregateInputType = {
@@ -84,6 +88,7 @@ export type ResourceReservationMaxAggregateInputType = {
   endTime?: true
   state?: true
   createdAt?: true
+  scheduleVersionId?: true
 }
 
 export type ResourceReservationCountAggregateInputType = {
@@ -96,6 +101,7 @@ export type ResourceReservationCountAggregateInputType = {
   endTime?: true
   state?: true
   createdAt?: true
+  scheduleVersionId?: true
   _all?: true
 }
 
@@ -181,6 +187,7 @@ export type ResourceReservationGroupByOutputType = {
   endTime: Date
   state: $Enums.ReservationState
   createdAt: Date
+  scheduleVersionId: string | null
   _count: ResourceReservationCountAggregateOutputType | null
   _min: ResourceReservationMinAggregateOutputType | null
   _max: ResourceReservationMaxAggregateOutputType | null
@@ -214,9 +221,11 @@ export type ResourceReservationWhereInput = {
   endTime?: Prisma.DateTimeFilter<"ResourceReservation"> | Date | string
   state?: Prisma.EnumReservationStateFilter<"ResourceReservation"> | $Enums.ReservationState
   createdAt?: Prisma.DateTimeFilter<"ResourceReservation"> | Date | string
+  scheduleVersionId?: Prisma.StringNullableFilter<"ResourceReservation"> | string | null
   machine?: Prisma.XOR<Prisma.MachineNullableScalarRelationFilter, Prisma.MachineWhereInput> | null
   operator?: Prisma.XOR<Prisma.OperatorNullableScalarRelationFilter, Prisma.OperatorWhereInput> | null
   scheduledOperation?: Prisma.XOR<Prisma.ScheduledOperationNullableScalarRelationFilter, Prisma.ScheduledOperationWhereInput> | null
+  scheduleVersion?: Prisma.XOR<Prisma.ScheduleNullableScalarRelationFilter, Prisma.ScheduleWhereInput> | null
 }
 
 export type ResourceReservationOrderByWithRelationInput = {
@@ -229,9 +238,11 @@ export type ResourceReservationOrderByWithRelationInput = {
   endTime?: Prisma.SortOrder
   state?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  scheduleVersionId?: Prisma.SortOrderInput | Prisma.SortOrder
   machine?: Prisma.MachineOrderByWithRelationInput
   operator?: Prisma.OperatorOrderByWithRelationInput
   scheduledOperation?: Prisma.ScheduledOperationOrderByWithRelationInput
+  scheduleVersion?: Prisma.ScheduleOrderByWithRelationInput
 }
 
 export type ResourceReservationWhereUniqueInput = Prisma.AtLeast<{
@@ -247,9 +258,11 @@ export type ResourceReservationWhereUniqueInput = Prisma.AtLeast<{
   endTime?: Prisma.DateTimeFilter<"ResourceReservation"> | Date | string
   state?: Prisma.EnumReservationStateFilter<"ResourceReservation"> | $Enums.ReservationState
   createdAt?: Prisma.DateTimeFilter<"ResourceReservation"> | Date | string
+  scheduleVersionId?: Prisma.StringNullableFilter<"ResourceReservation"> | string | null
   machine?: Prisma.XOR<Prisma.MachineNullableScalarRelationFilter, Prisma.MachineWhereInput> | null
   operator?: Prisma.XOR<Prisma.OperatorNullableScalarRelationFilter, Prisma.OperatorWhereInput> | null
   scheduledOperation?: Prisma.XOR<Prisma.ScheduledOperationNullableScalarRelationFilter, Prisma.ScheduledOperationWhereInput> | null
+  scheduleVersion?: Prisma.XOR<Prisma.ScheduleNullableScalarRelationFilter, Prisma.ScheduleWhereInput> | null
 }, "id">
 
 export type ResourceReservationOrderByWithAggregationInput = {
@@ -262,6 +275,7 @@ export type ResourceReservationOrderByWithAggregationInput = {
   endTime?: Prisma.SortOrder
   state?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  scheduleVersionId?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.ResourceReservationCountOrderByAggregateInput
   _max?: Prisma.ResourceReservationMaxOrderByAggregateInput
   _min?: Prisma.ResourceReservationMinOrderByAggregateInput
@@ -280,6 +294,7 @@ export type ResourceReservationScalarWhereWithAggregatesInput = {
   endTime?: Prisma.DateTimeWithAggregatesFilter<"ResourceReservation"> | Date | string
   state?: Prisma.EnumReservationStateWithAggregatesFilter<"ResourceReservation"> | $Enums.ReservationState
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"ResourceReservation"> | Date | string
+  scheduleVersionId?: Prisma.StringNullableWithAggregatesFilter<"ResourceReservation"> | string | null
 }
 
 export type ResourceReservationCreateInput = {
@@ -292,6 +307,7 @@ export type ResourceReservationCreateInput = {
   machine?: Prisma.MachineCreateNestedOneWithoutReservationsInput
   operator?: Prisma.OperatorCreateNestedOneWithoutReservationsInput
   scheduledOperation?: Prisma.ScheduledOperationCreateNestedOneWithoutReservationsInput
+  scheduleVersion?: Prisma.ScheduleCreateNestedOneWithoutResourceReservationsInput
 }
 
 export type ResourceReservationUncheckedCreateInput = {
@@ -304,6 +320,7 @@ export type ResourceReservationUncheckedCreateInput = {
   endTime: Date | string
   state?: $Enums.ReservationState
   createdAt?: Date | string
+  scheduleVersionId?: string | null
 }
 
 export type ResourceReservationUpdateInput = {
@@ -316,6 +333,7 @@ export type ResourceReservationUpdateInput = {
   machine?: Prisma.MachineUpdateOneWithoutReservationsNestedInput
   operator?: Prisma.OperatorUpdateOneWithoutReservationsNestedInput
   scheduledOperation?: Prisma.ScheduledOperationUpdateOneWithoutReservationsNestedInput
+  scheduleVersion?: Prisma.ScheduleUpdateOneWithoutResourceReservationsNestedInput
 }
 
 export type ResourceReservationUncheckedUpdateInput = {
@@ -328,6 +346,7 @@ export type ResourceReservationUncheckedUpdateInput = {
   endTime?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   state?: Prisma.EnumReservationStateFieldUpdateOperationsInput | $Enums.ReservationState
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ResourceReservationCreateManyInput = {
@@ -340,6 +359,7 @@ export type ResourceReservationCreateManyInput = {
   endTime: Date | string
   state?: $Enums.ReservationState
   createdAt?: Date | string
+  scheduleVersionId?: string | null
 }
 
 export type ResourceReservationUpdateManyMutationInput = {
@@ -361,6 +381,7 @@ export type ResourceReservationUncheckedUpdateManyInput = {
   endTime?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   state?: Prisma.EnumReservationStateFieldUpdateOperationsInput | $Enums.ReservationState
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ResourceReservationListRelationFilter = {
@@ -383,6 +404,7 @@ export type ResourceReservationCountOrderByAggregateInput = {
   endTime?: Prisma.SortOrder
   state?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  scheduleVersionId?: Prisma.SortOrder
 }
 
 export type ResourceReservationMaxOrderByAggregateInput = {
@@ -395,6 +417,7 @@ export type ResourceReservationMaxOrderByAggregateInput = {
   endTime?: Prisma.SortOrder
   state?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  scheduleVersionId?: Prisma.SortOrder
 }
 
 export type ResourceReservationMinOrderByAggregateInput = {
@@ -407,6 +430,7 @@ export type ResourceReservationMinOrderByAggregateInput = {
   endTime?: Prisma.SortOrder
   state?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
+  scheduleVersionId?: Prisma.SortOrder
 }
 
 export type ResourceReservationCreateNestedManyWithoutMachineInput = {
@@ -543,6 +567,48 @@ export type EnumReservationStateFieldUpdateOperationsInput = {
   set?: $Enums.ReservationState
 }
 
+export type ResourceReservationCreateNestedManyWithoutScheduleVersionInput = {
+  create?: Prisma.XOR<Prisma.ResourceReservationCreateWithoutScheduleVersionInput, Prisma.ResourceReservationUncheckedCreateWithoutScheduleVersionInput> | Prisma.ResourceReservationCreateWithoutScheduleVersionInput[] | Prisma.ResourceReservationUncheckedCreateWithoutScheduleVersionInput[]
+  connectOrCreate?: Prisma.ResourceReservationCreateOrConnectWithoutScheduleVersionInput | Prisma.ResourceReservationCreateOrConnectWithoutScheduleVersionInput[]
+  createMany?: Prisma.ResourceReservationCreateManyScheduleVersionInputEnvelope
+  connect?: Prisma.ResourceReservationWhereUniqueInput | Prisma.ResourceReservationWhereUniqueInput[]
+}
+
+export type ResourceReservationUncheckedCreateNestedManyWithoutScheduleVersionInput = {
+  create?: Prisma.XOR<Prisma.ResourceReservationCreateWithoutScheduleVersionInput, Prisma.ResourceReservationUncheckedCreateWithoutScheduleVersionInput> | Prisma.ResourceReservationCreateWithoutScheduleVersionInput[] | Prisma.ResourceReservationUncheckedCreateWithoutScheduleVersionInput[]
+  connectOrCreate?: Prisma.ResourceReservationCreateOrConnectWithoutScheduleVersionInput | Prisma.ResourceReservationCreateOrConnectWithoutScheduleVersionInput[]
+  createMany?: Prisma.ResourceReservationCreateManyScheduleVersionInputEnvelope
+  connect?: Prisma.ResourceReservationWhereUniqueInput | Prisma.ResourceReservationWhereUniqueInput[]
+}
+
+export type ResourceReservationUpdateManyWithoutScheduleVersionNestedInput = {
+  create?: Prisma.XOR<Prisma.ResourceReservationCreateWithoutScheduleVersionInput, Prisma.ResourceReservationUncheckedCreateWithoutScheduleVersionInput> | Prisma.ResourceReservationCreateWithoutScheduleVersionInput[] | Prisma.ResourceReservationUncheckedCreateWithoutScheduleVersionInput[]
+  connectOrCreate?: Prisma.ResourceReservationCreateOrConnectWithoutScheduleVersionInput | Prisma.ResourceReservationCreateOrConnectWithoutScheduleVersionInput[]
+  upsert?: Prisma.ResourceReservationUpsertWithWhereUniqueWithoutScheduleVersionInput | Prisma.ResourceReservationUpsertWithWhereUniqueWithoutScheduleVersionInput[]
+  createMany?: Prisma.ResourceReservationCreateManyScheduleVersionInputEnvelope
+  set?: Prisma.ResourceReservationWhereUniqueInput | Prisma.ResourceReservationWhereUniqueInput[]
+  disconnect?: Prisma.ResourceReservationWhereUniqueInput | Prisma.ResourceReservationWhereUniqueInput[]
+  delete?: Prisma.ResourceReservationWhereUniqueInput | Prisma.ResourceReservationWhereUniqueInput[]
+  connect?: Prisma.ResourceReservationWhereUniqueInput | Prisma.ResourceReservationWhereUniqueInput[]
+  update?: Prisma.ResourceReservationUpdateWithWhereUniqueWithoutScheduleVersionInput | Prisma.ResourceReservationUpdateWithWhereUniqueWithoutScheduleVersionInput[]
+  updateMany?: Prisma.ResourceReservationUpdateManyWithWhereWithoutScheduleVersionInput | Prisma.ResourceReservationUpdateManyWithWhereWithoutScheduleVersionInput[]
+  deleteMany?: Prisma.ResourceReservationScalarWhereInput | Prisma.ResourceReservationScalarWhereInput[]
+}
+
+export type ResourceReservationUncheckedUpdateManyWithoutScheduleVersionNestedInput = {
+  create?: Prisma.XOR<Prisma.ResourceReservationCreateWithoutScheduleVersionInput, Prisma.ResourceReservationUncheckedCreateWithoutScheduleVersionInput> | Prisma.ResourceReservationCreateWithoutScheduleVersionInput[] | Prisma.ResourceReservationUncheckedCreateWithoutScheduleVersionInput[]
+  connectOrCreate?: Prisma.ResourceReservationCreateOrConnectWithoutScheduleVersionInput | Prisma.ResourceReservationCreateOrConnectWithoutScheduleVersionInput[]
+  upsert?: Prisma.ResourceReservationUpsertWithWhereUniqueWithoutScheduleVersionInput | Prisma.ResourceReservationUpsertWithWhereUniqueWithoutScheduleVersionInput[]
+  createMany?: Prisma.ResourceReservationCreateManyScheduleVersionInputEnvelope
+  set?: Prisma.ResourceReservationWhereUniqueInput | Prisma.ResourceReservationWhereUniqueInput[]
+  disconnect?: Prisma.ResourceReservationWhereUniqueInput | Prisma.ResourceReservationWhereUniqueInput[]
+  delete?: Prisma.ResourceReservationWhereUniqueInput | Prisma.ResourceReservationWhereUniqueInput[]
+  connect?: Prisma.ResourceReservationWhereUniqueInput | Prisma.ResourceReservationWhereUniqueInput[]
+  update?: Prisma.ResourceReservationUpdateWithWhereUniqueWithoutScheduleVersionInput | Prisma.ResourceReservationUpdateWithWhereUniqueWithoutScheduleVersionInput[]
+  updateMany?: Prisma.ResourceReservationUpdateManyWithWhereWithoutScheduleVersionInput | Prisma.ResourceReservationUpdateManyWithWhereWithoutScheduleVersionInput[]
+  deleteMany?: Prisma.ResourceReservationScalarWhereInput | Prisma.ResourceReservationScalarWhereInput[]
+}
+
 export type ResourceReservationCreateWithoutMachineInput = {
   id?: string
   resourceType: $Enums.ReservationType
@@ -552,6 +618,7 @@ export type ResourceReservationCreateWithoutMachineInput = {
   createdAt?: Date | string
   operator?: Prisma.OperatorCreateNestedOneWithoutReservationsInput
   scheduledOperation?: Prisma.ScheduledOperationCreateNestedOneWithoutReservationsInput
+  scheduleVersion?: Prisma.ScheduleCreateNestedOneWithoutResourceReservationsInput
 }
 
 export type ResourceReservationUncheckedCreateWithoutMachineInput = {
@@ -563,6 +630,7 @@ export type ResourceReservationUncheckedCreateWithoutMachineInput = {
   endTime: Date | string
   state?: $Enums.ReservationState
   createdAt?: Date | string
+  scheduleVersionId?: string | null
 }
 
 export type ResourceReservationCreateOrConnectWithoutMachineInput = {
@@ -604,6 +672,7 @@ export type ResourceReservationScalarWhereInput = {
   endTime?: Prisma.DateTimeFilter<"ResourceReservation"> | Date | string
   state?: Prisma.EnumReservationStateFilter<"ResourceReservation"> | $Enums.ReservationState
   createdAt?: Prisma.DateTimeFilter<"ResourceReservation"> | Date | string
+  scheduleVersionId?: Prisma.StringNullableFilter<"ResourceReservation"> | string | null
 }
 
 export type ResourceReservationCreateWithoutOperatorInput = {
@@ -615,6 +684,7 @@ export type ResourceReservationCreateWithoutOperatorInput = {
   createdAt?: Date | string
   machine?: Prisma.MachineCreateNestedOneWithoutReservationsInput
   scheduledOperation?: Prisma.ScheduledOperationCreateNestedOneWithoutReservationsInput
+  scheduleVersion?: Prisma.ScheduleCreateNestedOneWithoutResourceReservationsInput
 }
 
 export type ResourceReservationUncheckedCreateWithoutOperatorInput = {
@@ -626,6 +696,7 @@ export type ResourceReservationUncheckedCreateWithoutOperatorInput = {
   endTime: Date | string
   state?: $Enums.ReservationState
   createdAt?: Date | string
+  scheduleVersionId?: string | null
 }
 
 export type ResourceReservationCreateOrConnectWithoutOperatorInput = {
@@ -663,6 +734,7 @@ export type ResourceReservationCreateWithoutScheduledOperationInput = {
   createdAt?: Date | string
   machine?: Prisma.MachineCreateNestedOneWithoutReservationsInput
   operator?: Prisma.OperatorCreateNestedOneWithoutReservationsInput
+  scheduleVersion?: Prisma.ScheduleCreateNestedOneWithoutResourceReservationsInput
 }
 
 export type ResourceReservationUncheckedCreateWithoutScheduledOperationInput = {
@@ -674,6 +746,7 @@ export type ResourceReservationUncheckedCreateWithoutScheduledOperationInput = {
   endTime: Date | string
   state?: $Enums.ReservationState
   createdAt?: Date | string
+  scheduleVersionId?: string | null
 }
 
 export type ResourceReservationCreateOrConnectWithoutScheduledOperationInput = {
@@ -702,6 +775,56 @@ export type ResourceReservationUpdateManyWithWhereWithoutScheduledOperationInput
   data: Prisma.XOR<Prisma.ResourceReservationUpdateManyMutationInput, Prisma.ResourceReservationUncheckedUpdateManyWithoutScheduledOperationInput>
 }
 
+export type ResourceReservationCreateWithoutScheduleVersionInput = {
+  id?: string
+  resourceType: $Enums.ReservationType
+  startTime: Date | string
+  endTime: Date | string
+  state?: $Enums.ReservationState
+  createdAt?: Date | string
+  machine?: Prisma.MachineCreateNestedOneWithoutReservationsInput
+  operator?: Prisma.OperatorCreateNestedOneWithoutReservationsInput
+  scheduledOperation?: Prisma.ScheduledOperationCreateNestedOneWithoutReservationsInput
+}
+
+export type ResourceReservationUncheckedCreateWithoutScheduleVersionInput = {
+  id?: string
+  resourceType: $Enums.ReservationType
+  machineId?: string | null
+  operatorId?: string | null
+  scheduledOperationId?: string | null
+  startTime: Date | string
+  endTime: Date | string
+  state?: $Enums.ReservationState
+  createdAt?: Date | string
+}
+
+export type ResourceReservationCreateOrConnectWithoutScheduleVersionInput = {
+  where: Prisma.ResourceReservationWhereUniqueInput
+  create: Prisma.XOR<Prisma.ResourceReservationCreateWithoutScheduleVersionInput, Prisma.ResourceReservationUncheckedCreateWithoutScheduleVersionInput>
+}
+
+export type ResourceReservationCreateManyScheduleVersionInputEnvelope = {
+  data: Prisma.ResourceReservationCreateManyScheduleVersionInput | Prisma.ResourceReservationCreateManyScheduleVersionInput[]
+  skipDuplicates?: boolean
+}
+
+export type ResourceReservationUpsertWithWhereUniqueWithoutScheduleVersionInput = {
+  where: Prisma.ResourceReservationWhereUniqueInput
+  update: Prisma.XOR<Prisma.ResourceReservationUpdateWithoutScheduleVersionInput, Prisma.ResourceReservationUncheckedUpdateWithoutScheduleVersionInput>
+  create: Prisma.XOR<Prisma.ResourceReservationCreateWithoutScheduleVersionInput, Prisma.ResourceReservationUncheckedCreateWithoutScheduleVersionInput>
+}
+
+export type ResourceReservationUpdateWithWhereUniqueWithoutScheduleVersionInput = {
+  where: Prisma.ResourceReservationWhereUniqueInput
+  data: Prisma.XOR<Prisma.ResourceReservationUpdateWithoutScheduleVersionInput, Prisma.ResourceReservationUncheckedUpdateWithoutScheduleVersionInput>
+}
+
+export type ResourceReservationUpdateManyWithWhereWithoutScheduleVersionInput = {
+  where: Prisma.ResourceReservationScalarWhereInput
+  data: Prisma.XOR<Prisma.ResourceReservationUpdateManyMutationInput, Prisma.ResourceReservationUncheckedUpdateManyWithoutScheduleVersionInput>
+}
+
 export type ResourceReservationCreateManyMachineInput = {
   id?: string
   resourceType: $Enums.ReservationType
@@ -711,6 +834,7 @@ export type ResourceReservationCreateManyMachineInput = {
   endTime: Date | string
   state?: $Enums.ReservationState
   createdAt?: Date | string
+  scheduleVersionId?: string | null
 }
 
 export type ResourceReservationUpdateWithoutMachineInput = {
@@ -722,6 +846,7 @@ export type ResourceReservationUpdateWithoutMachineInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   operator?: Prisma.OperatorUpdateOneWithoutReservationsNestedInput
   scheduledOperation?: Prisma.ScheduledOperationUpdateOneWithoutReservationsNestedInput
+  scheduleVersion?: Prisma.ScheduleUpdateOneWithoutResourceReservationsNestedInput
 }
 
 export type ResourceReservationUncheckedUpdateWithoutMachineInput = {
@@ -733,6 +858,7 @@ export type ResourceReservationUncheckedUpdateWithoutMachineInput = {
   endTime?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   state?: Prisma.EnumReservationStateFieldUpdateOperationsInput | $Enums.ReservationState
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ResourceReservationUncheckedUpdateManyWithoutMachineInput = {
@@ -744,6 +870,7 @@ export type ResourceReservationUncheckedUpdateManyWithoutMachineInput = {
   endTime?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   state?: Prisma.EnumReservationStateFieldUpdateOperationsInput | $Enums.ReservationState
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ResourceReservationCreateManyOperatorInput = {
@@ -755,6 +882,7 @@ export type ResourceReservationCreateManyOperatorInput = {
   endTime: Date | string
   state?: $Enums.ReservationState
   createdAt?: Date | string
+  scheduleVersionId?: string | null
 }
 
 export type ResourceReservationUpdateWithoutOperatorInput = {
@@ -766,6 +894,7 @@ export type ResourceReservationUpdateWithoutOperatorInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   machine?: Prisma.MachineUpdateOneWithoutReservationsNestedInput
   scheduledOperation?: Prisma.ScheduledOperationUpdateOneWithoutReservationsNestedInput
+  scheduleVersion?: Prisma.ScheduleUpdateOneWithoutResourceReservationsNestedInput
 }
 
 export type ResourceReservationUncheckedUpdateWithoutOperatorInput = {
@@ -777,6 +906,7 @@ export type ResourceReservationUncheckedUpdateWithoutOperatorInput = {
   endTime?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   state?: Prisma.EnumReservationStateFieldUpdateOperationsInput | $Enums.ReservationState
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ResourceReservationUncheckedUpdateManyWithoutOperatorInput = {
@@ -788,6 +918,7 @@ export type ResourceReservationUncheckedUpdateManyWithoutOperatorInput = {
   endTime?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   state?: Prisma.EnumReservationStateFieldUpdateOperationsInput | $Enums.ReservationState
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ResourceReservationCreateManyScheduledOperationInput = {
@@ -799,6 +930,7 @@ export type ResourceReservationCreateManyScheduledOperationInput = {
   endTime: Date | string
   state?: $Enums.ReservationState
   createdAt?: Date | string
+  scheduleVersionId?: string | null
 }
 
 export type ResourceReservationUpdateWithoutScheduledOperationInput = {
@@ -810,6 +942,7 @@ export type ResourceReservationUpdateWithoutScheduledOperationInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   machine?: Prisma.MachineUpdateOneWithoutReservationsNestedInput
   operator?: Prisma.OperatorUpdateOneWithoutReservationsNestedInput
+  scheduleVersion?: Prisma.ScheduleUpdateOneWithoutResourceReservationsNestedInput
 }
 
 export type ResourceReservationUncheckedUpdateWithoutScheduledOperationInput = {
@@ -821,6 +954,7 @@ export type ResourceReservationUncheckedUpdateWithoutScheduledOperationInput = {
   endTime?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   state?: Prisma.EnumReservationStateFieldUpdateOperationsInput | $Enums.ReservationState
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type ResourceReservationUncheckedUpdateManyWithoutScheduledOperationInput = {
@@ -828,6 +962,55 @@ export type ResourceReservationUncheckedUpdateManyWithoutScheduledOperationInput
   resourceType?: Prisma.EnumReservationTypeFieldUpdateOperationsInput | $Enums.ReservationType
   machineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   operatorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  startTime?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  endTime?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  state?: Prisma.EnumReservationStateFieldUpdateOperationsInput | $Enums.ReservationState
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+}
+
+export type ResourceReservationCreateManyScheduleVersionInput = {
+  id?: string
+  resourceType: $Enums.ReservationType
+  machineId?: string | null
+  operatorId?: string | null
+  scheduledOperationId?: string | null
+  startTime: Date | string
+  endTime: Date | string
+  state?: $Enums.ReservationState
+  createdAt?: Date | string
+}
+
+export type ResourceReservationUpdateWithoutScheduleVersionInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  resourceType?: Prisma.EnumReservationTypeFieldUpdateOperationsInput | $Enums.ReservationType
+  startTime?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  endTime?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  state?: Prisma.EnumReservationStateFieldUpdateOperationsInput | $Enums.ReservationState
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  machine?: Prisma.MachineUpdateOneWithoutReservationsNestedInput
+  operator?: Prisma.OperatorUpdateOneWithoutReservationsNestedInput
+  scheduledOperation?: Prisma.ScheduledOperationUpdateOneWithoutReservationsNestedInput
+}
+
+export type ResourceReservationUncheckedUpdateWithoutScheduleVersionInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  resourceType?: Prisma.EnumReservationTypeFieldUpdateOperationsInput | $Enums.ReservationType
+  machineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  operatorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  scheduledOperationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  startTime?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  endTime?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  state?: Prisma.EnumReservationStateFieldUpdateOperationsInput | $Enums.ReservationState
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+}
+
+export type ResourceReservationUncheckedUpdateManyWithoutScheduleVersionInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  resourceType?: Prisma.EnumReservationTypeFieldUpdateOperationsInput | $Enums.ReservationType
+  machineId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  operatorId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  scheduledOperationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   startTime?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   endTime?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   state?: Prisma.EnumReservationStateFieldUpdateOperationsInput | $Enums.ReservationState
@@ -846,9 +1029,11 @@ export type ResourceReservationSelect<ExtArgs extends runtime.Types.Extensions.I
   endTime?: boolean
   state?: boolean
   createdAt?: boolean
+  scheduleVersionId?: boolean
   machine?: boolean | Prisma.ResourceReservation$machineArgs<ExtArgs>
   operator?: boolean | Prisma.ResourceReservation$operatorArgs<ExtArgs>
   scheduledOperation?: boolean | Prisma.ResourceReservation$scheduledOperationArgs<ExtArgs>
+  scheduleVersion?: boolean | Prisma.ResourceReservation$scheduleVersionArgs<ExtArgs>
 }, ExtArgs["result"]["resourceReservation"]>
 
 export type ResourceReservationSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -861,9 +1046,11 @@ export type ResourceReservationSelectCreateManyAndReturn<ExtArgs extends runtime
   endTime?: boolean
   state?: boolean
   createdAt?: boolean
+  scheduleVersionId?: boolean
   machine?: boolean | Prisma.ResourceReservation$machineArgs<ExtArgs>
   operator?: boolean | Prisma.ResourceReservation$operatorArgs<ExtArgs>
   scheduledOperation?: boolean | Prisma.ResourceReservation$scheduledOperationArgs<ExtArgs>
+  scheduleVersion?: boolean | Prisma.ResourceReservation$scheduleVersionArgs<ExtArgs>
 }, ExtArgs["result"]["resourceReservation"]>
 
 export type ResourceReservationSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
@@ -876,9 +1063,11 @@ export type ResourceReservationSelectUpdateManyAndReturn<ExtArgs extends runtime
   endTime?: boolean
   state?: boolean
   createdAt?: boolean
+  scheduleVersionId?: boolean
   machine?: boolean | Prisma.ResourceReservation$machineArgs<ExtArgs>
   operator?: boolean | Prisma.ResourceReservation$operatorArgs<ExtArgs>
   scheduledOperation?: boolean | Prisma.ResourceReservation$scheduledOperationArgs<ExtArgs>
+  scheduleVersion?: boolean | Prisma.ResourceReservation$scheduleVersionArgs<ExtArgs>
 }, ExtArgs["result"]["resourceReservation"]>
 
 export type ResourceReservationSelectScalar = {
@@ -891,23 +1080,27 @@ export type ResourceReservationSelectScalar = {
   endTime?: boolean
   state?: boolean
   createdAt?: boolean
+  scheduleVersionId?: boolean
 }
 
-export type ResourceReservationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "resourceType" | "machineId" | "operatorId" | "scheduledOperationId" | "startTime" | "endTime" | "state" | "createdAt", ExtArgs["result"]["resourceReservation"]>
+export type ResourceReservationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "resourceType" | "machineId" | "operatorId" | "scheduledOperationId" | "startTime" | "endTime" | "state" | "createdAt" | "scheduleVersionId", ExtArgs["result"]["resourceReservation"]>
 export type ResourceReservationInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   machine?: boolean | Prisma.ResourceReservation$machineArgs<ExtArgs>
   operator?: boolean | Prisma.ResourceReservation$operatorArgs<ExtArgs>
   scheduledOperation?: boolean | Prisma.ResourceReservation$scheduledOperationArgs<ExtArgs>
+  scheduleVersion?: boolean | Prisma.ResourceReservation$scheduleVersionArgs<ExtArgs>
 }
 export type ResourceReservationIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   machine?: boolean | Prisma.ResourceReservation$machineArgs<ExtArgs>
   operator?: boolean | Prisma.ResourceReservation$operatorArgs<ExtArgs>
   scheduledOperation?: boolean | Prisma.ResourceReservation$scheduledOperationArgs<ExtArgs>
+  scheduleVersion?: boolean | Prisma.ResourceReservation$scheduleVersionArgs<ExtArgs>
 }
 export type ResourceReservationIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   machine?: boolean | Prisma.ResourceReservation$machineArgs<ExtArgs>
   operator?: boolean | Prisma.ResourceReservation$operatorArgs<ExtArgs>
   scheduledOperation?: boolean | Prisma.ResourceReservation$scheduledOperationArgs<ExtArgs>
+  scheduleVersion?: boolean | Prisma.ResourceReservation$scheduleVersionArgs<ExtArgs>
 }
 
 export type $ResourceReservationPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -916,6 +1109,7 @@ export type $ResourceReservationPayload<ExtArgs extends runtime.Types.Extensions
     machine: Prisma.$MachinePayload<ExtArgs> | null
     operator: Prisma.$OperatorPayload<ExtArgs> | null
     scheduledOperation: Prisma.$ScheduledOperationPayload<ExtArgs> | null
+    scheduleVersion: Prisma.$SchedulePayload<ExtArgs> | null
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -927,6 +1121,7 @@ export type $ResourceReservationPayload<ExtArgs extends runtime.Types.Extensions
     endTime: Date
     state: $Enums.ReservationState
     createdAt: Date
+    scheduleVersionId: string | null
   }, ExtArgs["result"]["resourceReservation"]>
   composites: {}
 }
@@ -1324,6 +1519,7 @@ export interface Prisma__ResourceReservationClient<T, Null = never, ExtArgs exte
   machine<T extends Prisma.ResourceReservation$machineArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ResourceReservation$machineArgs<ExtArgs>>): Prisma.Prisma__MachineClient<runtime.Types.Result.GetResult<Prisma.$MachinePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   operator<T extends Prisma.ResourceReservation$operatorArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ResourceReservation$operatorArgs<ExtArgs>>): Prisma.Prisma__OperatorClient<runtime.Types.Result.GetResult<Prisma.$OperatorPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   scheduledOperation<T extends Prisma.ResourceReservation$scheduledOperationArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ResourceReservation$scheduledOperationArgs<ExtArgs>>): Prisma.Prisma__ScheduledOperationClient<runtime.Types.Result.GetResult<Prisma.$ScheduledOperationPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
+  scheduleVersion<T extends Prisma.ResourceReservation$scheduleVersionArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ResourceReservation$scheduleVersionArgs<ExtArgs>>): Prisma.Prisma__ScheduleClient<runtime.Types.Result.GetResult<Prisma.$SchedulePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1362,6 +1558,7 @@ export interface ResourceReservationFieldRefs {
   readonly endTime: Prisma.FieldRef<"ResourceReservation", 'DateTime'>
   readonly state: Prisma.FieldRef<"ResourceReservation", 'ReservationState'>
   readonly createdAt: Prisma.FieldRef<"ResourceReservation", 'DateTime'>
+  readonly scheduleVersionId: Prisma.FieldRef<"ResourceReservation", 'String'>
 }
     
 
@@ -1817,6 +2014,25 @@ export type ResourceReservation$scheduledOperationArgs<ExtArgs extends runtime.T
    */
   include?: Prisma.ScheduledOperationInclude<ExtArgs> | null
   where?: Prisma.ScheduledOperationWhereInput
+}
+
+/**
+ * ResourceReservation.scheduleVersion
+ */
+export type ResourceReservation$scheduleVersionArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Schedule
+   */
+  select?: Prisma.ScheduleSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Schedule
+   */
+  omit?: Prisma.ScheduleOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ScheduleInclude<ExtArgs> | null
+  where?: Prisma.ScheduleWhereInput
 }
 
 /**

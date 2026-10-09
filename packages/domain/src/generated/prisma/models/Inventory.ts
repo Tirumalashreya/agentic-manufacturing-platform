@@ -45,6 +45,7 @@ export type InventoryMinAggregateOutputType = {
   qtyUnrestricted: number | null
   qtyReserved: number | null
   qtyInTransit: number | null
+  enterpriseId: string | null
 }
 
 export type InventoryMaxAggregateOutputType = {
@@ -54,6 +55,7 @@ export type InventoryMaxAggregateOutputType = {
   qtyUnrestricted: number | null
   qtyReserved: number | null
   qtyInTransit: number | null
+  enterpriseId: string | null
 }
 
 export type InventoryCountAggregateOutputType = {
@@ -63,6 +65,7 @@ export type InventoryCountAggregateOutputType = {
   qtyUnrestricted: number
   qtyReserved: number
   qtyInTransit: number
+  enterpriseId: number
   _all: number
 }
 
@@ -86,6 +89,7 @@ export type InventoryMinAggregateInputType = {
   qtyUnrestricted?: true
   qtyReserved?: true
   qtyInTransit?: true
+  enterpriseId?: true
 }
 
 export type InventoryMaxAggregateInputType = {
@@ -95,6 +99,7 @@ export type InventoryMaxAggregateInputType = {
   qtyUnrestricted?: true
   qtyReserved?: true
   qtyInTransit?: true
+  enterpriseId?: true
 }
 
 export type InventoryCountAggregateInputType = {
@@ -104,6 +109,7 @@ export type InventoryCountAggregateInputType = {
   qtyUnrestricted?: true
   qtyReserved?: true
   qtyInTransit?: true
+  enterpriseId?: true
   _all?: true
 }
 
@@ -200,6 +206,7 @@ export type InventoryGroupByOutputType = {
   qtyUnrestricted: number
   qtyReserved: number
   qtyInTransit: number
+  enterpriseId: string
   _count: InventoryCountAggregateOutputType | null
   _avg: InventoryAvgAggregateOutputType | null
   _sum: InventorySumAggregateOutputType | null
@@ -232,6 +239,8 @@ export type InventoryWhereInput = {
   qtyUnrestricted?: Prisma.FloatFilter<"Inventory"> | number
   qtyReserved?: Prisma.FloatFilter<"Inventory"> | number
   qtyInTransit?: Prisma.FloatFilter<"Inventory"> | number
+  enterpriseId?: Prisma.StringFilter<"Inventory"> | string
+  enterprise?: Prisma.XOR<Prisma.EnterpriseScalarRelationFilter, Prisma.EnterpriseWhereInput>
   product?: Prisma.XOR<Prisma.ProductScalarRelationFilter, Prisma.ProductWhereInput>
 }
 
@@ -242,12 +251,14 @@ export type InventoryOrderByWithRelationInput = {
   qtyUnrestricted?: Prisma.SortOrder
   qtyReserved?: Prisma.SortOrder
   qtyInTransit?: Prisma.SortOrder
+  enterpriseId?: Prisma.SortOrder
+  enterprise?: Prisma.EnterpriseOrderByWithRelationInput
   product?: Prisma.ProductOrderByWithRelationInput
 }
 
 export type InventoryWhereUniqueInput = Prisma.AtLeast<{
   id?: string
-  productId_location?: Prisma.InventoryProductIdLocationCompoundUniqueInput
+  enterpriseId_productId_location?: Prisma.InventoryEnterpriseIdProductIdLocationCompoundUniqueInput
   AND?: Prisma.InventoryWhereInput | Prisma.InventoryWhereInput[]
   OR?: Prisma.InventoryWhereInput[]
   NOT?: Prisma.InventoryWhereInput | Prisma.InventoryWhereInput[]
@@ -256,8 +267,10 @@ export type InventoryWhereUniqueInput = Prisma.AtLeast<{
   qtyUnrestricted?: Prisma.FloatFilter<"Inventory"> | number
   qtyReserved?: Prisma.FloatFilter<"Inventory"> | number
   qtyInTransit?: Prisma.FloatFilter<"Inventory"> | number
+  enterpriseId?: Prisma.StringFilter<"Inventory"> | string
+  enterprise?: Prisma.XOR<Prisma.EnterpriseScalarRelationFilter, Prisma.EnterpriseWhereInput>
   product?: Prisma.XOR<Prisma.ProductScalarRelationFilter, Prisma.ProductWhereInput>
-}, "id" | "productId_location">
+}, "id" | "enterpriseId_productId_location">
 
 export type InventoryOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -266,6 +279,7 @@ export type InventoryOrderByWithAggregationInput = {
   qtyUnrestricted?: Prisma.SortOrder
   qtyReserved?: Prisma.SortOrder
   qtyInTransit?: Prisma.SortOrder
+  enterpriseId?: Prisma.SortOrder
   _count?: Prisma.InventoryCountOrderByAggregateInput
   _avg?: Prisma.InventoryAvgOrderByAggregateInput
   _max?: Prisma.InventoryMaxOrderByAggregateInput
@@ -283,6 +297,7 @@ export type InventoryScalarWhereWithAggregatesInput = {
   qtyUnrestricted?: Prisma.FloatWithAggregatesFilter<"Inventory"> | number
   qtyReserved?: Prisma.FloatWithAggregatesFilter<"Inventory"> | number
   qtyInTransit?: Prisma.FloatWithAggregatesFilter<"Inventory"> | number
+  enterpriseId?: Prisma.StringWithAggregatesFilter<"Inventory"> | string
 }
 
 export type InventoryCreateInput = {
@@ -291,6 +306,7 @@ export type InventoryCreateInput = {
   qtyUnrestricted?: number
   qtyReserved?: number
   qtyInTransit?: number
+  enterprise: Prisma.EnterpriseCreateNestedOneWithoutInventoryInput
   product: Prisma.ProductCreateNestedOneWithoutInventoryInput
 }
 
@@ -301,6 +317,7 @@ export type InventoryUncheckedCreateInput = {
   qtyUnrestricted?: number
   qtyReserved?: number
   qtyInTransit?: number
+  enterpriseId: string
 }
 
 export type InventoryUpdateInput = {
@@ -309,6 +326,7 @@ export type InventoryUpdateInput = {
   qtyUnrestricted?: Prisma.FloatFieldUpdateOperationsInput | number
   qtyReserved?: Prisma.FloatFieldUpdateOperationsInput | number
   qtyInTransit?: Prisma.FloatFieldUpdateOperationsInput | number
+  enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutInventoryNestedInput
   product?: Prisma.ProductUpdateOneRequiredWithoutInventoryNestedInput
 }
 
@@ -319,6 +337,7 @@ export type InventoryUncheckedUpdateInput = {
   qtyUnrestricted?: Prisma.FloatFieldUpdateOperationsInput | number
   qtyReserved?: Prisma.FloatFieldUpdateOperationsInput | number
   qtyInTransit?: Prisma.FloatFieldUpdateOperationsInput | number
+  enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type InventoryCreateManyInput = {
@@ -328,6 +347,7 @@ export type InventoryCreateManyInput = {
   qtyUnrestricted?: number
   qtyReserved?: number
   qtyInTransit?: number
+  enterpriseId: string
 }
 
 export type InventoryUpdateManyMutationInput = {
@@ -345,6 +365,7 @@ export type InventoryUncheckedUpdateManyInput = {
   qtyUnrestricted?: Prisma.FloatFieldUpdateOperationsInput | number
   qtyReserved?: Prisma.FloatFieldUpdateOperationsInput | number
   qtyInTransit?: Prisma.FloatFieldUpdateOperationsInput | number
+  enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type InventoryListRelationFilter = {
@@ -357,7 +378,8 @@ export type InventoryOrderByRelationAggregateInput = {
   _count?: Prisma.SortOrder
 }
 
-export type InventoryProductIdLocationCompoundUniqueInput = {
+export type InventoryEnterpriseIdProductIdLocationCompoundUniqueInput = {
+  enterpriseId: string
   productId: string
   location: string
 }
@@ -369,6 +391,7 @@ export type InventoryCountOrderByAggregateInput = {
   qtyUnrestricted?: Prisma.SortOrder
   qtyReserved?: Prisma.SortOrder
   qtyInTransit?: Prisma.SortOrder
+  enterpriseId?: Prisma.SortOrder
 }
 
 export type InventoryAvgOrderByAggregateInput = {
@@ -384,6 +407,7 @@ export type InventoryMaxOrderByAggregateInput = {
   qtyUnrestricted?: Prisma.SortOrder
   qtyReserved?: Prisma.SortOrder
   qtyInTransit?: Prisma.SortOrder
+  enterpriseId?: Prisma.SortOrder
 }
 
 export type InventoryMinOrderByAggregateInput = {
@@ -393,12 +417,55 @@ export type InventoryMinOrderByAggregateInput = {
   qtyUnrestricted?: Prisma.SortOrder
   qtyReserved?: Prisma.SortOrder
   qtyInTransit?: Prisma.SortOrder
+  enterpriseId?: Prisma.SortOrder
 }
 
 export type InventorySumOrderByAggregateInput = {
   qtyUnrestricted?: Prisma.SortOrder
   qtyReserved?: Prisma.SortOrder
   qtyInTransit?: Prisma.SortOrder
+}
+
+export type InventoryCreateNestedManyWithoutEnterpriseInput = {
+  create?: Prisma.XOR<Prisma.InventoryCreateWithoutEnterpriseInput, Prisma.InventoryUncheckedCreateWithoutEnterpriseInput> | Prisma.InventoryCreateWithoutEnterpriseInput[] | Prisma.InventoryUncheckedCreateWithoutEnterpriseInput[]
+  connectOrCreate?: Prisma.InventoryCreateOrConnectWithoutEnterpriseInput | Prisma.InventoryCreateOrConnectWithoutEnterpriseInput[]
+  createMany?: Prisma.InventoryCreateManyEnterpriseInputEnvelope
+  connect?: Prisma.InventoryWhereUniqueInput | Prisma.InventoryWhereUniqueInput[]
+}
+
+export type InventoryUncheckedCreateNestedManyWithoutEnterpriseInput = {
+  create?: Prisma.XOR<Prisma.InventoryCreateWithoutEnterpriseInput, Prisma.InventoryUncheckedCreateWithoutEnterpriseInput> | Prisma.InventoryCreateWithoutEnterpriseInput[] | Prisma.InventoryUncheckedCreateWithoutEnterpriseInput[]
+  connectOrCreate?: Prisma.InventoryCreateOrConnectWithoutEnterpriseInput | Prisma.InventoryCreateOrConnectWithoutEnterpriseInput[]
+  createMany?: Prisma.InventoryCreateManyEnterpriseInputEnvelope
+  connect?: Prisma.InventoryWhereUniqueInput | Prisma.InventoryWhereUniqueInput[]
+}
+
+export type InventoryUpdateManyWithoutEnterpriseNestedInput = {
+  create?: Prisma.XOR<Prisma.InventoryCreateWithoutEnterpriseInput, Prisma.InventoryUncheckedCreateWithoutEnterpriseInput> | Prisma.InventoryCreateWithoutEnterpriseInput[] | Prisma.InventoryUncheckedCreateWithoutEnterpriseInput[]
+  connectOrCreate?: Prisma.InventoryCreateOrConnectWithoutEnterpriseInput | Prisma.InventoryCreateOrConnectWithoutEnterpriseInput[]
+  upsert?: Prisma.InventoryUpsertWithWhereUniqueWithoutEnterpriseInput | Prisma.InventoryUpsertWithWhereUniqueWithoutEnterpriseInput[]
+  createMany?: Prisma.InventoryCreateManyEnterpriseInputEnvelope
+  set?: Prisma.InventoryWhereUniqueInput | Prisma.InventoryWhereUniqueInput[]
+  disconnect?: Prisma.InventoryWhereUniqueInput | Prisma.InventoryWhereUniqueInput[]
+  delete?: Prisma.InventoryWhereUniqueInput | Prisma.InventoryWhereUniqueInput[]
+  connect?: Prisma.InventoryWhereUniqueInput | Prisma.InventoryWhereUniqueInput[]
+  update?: Prisma.InventoryUpdateWithWhereUniqueWithoutEnterpriseInput | Prisma.InventoryUpdateWithWhereUniqueWithoutEnterpriseInput[]
+  updateMany?: Prisma.InventoryUpdateManyWithWhereWithoutEnterpriseInput | Prisma.InventoryUpdateManyWithWhereWithoutEnterpriseInput[]
+  deleteMany?: Prisma.InventoryScalarWhereInput | Prisma.InventoryScalarWhereInput[]
+}
+
+export type InventoryUncheckedUpdateManyWithoutEnterpriseNestedInput = {
+  create?: Prisma.XOR<Prisma.InventoryCreateWithoutEnterpriseInput, Prisma.InventoryUncheckedCreateWithoutEnterpriseInput> | Prisma.InventoryCreateWithoutEnterpriseInput[] | Prisma.InventoryUncheckedCreateWithoutEnterpriseInput[]
+  connectOrCreate?: Prisma.InventoryCreateOrConnectWithoutEnterpriseInput | Prisma.InventoryCreateOrConnectWithoutEnterpriseInput[]
+  upsert?: Prisma.InventoryUpsertWithWhereUniqueWithoutEnterpriseInput | Prisma.InventoryUpsertWithWhereUniqueWithoutEnterpriseInput[]
+  createMany?: Prisma.InventoryCreateManyEnterpriseInputEnvelope
+  set?: Prisma.InventoryWhereUniqueInput | Prisma.InventoryWhereUniqueInput[]
+  disconnect?: Prisma.InventoryWhereUniqueInput | Prisma.InventoryWhereUniqueInput[]
+  delete?: Prisma.InventoryWhereUniqueInput | Prisma.InventoryWhereUniqueInput[]
+  connect?: Prisma.InventoryWhereUniqueInput | Prisma.InventoryWhereUniqueInput[]
+  update?: Prisma.InventoryUpdateWithWhereUniqueWithoutEnterpriseInput | Prisma.InventoryUpdateWithWhereUniqueWithoutEnterpriseInput[]
+  updateMany?: Prisma.InventoryUpdateManyWithWhereWithoutEnterpriseInput | Prisma.InventoryUpdateManyWithWhereWithoutEnterpriseInput[]
+  deleteMany?: Prisma.InventoryScalarWhereInput | Prisma.InventoryScalarWhereInput[]
 }
 
 export type InventoryCreateNestedManyWithoutProductInput = {
@@ -443,12 +510,70 @@ export type InventoryUncheckedUpdateManyWithoutProductNestedInput = {
   deleteMany?: Prisma.InventoryScalarWhereInput | Prisma.InventoryScalarWhereInput[]
 }
 
+export type InventoryCreateWithoutEnterpriseInput = {
+  id?: string
+  location: string
+  qtyUnrestricted?: number
+  qtyReserved?: number
+  qtyInTransit?: number
+  product: Prisma.ProductCreateNestedOneWithoutInventoryInput
+}
+
+export type InventoryUncheckedCreateWithoutEnterpriseInput = {
+  id?: string
+  productId: string
+  location: string
+  qtyUnrestricted?: number
+  qtyReserved?: number
+  qtyInTransit?: number
+}
+
+export type InventoryCreateOrConnectWithoutEnterpriseInput = {
+  where: Prisma.InventoryWhereUniqueInput
+  create: Prisma.XOR<Prisma.InventoryCreateWithoutEnterpriseInput, Prisma.InventoryUncheckedCreateWithoutEnterpriseInput>
+}
+
+export type InventoryCreateManyEnterpriseInputEnvelope = {
+  data: Prisma.InventoryCreateManyEnterpriseInput | Prisma.InventoryCreateManyEnterpriseInput[]
+  skipDuplicates?: boolean
+}
+
+export type InventoryUpsertWithWhereUniqueWithoutEnterpriseInput = {
+  where: Prisma.InventoryWhereUniqueInput
+  update: Prisma.XOR<Prisma.InventoryUpdateWithoutEnterpriseInput, Prisma.InventoryUncheckedUpdateWithoutEnterpriseInput>
+  create: Prisma.XOR<Prisma.InventoryCreateWithoutEnterpriseInput, Prisma.InventoryUncheckedCreateWithoutEnterpriseInput>
+}
+
+export type InventoryUpdateWithWhereUniqueWithoutEnterpriseInput = {
+  where: Prisma.InventoryWhereUniqueInput
+  data: Prisma.XOR<Prisma.InventoryUpdateWithoutEnterpriseInput, Prisma.InventoryUncheckedUpdateWithoutEnterpriseInput>
+}
+
+export type InventoryUpdateManyWithWhereWithoutEnterpriseInput = {
+  where: Prisma.InventoryScalarWhereInput
+  data: Prisma.XOR<Prisma.InventoryUpdateManyMutationInput, Prisma.InventoryUncheckedUpdateManyWithoutEnterpriseInput>
+}
+
+export type InventoryScalarWhereInput = {
+  AND?: Prisma.InventoryScalarWhereInput | Prisma.InventoryScalarWhereInput[]
+  OR?: Prisma.InventoryScalarWhereInput[]
+  NOT?: Prisma.InventoryScalarWhereInput | Prisma.InventoryScalarWhereInput[]
+  id?: Prisma.StringFilter<"Inventory"> | string
+  productId?: Prisma.StringFilter<"Inventory"> | string
+  location?: Prisma.StringFilter<"Inventory"> | string
+  qtyUnrestricted?: Prisma.FloatFilter<"Inventory"> | number
+  qtyReserved?: Prisma.FloatFilter<"Inventory"> | number
+  qtyInTransit?: Prisma.FloatFilter<"Inventory"> | number
+  enterpriseId?: Prisma.StringFilter<"Inventory"> | string
+}
+
 export type InventoryCreateWithoutProductInput = {
   id?: string
   location: string
   qtyUnrestricted?: number
   qtyReserved?: number
   qtyInTransit?: number
+  enterprise: Prisma.EnterpriseCreateNestedOneWithoutInventoryInput
 }
 
 export type InventoryUncheckedCreateWithoutProductInput = {
@@ -457,6 +582,7 @@ export type InventoryUncheckedCreateWithoutProductInput = {
   qtyUnrestricted?: number
   qtyReserved?: number
   qtyInTransit?: number
+  enterpriseId: string
 }
 
 export type InventoryCreateOrConnectWithoutProductInput = {
@@ -485,16 +611,40 @@ export type InventoryUpdateManyWithWhereWithoutProductInput = {
   data: Prisma.XOR<Prisma.InventoryUpdateManyMutationInput, Prisma.InventoryUncheckedUpdateManyWithoutProductInput>
 }
 
-export type InventoryScalarWhereInput = {
-  AND?: Prisma.InventoryScalarWhereInput | Prisma.InventoryScalarWhereInput[]
-  OR?: Prisma.InventoryScalarWhereInput[]
-  NOT?: Prisma.InventoryScalarWhereInput | Prisma.InventoryScalarWhereInput[]
-  id?: Prisma.StringFilter<"Inventory"> | string
-  productId?: Prisma.StringFilter<"Inventory"> | string
-  location?: Prisma.StringFilter<"Inventory"> | string
-  qtyUnrestricted?: Prisma.FloatFilter<"Inventory"> | number
-  qtyReserved?: Prisma.FloatFilter<"Inventory"> | number
-  qtyInTransit?: Prisma.FloatFilter<"Inventory"> | number
+export type InventoryCreateManyEnterpriseInput = {
+  id?: string
+  productId: string
+  location: string
+  qtyUnrestricted?: number
+  qtyReserved?: number
+  qtyInTransit?: number
+}
+
+export type InventoryUpdateWithoutEnterpriseInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  location?: Prisma.StringFieldUpdateOperationsInput | string
+  qtyUnrestricted?: Prisma.FloatFieldUpdateOperationsInput | number
+  qtyReserved?: Prisma.FloatFieldUpdateOperationsInput | number
+  qtyInTransit?: Prisma.FloatFieldUpdateOperationsInput | number
+  product?: Prisma.ProductUpdateOneRequiredWithoutInventoryNestedInput
+}
+
+export type InventoryUncheckedUpdateWithoutEnterpriseInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  productId?: Prisma.StringFieldUpdateOperationsInput | string
+  location?: Prisma.StringFieldUpdateOperationsInput | string
+  qtyUnrestricted?: Prisma.FloatFieldUpdateOperationsInput | number
+  qtyReserved?: Prisma.FloatFieldUpdateOperationsInput | number
+  qtyInTransit?: Prisma.FloatFieldUpdateOperationsInput | number
+}
+
+export type InventoryUncheckedUpdateManyWithoutEnterpriseInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  productId?: Prisma.StringFieldUpdateOperationsInput | string
+  location?: Prisma.StringFieldUpdateOperationsInput | string
+  qtyUnrestricted?: Prisma.FloatFieldUpdateOperationsInput | number
+  qtyReserved?: Prisma.FloatFieldUpdateOperationsInput | number
+  qtyInTransit?: Prisma.FloatFieldUpdateOperationsInput | number
 }
 
 export type InventoryCreateManyProductInput = {
@@ -503,6 +653,7 @@ export type InventoryCreateManyProductInput = {
   qtyUnrestricted?: number
   qtyReserved?: number
   qtyInTransit?: number
+  enterpriseId: string
 }
 
 export type InventoryUpdateWithoutProductInput = {
@@ -511,6 +662,7 @@ export type InventoryUpdateWithoutProductInput = {
   qtyUnrestricted?: Prisma.FloatFieldUpdateOperationsInput | number
   qtyReserved?: Prisma.FloatFieldUpdateOperationsInput | number
   qtyInTransit?: Prisma.FloatFieldUpdateOperationsInput | number
+  enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutInventoryNestedInput
 }
 
 export type InventoryUncheckedUpdateWithoutProductInput = {
@@ -519,6 +671,7 @@ export type InventoryUncheckedUpdateWithoutProductInput = {
   qtyUnrestricted?: Prisma.FloatFieldUpdateOperationsInput | number
   qtyReserved?: Prisma.FloatFieldUpdateOperationsInput | number
   qtyInTransit?: Prisma.FloatFieldUpdateOperationsInput | number
+  enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type InventoryUncheckedUpdateManyWithoutProductInput = {
@@ -527,6 +680,7 @@ export type InventoryUncheckedUpdateManyWithoutProductInput = {
   qtyUnrestricted?: Prisma.FloatFieldUpdateOperationsInput | number
   qtyReserved?: Prisma.FloatFieldUpdateOperationsInput | number
   qtyInTransit?: Prisma.FloatFieldUpdateOperationsInput | number
+  enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 
@@ -538,6 +692,8 @@ export type InventorySelect<ExtArgs extends runtime.Types.Extensions.InternalArg
   qtyUnrestricted?: boolean
   qtyReserved?: boolean
   qtyInTransit?: boolean
+  enterpriseId?: boolean
+  enterprise?: boolean | Prisma.EnterpriseDefaultArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["inventory"]>
 
@@ -548,6 +704,8 @@ export type InventorySelectCreateManyAndReturn<ExtArgs extends runtime.Types.Ext
   qtyUnrestricted?: boolean
   qtyReserved?: boolean
   qtyInTransit?: boolean
+  enterpriseId?: boolean
+  enterprise?: boolean | Prisma.EnterpriseDefaultArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["inventory"]>
 
@@ -558,6 +716,8 @@ export type InventorySelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Ext
   qtyUnrestricted?: boolean
   qtyReserved?: boolean
   qtyInTransit?: boolean
+  enterpriseId?: boolean
+  enterprise?: boolean | Prisma.EnterpriseDefaultArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["inventory"]>
 
@@ -568,22 +728,27 @@ export type InventorySelectScalar = {
   qtyUnrestricted?: boolean
   qtyReserved?: boolean
   qtyInTransit?: boolean
+  enterpriseId?: boolean
 }
 
-export type InventoryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "productId" | "location" | "qtyUnrestricted" | "qtyReserved" | "qtyInTransit", ExtArgs["result"]["inventory"]>
+export type InventoryOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "productId" | "location" | "qtyUnrestricted" | "qtyReserved" | "qtyInTransit" | "enterpriseId", ExtArgs["result"]["inventory"]>
 export type InventoryInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  enterprise?: boolean | Prisma.EnterpriseDefaultArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
 }
 export type InventoryIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  enterprise?: boolean | Prisma.EnterpriseDefaultArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
 }
 export type InventoryIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  enterprise?: boolean | Prisma.EnterpriseDefaultArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
 }
 
 export type $InventoryPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "Inventory"
   objects: {
+    enterprise: Prisma.$EnterprisePayload<ExtArgs>
     product: Prisma.$ProductPayload<ExtArgs>
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
@@ -593,6 +758,7 @@ export type $InventoryPayload<ExtArgs extends runtime.Types.Extensions.InternalA
     qtyUnrestricted: number
     qtyReserved: number
     qtyInTransit: number
+    enterpriseId: string
   }, ExtArgs["result"]["inventory"]>
   composites: {}
 }
@@ -987,6 +1153,7 @@ readonly fields: InventoryFieldRefs;
  */
 export interface Prisma__InventoryClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
+  enterprise<T extends Prisma.EnterpriseDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.EnterpriseDefaultArgs<ExtArgs>>): Prisma.Prisma__EnterpriseClient<runtime.Types.Result.GetResult<Prisma.$EnterprisePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   product<T extends Prisma.ProductDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ProductDefaultArgs<ExtArgs>>): Prisma.Prisma__ProductClient<runtime.Types.Result.GetResult<Prisma.$ProductPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -1023,6 +1190,7 @@ export interface InventoryFieldRefs {
   readonly qtyUnrestricted: Prisma.FieldRef<"Inventory", 'Float'>
   readonly qtyReserved: Prisma.FieldRef<"Inventory", 'Float'>
   readonly qtyInTransit: Prisma.FieldRef<"Inventory", 'Float'>
+  readonly enterpriseId: Prisma.FieldRef<"Inventory", 'String'>
 }
     
 

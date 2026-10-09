@@ -101,7 +101,9 @@ export const ModelName = {
   ScheduleRun: 'ScheduleRun',
   MachineEvent: 'MachineEvent',
   SensorReading: 'SensorReading',
+  IdempotencyKey: 'IdempotencyKey',
   ScheduleAuditLog: 'ScheduleAuditLog',
+  AuditLog: 'AuditLog',
   ChangeoverMatrix: 'ChangeoverMatrix',
   AgentPipelineRun: 'AgentPipelineRun',
   AgentStageResult: 'AgentStageResult'
@@ -441,7 +443,9 @@ export const CustomerScalarFieldEnum = {
   name: 'name',
   tier: 'tier',
   slaDays: 'slaDays',
-  penaltyPerDay: 'penaltyPerDay'
+  penaltyPerDay: 'penaltyPerDay',
+  enterpriseId: 'enterpriseId',
+  externalCustomerId: 'externalCustomerId'
 } as const
 
 export type CustomerScalarFieldEnum = (typeof CustomerScalarFieldEnum)[keyof typeof CustomerScalarFieldEnum]
@@ -462,7 +466,8 @@ export const SalesOrderScalarFieldEnum = {
   createdBy: 'createdBy',
   updatedAt: 'updatedAt',
   revision: 'revision',
-  externalOrderId: 'externalOrderId'
+  externalOrderId: 'externalOrderId',
+  enterpriseId: 'enterpriseId'
 } as const
 
 export type SalesOrderScalarFieldEnum = (typeof SalesOrderScalarFieldEnum)[keyof typeof SalesOrderScalarFieldEnum]
@@ -483,7 +488,8 @@ export const ProductionOrderScalarFieldEnum = {
   manualOverride: 'manualOverride',
   metadata: 'metadata',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  enterpriseId: 'enterpriseId'
 } as const
 
 export type ProductionOrderScalarFieldEnum = (typeof ProductionOrderScalarFieldEnum)[keyof typeof ProductionOrderScalarFieldEnum]
@@ -525,6 +531,7 @@ export const FulfillmentLineScalarFieldEnum = {
   sourceLocation: 'sourceLocation',
   destination: 'destination',
   status: 'status',
+  reason: 'reason',
   promisedDate: 'promisedDate',
   actualDate: 'actualDate',
   productionOrderId: 'productionOrderId',
@@ -560,6 +567,8 @@ export const ScheduledOperationScalarFieldEnum = {
   status: 'status',
   deviationMinutes: 'deviationMinutes',
   rejectionReason: 'rejectionReason',
+  scheduleVersionId: 'scheduleVersionId',
+  supersededAt: 'supersededAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -617,7 +626,8 @@ export const InventoryScalarFieldEnum = {
   location: 'location',
   qtyUnrestricted: 'qtyUnrestricted',
   qtyReserved: 'qtyReserved',
-  qtyInTransit: 'qtyInTransit'
+  qtyInTransit: 'qtyInTransit',
+  enterpriseId: 'enterpriseId'
 } as const
 
 export type InventoryScalarFieldEnum = (typeof InventoryScalarFieldEnum)[keyof typeof InventoryScalarFieldEnum]
@@ -705,7 +715,8 @@ export const ResourceReservationScalarFieldEnum = {
   startTime: 'startTime',
   endTime: 'endTime',
   state: 'state',
-  createdAt: 'createdAt'
+  createdAt: 'createdAt',
+  scheduleVersionId: 'scheduleVersionId'
 } as const
 
 export type ResourceReservationScalarFieldEnum = (typeof ResourceReservationScalarFieldEnum)[keyof typeof ResourceReservationScalarFieldEnum]
@@ -715,6 +726,7 @@ export const ScheduleScalarFieldEnum = {
   id: 'id',
   plantId: 'plantId',
   versionNumber: 'versionNumber',
+  status: 'status',
   kpiOnTimePct: 'kpiOnTimePct',
   kpiUtilizationPct: 'kpiUtilizationPct',
   publishedAt: 'publishedAt',
@@ -732,7 +744,8 @@ export const ScheduleRunScalarFieldEnum = {
   startedAt: 'startedAt',
   finishedAt: 'finishedAt',
   durationMs: 'durationMs',
-  conflictsDetected: 'conflictsDetected'
+  conflictsDetected: 'conflictsDetected',
+  failureReason: 'failureReason'
 } as const
 
 export type ScheduleRunScalarFieldEnum = (typeof ScheduleRunScalarFieldEnum)[keyof typeof ScheduleRunScalarFieldEnum]
@@ -761,6 +774,20 @@ export const SensorReadingScalarFieldEnum = {
 export type SensorReadingScalarFieldEnum = (typeof SensorReadingScalarFieldEnum)[keyof typeof SensorReadingScalarFieldEnum]
 
 
+export const IdempotencyKeyScalarFieldEnum = {
+  id: 'id',
+  enterpriseId: 'enterpriseId',
+  key: 'key',
+  operation: 'operation',
+  requestHash: 'requestHash',
+  resultJson: 'resultJson',
+  statusCode: 'statusCode',
+  createdAt: 'createdAt'
+} as const
+
+export type IdempotencyKeyScalarFieldEnum = (typeof IdempotencyKeyScalarFieldEnum)[keyof typeof IdempotencyKeyScalarFieldEnum]
+
+
 export const ScheduleAuditLogScalarFieldEnum = {
   id: 'id',
   entityType: 'entityType',
@@ -771,6 +798,22 @@ export const ScheduleAuditLogScalarFieldEnum = {
 } as const
 
 export type ScheduleAuditLogScalarFieldEnum = (typeof ScheduleAuditLogScalarFieldEnum)[keyof typeof ScheduleAuditLogScalarFieldEnum]
+
+
+export const AuditLogScalarFieldEnum = {
+  id: 'id',
+  entityType: 'entityType',
+  entityId: 'entityId',
+  action: 'action',
+  actorId: 'actorId',
+  enterpriseId: 'enterpriseId',
+  traceId: 'traceId',
+  before: 'before',
+  after: 'after',
+  loggedAt: 'loggedAt'
+} as const
+
+export type AuditLogScalarFieldEnum = (typeof AuditLogScalarFieldEnum)[keyof typeof AuditLogScalarFieldEnum]
 
 
 export const ChangeoverMatrixScalarFieldEnum = {
@@ -800,7 +843,10 @@ export const AgentPipelineRunScalarFieldEnum = {
   rejectedAt: 'rejectedAt',
   rejectedBy: 'rejectedBy',
   executedAt: 'executedAt',
-  executionResult: 'executionResult'
+  executionResult: 'executionResult',
+  enterpriseId: 'enterpriseId',
+  proposalHash: 'proposalHash',
+  approvalCreatedAt: 'approvalCreatedAt'
 } as const
 
 export type AgentPipelineRunScalarFieldEnum = (typeof AgentPipelineRunScalarFieldEnum)[keyof typeof AgentPipelineRunScalarFieldEnum]

@@ -228,6 +228,16 @@ export const ReservationState = {
 export type ReservationState = (typeof ReservationState)[keyof typeof ReservationState]
 
 
+export const ScheduleStatus = {
+  DRAFT: 'DRAFT',
+  PUBLISHED: 'PUBLISHED',
+  SUPERSEDED: 'SUPERSEDED',
+  REJECTED: 'REJECTED'
+} as const
+
+export type ScheduleStatus = (typeof ScheduleStatus)[keyof typeof ScheduleStatus]
+
+
 export const ScheduleRunScope = {
   ALL: 'ALL',
   AFFECTED: 'AFFECTED',

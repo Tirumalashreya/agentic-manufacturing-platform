@@ -292,10 +292,20 @@ export type MachineEvent = Prisma.MachineEventModel
  */
 export type SensorReading = Prisma.SensorReadingModel
 /**
+ * Model IdempotencyKey
+ * 
+ */
+export type IdempotencyKey = Prisma.IdempotencyKeyModel
+/**
  * Model ScheduleAuditLog
  * 
  */
 export type ScheduleAuditLog = Prisma.ScheduleAuditLogModel
+/**
+ * Model AuditLog
+ * 
+ */
+export type AuditLog = Prisma.AuditLogModel
 /**
  * Model ChangeoverMatrix
  * 

@@ -53,6 +53,7 @@ export type ProductionOrderMinAggregateOutputType = {
   manualOverride: number | null
   createdAt: Date | null
   updatedAt: Date | null
+  enterpriseId: string | null
 }
 
 export type ProductionOrderMaxAggregateOutputType = {
@@ -70,6 +71,7 @@ export type ProductionOrderMaxAggregateOutputType = {
   manualOverride: number | null
   createdAt: Date | null
   updatedAt: Date | null
+  enterpriseId: string | null
 }
 
 export type ProductionOrderCountAggregateOutputType = {
@@ -88,6 +90,7 @@ export type ProductionOrderCountAggregateOutputType = {
   metadata: number
   createdAt: number
   updatedAt: number
+  enterpriseId: number
   _all: number
 }
 
@@ -119,6 +122,7 @@ export type ProductionOrderMinAggregateInputType = {
   manualOverride?: true
   createdAt?: true
   updatedAt?: true
+  enterpriseId?: true
 }
 
 export type ProductionOrderMaxAggregateInputType = {
@@ -136,6 +140,7 @@ export type ProductionOrderMaxAggregateInputType = {
   manualOverride?: true
   createdAt?: true
   updatedAt?: true
+  enterpriseId?: true
 }
 
 export type ProductionOrderCountAggregateInputType = {
@@ -154,6 +159,7 @@ export type ProductionOrderCountAggregateInputType = {
   metadata?: true
   createdAt?: true
   updatedAt?: true
+  enterpriseId?: true
   _all?: true
 }
 
@@ -259,6 +265,7 @@ export type ProductionOrderGroupByOutputType = {
   metadata: runtime.JsonValue | null
   createdAt: Date
   updatedAt: Date
+  enterpriseId: string
   _count: ProductionOrderCountAggregateOutputType | null
   _avg: ProductionOrderAvgAggregateOutputType | null
   _sum: ProductionOrderSumAggregateOutputType | null
@@ -300,6 +307,8 @@ export type ProductionOrderWhereInput = {
   metadata?: Prisma.JsonNullableFilter<"ProductionOrder">
   createdAt?: Prisma.DateTimeFilter<"ProductionOrder"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"ProductionOrder"> | Date | string
+  enterpriseId?: Prisma.StringFilter<"ProductionOrder"> | string
+  enterprise?: Prisma.XOR<Prisma.EnterpriseScalarRelationFilter, Prisma.EnterpriseWhereInput>
   plant?: Prisma.XOR<Prisma.PlantScalarRelationFilter, Prisma.PlantWhereInput>
   salesOrder?: Prisma.XOR<Prisma.SalesOrderNullableScalarRelationFilter, Prisma.SalesOrderWhereInput> | null
   product?: Prisma.XOR<Prisma.ProductScalarRelationFilter, Prisma.ProductWhereInput>
@@ -327,6 +336,8 @@ export type ProductionOrderOrderByWithRelationInput = {
   metadata?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  enterpriseId?: Prisma.SortOrder
+  enterprise?: Prisma.EnterpriseOrderByWithRelationInput
   plant?: Prisma.PlantOrderByWithRelationInput
   salesOrder?: Prisma.SalesOrderOrderByWithRelationInput
   product?: Prisma.ProductOrderByWithRelationInput
@@ -357,6 +368,8 @@ export type ProductionOrderWhereUniqueInput = Prisma.AtLeast<{
   metadata?: Prisma.JsonNullableFilter<"ProductionOrder">
   createdAt?: Prisma.DateTimeFilter<"ProductionOrder"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"ProductionOrder"> | Date | string
+  enterpriseId?: Prisma.StringFilter<"ProductionOrder"> | string
+  enterprise?: Prisma.XOR<Prisma.EnterpriseScalarRelationFilter, Prisma.EnterpriseWhereInput>
   plant?: Prisma.XOR<Prisma.PlantScalarRelationFilter, Prisma.PlantWhereInput>
   salesOrder?: Prisma.XOR<Prisma.SalesOrderNullableScalarRelationFilter, Prisma.SalesOrderWhereInput> | null
   product?: Prisma.XOR<Prisma.ProductScalarRelationFilter, Prisma.ProductWhereInput>
@@ -384,6 +397,7 @@ export type ProductionOrderOrderByWithAggregationInput = {
   metadata?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  enterpriseId?: Prisma.SortOrder
   _count?: Prisma.ProductionOrderCountOrderByAggregateInput
   _avg?: Prisma.ProductionOrderAvgOrderByAggregateInput
   _max?: Prisma.ProductionOrderMaxOrderByAggregateInput
@@ -410,6 +424,7 @@ export type ProductionOrderScalarWhereWithAggregatesInput = {
   metadata?: Prisma.JsonNullableWithAggregatesFilter<"ProductionOrder">
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"ProductionOrder"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"ProductionOrder"> | Date | string
+  enterpriseId?: Prisma.StringWithAggregatesFilter<"ProductionOrder"> | string
 }
 
 export type ProductionOrderCreateInput = {
@@ -424,6 +439,7 @@ export type ProductionOrderCreateInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterprise: Prisma.EnterpriseCreateNestedOneWithoutProductionOrdersInput
   plant: Prisma.PlantCreateNestedOneWithoutProductionOrdersInput
   salesOrder?: Prisma.SalesOrderCreateNestedOneWithoutProductionOrdersInput
   product: Prisma.ProductCreateNestedOneWithoutProductionOrdersInput
@@ -451,6 +467,7 @@ export type ProductionOrderUncheckedCreateInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterpriseId: string
   scheduledOperations?: Prisma.ScheduledOperationUncheckedCreateNestedManyWithoutProductionOrderInput
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutChildInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutParentInput
@@ -470,6 +487,7 @@ export type ProductionOrderUpdateInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutProductionOrdersNestedInput
   plant?: Prisma.PlantUpdateOneRequiredWithoutProductionOrdersNestedInput
   salesOrder?: Prisma.SalesOrderUpdateOneWithoutProductionOrdersNestedInput
   product?: Prisma.ProductUpdateOneRequiredWithoutProductionOrdersNestedInput
@@ -497,6 +515,7 @@ export type ProductionOrderUncheckedUpdateInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
   scheduledOperations?: Prisma.ScheduledOperationUncheckedUpdateManyWithoutProductionOrderNestedInput
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutChildNestedInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutParentNestedInput
@@ -520,6 +539,7 @@ export type ProductionOrderCreateManyInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterpriseId: string
 }
 
 export type ProductionOrderUpdateManyMutationInput = {
@@ -552,6 +572,7 @@ export type ProductionOrderUncheckedUpdateManyInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type ProductionOrderListRelationFilter = {
@@ -580,6 +601,7 @@ export type ProductionOrderCountOrderByAggregateInput = {
   metadata?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  enterpriseId?: Prisma.SortOrder
 }
 
 export type ProductionOrderAvgOrderByAggregateInput = {
@@ -603,6 +625,7 @@ export type ProductionOrderMaxOrderByAggregateInput = {
   manualOverride?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  enterpriseId?: Prisma.SortOrder
 }
 
 export type ProductionOrderMinOrderByAggregateInput = {
@@ -620,6 +643,7 @@ export type ProductionOrderMinOrderByAggregateInput = {
   manualOverride?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
+  enterpriseId?: Prisma.SortOrder
 }
 
 export type ProductionOrderSumOrderByAggregateInput = {
@@ -636,6 +660,48 @@ export type ProductionOrderNullableScalarRelationFilter = {
 export type ProductionOrderScalarRelationFilter = {
   is?: Prisma.ProductionOrderWhereInput
   isNot?: Prisma.ProductionOrderWhereInput
+}
+
+export type ProductionOrderCreateNestedManyWithoutEnterpriseInput = {
+  create?: Prisma.XOR<Prisma.ProductionOrderCreateWithoutEnterpriseInput, Prisma.ProductionOrderUncheckedCreateWithoutEnterpriseInput> | Prisma.ProductionOrderCreateWithoutEnterpriseInput[] | Prisma.ProductionOrderUncheckedCreateWithoutEnterpriseInput[]
+  connectOrCreate?: Prisma.ProductionOrderCreateOrConnectWithoutEnterpriseInput | Prisma.ProductionOrderCreateOrConnectWithoutEnterpriseInput[]
+  createMany?: Prisma.ProductionOrderCreateManyEnterpriseInputEnvelope
+  connect?: Prisma.ProductionOrderWhereUniqueInput | Prisma.ProductionOrderWhereUniqueInput[]
+}
+
+export type ProductionOrderUncheckedCreateNestedManyWithoutEnterpriseInput = {
+  create?: Prisma.XOR<Prisma.ProductionOrderCreateWithoutEnterpriseInput, Prisma.ProductionOrderUncheckedCreateWithoutEnterpriseInput> | Prisma.ProductionOrderCreateWithoutEnterpriseInput[] | Prisma.ProductionOrderUncheckedCreateWithoutEnterpriseInput[]
+  connectOrCreate?: Prisma.ProductionOrderCreateOrConnectWithoutEnterpriseInput | Prisma.ProductionOrderCreateOrConnectWithoutEnterpriseInput[]
+  createMany?: Prisma.ProductionOrderCreateManyEnterpriseInputEnvelope
+  connect?: Prisma.ProductionOrderWhereUniqueInput | Prisma.ProductionOrderWhereUniqueInput[]
+}
+
+export type ProductionOrderUpdateManyWithoutEnterpriseNestedInput = {
+  create?: Prisma.XOR<Prisma.ProductionOrderCreateWithoutEnterpriseInput, Prisma.ProductionOrderUncheckedCreateWithoutEnterpriseInput> | Prisma.ProductionOrderCreateWithoutEnterpriseInput[] | Prisma.ProductionOrderUncheckedCreateWithoutEnterpriseInput[]
+  connectOrCreate?: Prisma.ProductionOrderCreateOrConnectWithoutEnterpriseInput | Prisma.ProductionOrderCreateOrConnectWithoutEnterpriseInput[]
+  upsert?: Prisma.ProductionOrderUpsertWithWhereUniqueWithoutEnterpriseInput | Prisma.ProductionOrderUpsertWithWhereUniqueWithoutEnterpriseInput[]
+  createMany?: Prisma.ProductionOrderCreateManyEnterpriseInputEnvelope
+  set?: Prisma.ProductionOrderWhereUniqueInput | Prisma.ProductionOrderWhereUniqueInput[]
+  disconnect?: Prisma.ProductionOrderWhereUniqueInput | Prisma.ProductionOrderWhereUniqueInput[]
+  delete?: Prisma.ProductionOrderWhereUniqueInput | Prisma.ProductionOrderWhereUniqueInput[]
+  connect?: Prisma.ProductionOrderWhereUniqueInput | Prisma.ProductionOrderWhereUniqueInput[]
+  update?: Prisma.ProductionOrderUpdateWithWhereUniqueWithoutEnterpriseInput | Prisma.ProductionOrderUpdateWithWhereUniqueWithoutEnterpriseInput[]
+  updateMany?: Prisma.ProductionOrderUpdateManyWithWhereWithoutEnterpriseInput | Prisma.ProductionOrderUpdateManyWithWhereWithoutEnterpriseInput[]
+  deleteMany?: Prisma.ProductionOrderScalarWhereInput | Prisma.ProductionOrderScalarWhereInput[]
+}
+
+export type ProductionOrderUncheckedUpdateManyWithoutEnterpriseNestedInput = {
+  create?: Prisma.XOR<Prisma.ProductionOrderCreateWithoutEnterpriseInput, Prisma.ProductionOrderUncheckedCreateWithoutEnterpriseInput> | Prisma.ProductionOrderCreateWithoutEnterpriseInput[] | Prisma.ProductionOrderUncheckedCreateWithoutEnterpriseInput[]
+  connectOrCreate?: Prisma.ProductionOrderCreateOrConnectWithoutEnterpriseInput | Prisma.ProductionOrderCreateOrConnectWithoutEnterpriseInput[]
+  upsert?: Prisma.ProductionOrderUpsertWithWhereUniqueWithoutEnterpriseInput | Prisma.ProductionOrderUpsertWithWhereUniqueWithoutEnterpriseInput[]
+  createMany?: Prisma.ProductionOrderCreateManyEnterpriseInputEnvelope
+  set?: Prisma.ProductionOrderWhereUniqueInput | Prisma.ProductionOrderWhereUniqueInput[]
+  disconnect?: Prisma.ProductionOrderWhereUniqueInput | Prisma.ProductionOrderWhereUniqueInput[]
+  delete?: Prisma.ProductionOrderWhereUniqueInput | Prisma.ProductionOrderWhereUniqueInput[]
+  connect?: Prisma.ProductionOrderWhereUniqueInput | Prisma.ProductionOrderWhereUniqueInput[]
+  update?: Prisma.ProductionOrderUpdateWithWhereUniqueWithoutEnterpriseInput | Prisma.ProductionOrderUpdateWithWhereUniqueWithoutEnterpriseInput[]
+  updateMany?: Prisma.ProductionOrderUpdateManyWithWhereWithoutEnterpriseInput | Prisma.ProductionOrderUpdateManyWithWhereWithoutEnterpriseInput[]
+  deleteMany?: Prisma.ProductionOrderScalarWhereInput | Prisma.ProductionOrderScalarWhereInput[]
 }
 
 export type ProductionOrderCreateNestedManyWithoutPlantInput = {
@@ -884,6 +950,100 @@ export type ProductionOrderUpdateOneWithoutInventoryMovementsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.ProductionOrderUpdateToOneWithWhereWithoutInventoryMovementsInput, Prisma.ProductionOrderUpdateWithoutInventoryMovementsInput>, Prisma.ProductionOrderUncheckedUpdateWithoutInventoryMovementsInput>
 }
 
+export type ProductionOrderCreateWithoutEnterpriseInput = {
+  id?: string
+  bomId?: string | null
+  quantity: number
+  scheduledStart?: Date | string | null
+  scheduledEnd?: Date | string | null
+  status?: $Enums.ProductionOrderStatus
+  priorityScore?: number
+  manualOverride?: number
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  plant: Prisma.PlantCreateNestedOneWithoutProductionOrdersInput
+  salesOrder?: Prisma.SalesOrderCreateNestedOneWithoutProductionOrdersInput
+  product: Prisma.ProductCreateNestedOneWithoutProductionOrdersInput
+  routing?: Prisma.RoutingCreateNestedOneWithoutProductionOrdersInput
+  scheduledOperations?: Prisma.ScheduledOperationCreateNestedManyWithoutProductionOrderInput
+  dependsOn?: Prisma.ProductionOrderDependencyCreateNestedManyWithoutChildInput
+  blocks?: Prisma.ProductionOrderDependencyCreateNestedManyWithoutParentInput
+  inventoryMovements?: Prisma.InventoryMovementCreateNestedManyWithoutProductionOrderInput
+  fulfillmentLines?: Prisma.FulfillmentLineCreateNestedManyWithoutProductionOrderInput
+}
+
+export type ProductionOrderUncheckedCreateWithoutEnterpriseInput = {
+  id?: string
+  plantId: string
+  salesOrderId?: string | null
+  productId: string
+  routingId?: string | null
+  bomId?: string | null
+  quantity: number
+  scheduledStart?: Date | string | null
+  scheduledEnd?: Date | string | null
+  status?: $Enums.ProductionOrderStatus
+  priorityScore?: number
+  manualOverride?: number
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  scheduledOperations?: Prisma.ScheduledOperationUncheckedCreateNestedManyWithoutProductionOrderInput
+  dependsOn?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutChildInput
+  blocks?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutParentInput
+  inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutProductionOrderInput
+  fulfillmentLines?: Prisma.FulfillmentLineUncheckedCreateNestedManyWithoutProductionOrderInput
+}
+
+export type ProductionOrderCreateOrConnectWithoutEnterpriseInput = {
+  where: Prisma.ProductionOrderWhereUniqueInput
+  create: Prisma.XOR<Prisma.ProductionOrderCreateWithoutEnterpriseInput, Prisma.ProductionOrderUncheckedCreateWithoutEnterpriseInput>
+}
+
+export type ProductionOrderCreateManyEnterpriseInputEnvelope = {
+  data: Prisma.ProductionOrderCreateManyEnterpriseInput | Prisma.ProductionOrderCreateManyEnterpriseInput[]
+  skipDuplicates?: boolean
+}
+
+export type ProductionOrderUpsertWithWhereUniqueWithoutEnterpriseInput = {
+  where: Prisma.ProductionOrderWhereUniqueInput
+  update: Prisma.XOR<Prisma.ProductionOrderUpdateWithoutEnterpriseInput, Prisma.ProductionOrderUncheckedUpdateWithoutEnterpriseInput>
+  create: Prisma.XOR<Prisma.ProductionOrderCreateWithoutEnterpriseInput, Prisma.ProductionOrderUncheckedCreateWithoutEnterpriseInput>
+}
+
+export type ProductionOrderUpdateWithWhereUniqueWithoutEnterpriseInput = {
+  where: Prisma.ProductionOrderWhereUniqueInput
+  data: Prisma.XOR<Prisma.ProductionOrderUpdateWithoutEnterpriseInput, Prisma.ProductionOrderUncheckedUpdateWithoutEnterpriseInput>
+}
+
+export type ProductionOrderUpdateManyWithWhereWithoutEnterpriseInput = {
+  where: Prisma.ProductionOrderScalarWhereInput
+  data: Prisma.XOR<Prisma.ProductionOrderUpdateManyMutationInput, Prisma.ProductionOrderUncheckedUpdateManyWithoutEnterpriseInput>
+}
+
+export type ProductionOrderScalarWhereInput = {
+  AND?: Prisma.ProductionOrderScalarWhereInput | Prisma.ProductionOrderScalarWhereInput[]
+  OR?: Prisma.ProductionOrderScalarWhereInput[]
+  NOT?: Prisma.ProductionOrderScalarWhereInput | Prisma.ProductionOrderScalarWhereInput[]
+  id?: Prisma.StringFilter<"ProductionOrder"> | string
+  plantId?: Prisma.StringFilter<"ProductionOrder"> | string
+  salesOrderId?: Prisma.StringNullableFilter<"ProductionOrder"> | string | null
+  productId?: Prisma.StringFilter<"ProductionOrder"> | string
+  routingId?: Prisma.StringNullableFilter<"ProductionOrder"> | string | null
+  bomId?: Prisma.StringNullableFilter<"ProductionOrder"> | string | null
+  quantity?: Prisma.FloatFilter<"ProductionOrder"> | number
+  scheduledStart?: Prisma.DateTimeNullableFilter<"ProductionOrder"> | Date | string | null
+  scheduledEnd?: Prisma.DateTimeNullableFilter<"ProductionOrder"> | Date | string | null
+  status?: Prisma.EnumProductionOrderStatusFilter<"ProductionOrder"> | $Enums.ProductionOrderStatus
+  priorityScore?: Prisma.FloatFilter<"ProductionOrder"> | number
+  manualOverride?: Prisma.FloatFilter<"ProductionOrder"> | number
+  metadata?: Prisma.JsonNullableFilter<"ProductionOrder">
+  createdAt?: Prisma.DateTimeFilter<"ProductionOrder"> | Date | string
+  updatedAt?: Prisma.DateTimeFilter<"ProductionOrder"> | Date | string
+  enterpriseId?: Prisma.StringFilter<"ProductionOrder"> | string
+}
+
 export type ProductionOrderCreateWithoutPlantInput = {
   id?: string
   bomId?: string | null
@@ -896,6 +1056,7 @@ export type ProductionOrderCreateWithoutPlantInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterprise: Prisma.EnterpriseCreateNestedOneWithoutProductionOrdersInput
   salesOrder?: Prisma.SalesOrderCreateNestedOneWithoutProductionOrdersInput
   product: Prisma.ProductCreateNestedOneWithoutProductionOrdersInput
   routing?: Prisma.RoutingCreateNestedOneWithoutProductionOrdersInput
@@ -921,6 +1082,7 @@ export type ProductionOrderUncheckedCreateWithoutPlantInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterpriseId: string
   scheduledOperations?: Prisma.ScheduledOperationUncheckedCreateNestedManyWithoutProductionOrderInput
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutChildInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutParentInput
@@ -954,27 +1116,6 @@ export type ProductionOrderUpdateManyWithWhereWithoutPlantInput = {
   data: Prisma.XOR<Prisma.ProductionOrderUpdateManyMutationInput, Prisma.ProductionOrderUncheckedUpdateManyWithoutPlantInput>
 }
 
-export type ProductionOrderScalarWhereInput = {
-  AND?: Prisma.ProductionOrderScalarWhereInput | Prisma.ProductionOrderScalarWhereInput[]
-  OR?: Prisma.ProductionOrderScalarWhereInput[]
-  NOT?: Prisma.ProductionOrderScalarWhereInput | Prisma.ProductionOrderScalarWhereInput[]
-  id?: Prisma.StringFilter<"ProductionOrder"> | string
-  plantId?: Prisma.StringFilter<"ProductionOrder"> | string
-  salesOrderId?: Prisma.StringNullableFilter<"ProductionOrder"> | string | null
-  productId?: Prisma.StringFilter<"ProductionOrder"> | string
-  routingId?: Prisma.StringNullableFilter<"ProductionOrder"> | string | null
-  bomId?: Prisma.StringNullableFilter<"ProductionOrder"> | string | null
-  quantity?: Prisma.FloatFilter<"ProductionOrder"> | number
-  scheduledStart?: Prisma.DateTimeNullableFilter<"ProductionOrder"> | Date | string | null
-  scheduledEnd?: Prisma.DateTimeNullableFilter<"ProductionOrder"> | Date | string | null
-  status?: Prisma.EnumProductionOrderStatusFilter<"ProductionOrder"> | $Enums.ProductionOrderStatus
-  priorityScore?: Prisma.FloatFilter<"ProductionOrder"> | number
-  manualOverride?: Prisma.FloatFilter<"ProductionOrder"> | number
-  metadata?: Prisma.JsonNullableFilter<"ProductionOrder">
-  createdAt?: Prisma.DateTimeFilter<"ProductionOrder"> | Date | string
-  updatedAt?: Prisma.DateTimeFilter<"ProductionOrder"> | Date | string
-}
-
 export type ProductionOrderCreateWithoutProductInput = {
   id?: string
   bomId?: string | null
@@ -987,6 +1128,7 @@ export type ProductionOrderCreateWithoutProductInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterprise: Prisma.EnterpriseCreateNestedOneWithoutProductionOrdersInput
   plant: Prisma.PlantCreateNestedOneWithoutProductionOrdersInput
   salesOrder?: Prisma.SalesOrderCreateNestedOneWithoutProductionOrdersInput
   routing?: Prisma.RoutingCreateNestedOneWithoutProductionOrdersInput
@@ -1012,6 +1154,7 @@ export type ProductionOrderUncheckedCreateWithoutProductInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterpriseId: string
   scheduledOperations?: Prisma.ScheduledOperationUncheckedCreateNestedManyWithoutProductionOrderInput
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutChildInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutParentInput
@@ -1057,6 +1200,7 @@ export type ProductionOrderCreateWithoutRoutingInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterprise: Prisma.EnterpriseCreateNestedOneWithoutProductionOrdersInput
   plant: Prisma.PlantCreateNestedOneWithoutProductionOrdersInput
   salesOrder?: Prisma.SalesOrderCreateNestedOneWithoutProductionOrdersInput
   product: Prisma.ProductCreateNestedOneWithoutProductionOrdersInput
@@ -1082,6 +1226,7 @@ export type ProductionOrderUncheckedCreateWithoutRoutingInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterpriseId: string
   scheduledOperations?: Prisma.ScheduledOperationUncheckedCreateNestedManyWithoutProductionOrderInput
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutChildInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutParentInput
@@ -1127,6 +1272,7 @@ export type ProductionOrderCreateWithoutSalesOrderInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterprise: Prisma.EnterpriseCreateNestedOneWithoutProductionOrdersInput
   plant: Prisma.PlantCreateNestedOneWithoutProductionOrdersInput
   product: Prisma.ProductCreateNestedOneWithoutProductionOrdersInput
   routing?: Prisma.RoutingCreateNestedOneWithoutProductionOrdersInput
@@ -1152,6 +1298,7 @@ export type ProductionOrderUncheckedCreateWithoutSalesOrderInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterpriseId: string
   scheduledOperations?: Prisma.ScheduledOperationUncheckedCreateNestedManyWithoutProductionOrderInput
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutChildInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutParentInput
@@ -1197,6 +1344,7 @@ export type ProductionOrderCreateWithoutFulfillmentLinesInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterprise: Prisma.EnterpriseCreateNestedOneWithoutProductionOrdersInput
   plant: Prisma.PlantCreateNestedOneWithoutProductionOrdersInput
   salesOrder?: Prisma.SalesOrderCreateNestedOneWithoutProductionOrdersInput
   product: Prisma.ProductCreateNestedOneWithoutProductionOrdersInput
@@ -1223,6 +1371,7 @@ export type ProductionOrderUncheckedCreateWithoutFulfillmentLinesInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterpriseId: string
   scheduledOperations?: Prisma.ScheduledOperationUncheckedCreateNestedManyWithoutProductionOrderInput
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutChildInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutParentInput
@@ -1257,6 +1406,7 @@ export type ProductionOrderUpdateWithoutFulfillmentLinesInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutProductionOrdersNestedInput
   plant?: Prisma.PlantUpdateOneRequiredWithoutProductionOrdersNestedInput
   salesOrder?: Prisma.SalesOrderUpdateOneWithoutProductionOrdersNestedInput
   product?: Prisma.ProductUpdateOneRequiredWithoutProductionOrdersNestedInput
@@ -1283,6 +1433,7 @@ export type ProductionOrderUncheckedUpdateWithoutFulfillmentLinesInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
   scheduledOperations?: Prisma.ScheduledOperationUncheckedUpdateManyWithoutProductionOrderNestedInput
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutChildNestedInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutParentNestedInput
@@ -1301,6 +1452,7 @@ export type ProductionOrderCreateWithoutBlocksInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterprise: Prisma.EnterpriseCreateNestedOneWithoutProductionOrdersInput
   plant: Prisma.PlantCreateNestedOneWithoutProductionOrdersInput
   salesOrder?: Prisma.SalesOrderCreateNestedOneWithoutProductionOrdersInput
   product: Prisma.ProductCreateNestedOneWithoutProductionOrdersInput
@@ -1327,6 +1479,7 @@ export type ProductionOrderUncheckedCreateWithoutBlocksInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterpriseId: string
   scheduledOperations?: Prisma.ScheduledOperationUncheckedCreateNestedManyWithoutProductionOrderInput
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutChildInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutProductionOrderInput
@@ -1350,6 +1503,7 @@ export type ProductionOrderCreateWithoutDependsOnInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterprise: Prisma.EnterpriseCreateNestedOneWithoutProductionOrdersInput
   plant: Prisma.PlantCreateNestedOneWithoutProductionOrdersInput
   salesOrder?: Prisma.SalesOrderCreateNestedOneWithoutProductionOrdersInput
   product: Prisma.ProductCreateNestedOneWithoutProductionOrdersInput
@@ -1376,6 +1530,7 @@ export type ProductionOrderUncheckedCreateWithoutDependsOnInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterpriseId: string
   scheduledOperations?: Prisma.ScheduledOperationUncheckedCreateNestedManyWithoutProductionOrderInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutParentInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutProductionOrderInput
@@ -1410,6 +1565,7 @@ export type ProductionOrderUpdateWithoutBlocksInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutProductionOrdersNestedInput
   plant?: Prisma.PlantUpdateOneRequiredWithoutProductionOrdersNestedInput
   salesOrder?: Prisma.SalesOrderUpdateOneWithoutProductionOrdersNestedInput
   product?: Prisma.ProductUpdateOneRequiredWithoutProductionOrdersNestedInput
@@ -1436,6 +1592,7 @@ export type ProductionOrderUncheckedUpdateWithoutBlocksInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
   scheduledOperations?: Prisma.ScheduledOperationUncheckedUpdateManyWithoutProductionOrderNestedInput
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutChildNestedInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutProductionOrderNestedInput
@@ -1465,6 +1622,7 @@ export type ProductionOrderUpdateWithoutDependsOnInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutProductionOrdersNestedInput
   plant?: Prisma.PlantUpdateOneRequiredWithoutProductionOrdersNestedInput
   salesOrder?: Prisma.SalesOrderUpdateOneWithoutProductionOrdersNestedInput
   product?: Prisma.ProductUpdateOneRequiredWithoutProductionOrdersNestedInput
@@ -1491,6 +1649,7 @@ export type ProductionOrderUncheckedUpdateWithoutDependsOnInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
   scheduledOperations?: Prisma.ScheduledOperationUncheckedUpdateManyWithoutProductionOrderNestedInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutParentNestedInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutProductionOrderNestedInput
@@ -1509,6 +1668,7 @@ export type ProductionOrderCreateWithoutScheduledOperationsInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterprise: Prisma.EnterpriseCreateNestedOneWithoutProductionOrdersInput
   plant: Prisma.PlantCreateNestedOneWithoutProductionOrdersInput
   salesOrder?: Prisma.SalesOrderCreateNestedOneWithoutProductionOrdersInput
   product: Prisma.ProductCreateNestedOneWithoutProductionOrdersInput
@@ -1535,6 +1695,7 @@ export type ProductionOrderUncheckedCreateWithoutScheduledOperationsInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterpriseId: string
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutChildInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutParentInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutProductionOrderInput
@@ -1569,6 +1730,7 @@ export type ProductionOrderUpdateWithoutScheduledOperationsInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutProductionOrdersNestedInput
   plant?: Prisma.PlantUpdateOneRequiredWithoutProductionOrdersNestedInput
   salesOrder?: Prisma.SalesOrderUpdateOneWithoutProductionOrdersNestedInput
   product?: Prisma.ProductUpdateOneRequiredWithoutProductionOrdersNestedInput
@@ -1595,6 +1757,7 @@ export type ProductionOrderUncheckedUpdateWithoutScheduledOperationsInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutChildNestedInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutParentNestedInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutProductionOrderNestedInput
@@ -1613,6 +1776,7 @@ export type ProductionOrderCreateWithoutInventoryMovementsInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterprise: Prisma.EnterpriseCreateNestedOneWithoutProductionOrdersInput
   plant: Prisma.PlantCreateNestedOneWithoutProductionOrdersInput
   salesOrder?: Prisma.SalesOrderCreateNestedOneWithoutProductionOrdersInput
   product: Prisma.ProductCreateNestedOneWithoutProductionOrdersInput
@@ -1639,6 +1803,7 @@ export type ProductionOrderUncheckedCreateWithoutInventoryMovementsInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterpriseId: string
   scheduledOperations?: Prisma.ScheduledOperationUncheckedCreateNestedManyWithoutProductionOrderInput
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutChildInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutParentInput
@@ -1673,6 +1838,7 @@ export type ProductionOrderUpdateWithoutInventoryMovementsInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutProductionOrdersNestedInput
   plant?: Prisma.PlantUpdateOneRequiredWithoutProductionOrdersNestedInput
   salesOrder?: Prisma.SalesOrderUpdateOneWithoutProductionOrdersNestedInput
   product?: Prisma.ProductUpdateOneRequiredWithoutProductionOrdersNestedInput
@@ -1699,10 +1865,93 @@ export type ProductionOrderUncheckedUpdateWithoutInventoryMovementsInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
   scheduledOperations?: Prisma.ScheduledOperationUncheckedUpdateManyWithoutProductionOrderNestedInput
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutChildNestedInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutParentNestedInput
   fulfillmentLines?: Prisma.FulfillmentLineUncheckedUpdateManyWithoutProductionOrderNestedInput
+}
+
+export type ProductionOrderCreateManyEnterpriseInput = {
+  id?: string
+  plantId: string
+  salesOrderId?: string | null
+  productId: string
+  routingId?: string | null
+  bomId?: string | null
+  quantity: number
+  scheduledStart?: Date | string | null
+  scheduledEnd?: Date | string | null
+  status?: $Enums.ProductionOrderStatus
+  priorityScore?: number
+  manualOverride?: number
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  createdAt?: Date | string
+  updatedAt?: Date | string
+}
+
+export type ProductionOrderUpdateWithoutEnterpriseInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  bomId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  quantity?: Prisma.FloatFieldUpdateOperationsInput | number
+  scheduledStart?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  scheduledEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  status?: Prisma.EnumProductionOrderStatusFieldUpdateOperationsInput | $Enums.ProductionOrderStatus
+  priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
+  manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  plant?: Prisma.PlantUpdateOneRequiredWithoutProductionOrdersNestedInput
+  salesOrder?: Prisma.SalesOrderUpdateOneWithoutProductionOrdersNestedInput
+  product?: Prisma.ProductUpdateOneRequiredWithoutProductionOrdersNestedInput
+  routing?: Prisma.RoutingUpdateOneWithoutProductionOrdersNestedInput
+  scheduledOperations?: Prisma.ScheduledOperationUpdateManyWithoutProductionOrderNestedInput
+  dependsOn?: Prisma.ProductionOrderDependencyUpdateManyWithoutChildNestedInput
+  blocks?: Prisma.ProductionOrderDependencyUpdateManyWithoutParentNestedInput
+  inventoryMovements?: Prisma.InventoryMovementUpdateManyWithoutProductionOrderNestedInput
+  fulfillmentLines?: Prisma.FulfillmentLineUpdateManyWithoutProductionOrderNestedInput
+}
+
+export type ProductionOrderUncheckedUpdateWithoutEnterpriseInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  plantId?: Prisma.StringFieldUpdateOperationsInput | string
+  salesOrderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  productId?: Prisma.StringFieldUpdateOperationsInput | string
+  routingId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bomId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  quantity?: Prisma.FloatFieldUpdateOperationsInput | number
+  scheduledStart?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  scheduledEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  status?: Prisma.EnumProductionOrderStatusFieldUpdateOperationsInput | $Enums.ProductionOrderStatus
+  priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
+  manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  scheduledOperations?: Prisma.ScheduledOperationUncheckedUpdateManyWithoutProductionOrderNestedInput
+  dependsOn?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutChildNestedInput
+  blocks?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutParentNestedInput
+  inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutProductionOrderNestedInput
+  fulfillmentLines?: Prisma.FulfillmentLineUncheckedUpdateManyWithoutProductionOrderNestedInput
+}
+
+export type ProductionOrderUncheckedUpdateManyWithoutEnterpriseInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  plantId?: Prisma.StringFieldUpdateOperationsInput | string
+  salesOrderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  productId?: Prisma.StringFieldUpdateOperationsInput | string
+  routingId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bomId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  quantity?: Prisma.FloatFieldUpdateOperationsInput | number
+  scheduledStart?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  scheduledEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  status?: Prisma.EnumProductionOrderStatusFieldUpdateOperationsInput | $Enums.ProductionOrderStatus
+  priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
+  manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
 
 export type ProductionOrderCreateManyPlantInput = {
@@ -1720,6 +1969,7 @@ export type ProductionOrderCreateManyPlantInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterpriseId: string
 }
 
 export type ProductionOrderUpdateWithoutPlantInput = {
@@ -1734,6 +1984,7 @@ export type ProductionOrderUpdateWithoutPlantInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutProductionOrdersNestedInput
   salesOrder?: Prisma.SalesOrderUpdateOneWithoutProductionOrdersNestedInput
   product?: Prisma.ProductUpdateOneRequiredWithoutProductionOrdersNestedInput
   routing?: Prisma.RoutingUpdateOneWithoutProductionOrdersNestedInput
@@ -1759,6 +2010,7 @@ export type ProductionOrderUncheckedUpdateWithoutPlantInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
   scheduledOperations?: Prisma.ScheduledOperationUncheckedUpdateManyWithoutProductionOrderNestedInput
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutChildNestedInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutParentNestedInput
@@ -1781,6 +2033,7 @@ export type ProductionOrderUncheckedUpdateManyWithoutPlantInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type ProductionOrderCreateManyProductInput = {
@@ -1798,6 +2051,7 @@ export type ProductionOrderCreateManyProductInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterpriseId: string
 }
 
 export type ProductionOrderUpdateWithoutProductInput = {
@@ -1812,6 +2066,7 @@ export type ProductionOrderUpdateWithoutProductInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutProductionOrdersNestedInput
   plant?: Prisma.PlantUpdateOneRequiredWithoutProductionOrdersNestedInput
   salesOrder?: Prisma.SalesOrderUpdateOneWithoutProductionOrdersNestedInput
   routing?: Prisma.RoutingUpdateOneWithoutProductionOrdersNestedInput
@@ -1837,6 +2092,7 @@ export type ProductionOrderUncheckedUpdateWithoutProductInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
   scheduledOperations?: Prisma.ScheduledOperationUncheckedUpdateManyWithoutProductionOrderNestedInput
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutChildNestedInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutParentNestedInput
@@ -1859,6 +2115,7 @@ export type ProductionOrderUncheckedUpdateManyWithoutProductInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type ProductionOrderCreateManyRoutingInput = {
@@ -1876,6 +2133,7 @@ export type ProductionOrderCreateManyRoutingInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterpriseId: string
 }
 
 export type ProductionOrderUpdateWithoutRoutingInput = {
@@ -1890,6 +2148,7 @@ export type ProductionOrderUpdateWithoutRoutingInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutProductionOrdersNestedInput
   plant?: Prisma.PlantUpdateOneRequiredWithoutProductionOrdersNestedInput
   salesOrder?: Prisma.SalesOrderUpdateOneWithoutProductionOrdersNestedInput
   product?: Prisma.ProductUpdateOneRequiredWithoutProductionOrdersNestedInput
@@ -1915,6 +2174,7 @@ export type ProductionOrderUncheckedUpdateWithoutRoutingInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
   scheduledOperations?: Prisma.ScheduledOperationUncheckedUpdateManyWithoutProductionOrderNestedInput
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutChildNestedInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutParentNestedInput
@@ -1937,6 +2197,7 @@ export type ProductionOrderUncheckedUpdateManyWithoutRoutingInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 export type ProductionOrderCreateManySalesOrderInput = {
@@ -1954,6 +2215,7 @@ export type ProductionOrderCreateManySalesOrderInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Date | string
   updatedAt?: Date | string
+  enterpriseId: string
 }
 
 export type ProductionOrderUpdateWithoutSalesOrderInput = {
@@ -1968,6 +2230,7 @@ export type ProductionOrderUpdateWithoutSalesOrderInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutProductionOrdersNestedInput
   plant?: Prisma.PlantUpdateOneRequiredWithoutProductionOrdersNestedInput
   product?: Prisma.ProductUpdateOneRequiredWithoutProductionOrdersNestedInput
   routing?: Prisma.RoutingUpdateOneWithoutProductionOrdersNestedInput
@@ -1993,6 +2256,7 @@ export type ProductionOrderUncheckedUpdateWithoutSalesOrderInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
   scheduledOperations?: Prisma.ScheduledOperationUncheckedUpdateManyWithoutProductionOrderNestedInput
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutChildNestedInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutParentNestedInput
@@ -2015,6 +2279,7 @@ export type ProductionOrderUncheckedUpdateManyWithoutSalesOrderInput = {
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
 
@@ -2100,6 +2365,8 @@ export type ProductionOrderSelect<ExtArgs extends runtime.Types.Extensions.Inter
   metadata?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  enterpriseId?: boolean
+  enterprise?: boolean | Prisma.EnterpriseDefaultArgs<ExtArgs>
   plant?: boolean | Prisma.PlantDefaultArgs<ExtArgs>
   salesOrder?: boolean | Prisma.ProductionOrder$salesOrderArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
@@ -2128,6 +2395,8 @@ export type ProductionOrderSelectCreateManyAndReturn<ExtArgs extends runtime.Typ
   metadata?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  enterpriseId?: boolean
+  enterprise?: boolean | Prisma.EnterpriseDefaultArgs<ExtArgs>
   plant?: boolean | Prisma.PlantDefaultArgs<ExtArgs>
   salesOrder?: boolean | Prisma.ProductionOrder$salesOrderArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
@@ -2150,6 +2419,8 @@ export type ProductionOrderSelectUpdateManyAndReturn<ExtArgs extends runtime.Typ
   metadata?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  enterpriseId?: boolean
+  enterprise?: boolean | Prisma.EnterpriseDefaultArgs<ExtArgs>
   plant?: boolean | Prisma.PlantDefaultArgs<ExtArgs>
   salesOrder?: boolean | Prisma.ProductionOrder$salesOrderArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
@@ -2172,10 +2443,12 @@ export type ProductionOrderSelectScalar = {
   metadata?: boolean
   createdAt?: boolean
   updatedAt?: boolean
+  enterpriseId?: boolean
 }
 
-export type ProductionOrderOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "plantId" | "salesOrderId" | "productId" | "routingId" | "bomId" | "quantity" | "scheduledStart" | "scheduledEnd" | "status" | "priorityScore" | "manualOverride" | "metadata" | "createdAt" | "updatedAt", ExtArgs["result"]["productionOrder"]>
+export type ProductionOrderOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "plantId" | "salesOrderId" | "productId" | "routingId" | "bomId" | "quantity" | "scheduledStart" | "scheduledEnd" | "status" | "priorityScore" | "manualOverride" | "metadata" | "createdAt" | "updatedAt" | "enterpriseId", ExtArgs["result"]["productionOrder"]>
 export type ProductionOrderInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  enterprise?: boolean | Prisma.EnterpriseDefaultArgs<ExtArgs>
   plant?: boolean | Prisma.PlantDefaultArgs<ExtArgs>
   salesOrder?: boolean | Prisma.ProductionOrder$salesOrderArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
@@ -2188,12 +2461,14 @@ export type ProductionOrderInclude<ExtArgs extends runtime.Types.Extensions.Inte
   _count?: boolean | Prisma.ProductionOrderCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type ProductionOrderIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  enterprise?: boolean | Prisma.EnterpriseDefaultArgs<ExtArgs>
   plant?: boolean | Prisma.PlantDefaultArgs<ExtArgs>
   salesOrder?: boolean | Prisma.ProductionOrder$salesOrderArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
   routing?: boolean | Prisma.ProductionOrder$routingArgs<ExtArgs>
 }
 export type ProductionOrderIncludeUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  enterprise?: boolean | Prisma.EnterpriseDefaultArgs<ExtArgs>
   plant?: boolean | Prisma.PlantDefaultArgs<ExtArgs>
   salesOrder?: boolean | Prisma.ProductionOrder$salesOrderArgs<ExtArgs>
   product?: boolean | Prisma.ProductDefaultArgs<ExtArgs>
@@ -2203,6 +2478,7 @@ export type ProductionOrderIncludeUpdateManyAndReturn<ExtArgs extends runtime.Ty
 export type $ProductionOrderPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   name: "ProductionOrder"
   objects: {
+    enterprise: Prisma.$EnterprisePayload<ExtArgs>
     plant: Prisma.$PlantPayload<ExtArgs>
     salesOrder: Prisma.$SalesOrderPayload<ExtArgs> | null
     product: Prisma.$ProductPayload<ExtArgs>
@@ -2229,6 +2505,7 @@ export type $ProductionOrderPayload<ExtArgs extends runtime.Types.Extensions.Int
     metadata: runtime.JsonValue | null
     createdAt: Date
     updatedAt: Date
+    enterpriseId: string
   }, ExtArgs["result"]["productionOrder"]>
   composites: {}
 }
@@ -2623,6 +2900,7 @@ readonly fields: ProductionOrderFieldRefs;
  */
 export interface Prisma__ProductionOrderClient<T, Null = never, ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs, GlobalOmitOptions = {}> extends Prisma.PrismaPromise<T> {
   readonly [Symbol.toStringTag]: "PrismaPromise"
+  enterprise<T extends Prisma.EnterpriseDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.EnterpriseDefaultArgs<ExtArgs>>): Prisma.Prisma__EnterpriseClient<runtime.Types.Result.GetResult<Prisma.$EnterprisePayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   plant<T extends Prisma.PlantDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.PlantDefaultArgs<ExtArgs>>): Prisma.Prisma__PlantClient<runtime.Types.Result.GetResult<Prisma.$PlantPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   salesOrder<T extends Prisma.ProductionOrder$salesOrderArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ProductionOrder$salesOrderArgs<ExtArgs>>): Prisma.Prisma__SalesOrderClient<runtime.Types.Result.GetResult<Prisma.$SalesOrderPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | null, null, ExtArgs, GlobalOmitOptions>
   product<T extends Prisma.ProductDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ProductDefaultArgs<ExtArgs>>): Prisma.Prisma__ProductClient<runtime.Types.Result.GetResult<Prisma.$ProductPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
@@ -2676,6 +2954,7 @@ export interface ProductionOrderFieldRefs {
   readonly metadata: Prisma.FieldRef<"ProductionOrder", 'Json'>
   readonly createdAt: Prisma.FieldRef<"ProductionOrder", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"ProductionOrder", 'DateTime'>
+  readonly enterpriseId: Prisma.FieldRef<"ProductionOrder", 'String'>
 }
     
 
