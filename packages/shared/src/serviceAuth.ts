@@ -1,4 +1,19 @@
 import type { NextFunction, Request, Response } from "express";
+import { verifyIdentityAssertion, IdentityAssertionError, type VerifiedIdentity } from "./identity";
+
+declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
+  namespace Express {
+    interface Request {
+      /** Set by requireIdentity() once the x-identity-assertion header has
+       * been cryptographically verified — never set from any unsigned
+       * header, body field, or query parameter. Route handlers must use
+       * req.identity.enterpriseId for all tenant scoping; req.body/
+       * req.query enterpriseId-shaped fields are never trusted (Stage 02). */
+      identity?: VerifiedIdentity;
+    }
+  }
+}
 
 // Deliberately NOT importing logger.ts here, even though every other
 // module in this package does: logger.ts does real, Node-only,
@@ -73,4 +88,36 @@ export function internalServiceHeaders(): Record<string, string> {
     throw new Error("INTERNAL_SERVICE_TOKEN is not set — cannot call another internal service without it");
   }
   return { [HEADER]: token };
+}
+
+const IDENTITY_HEADER = "x-identity-assertion";
+
+// Stage 02: replaces trusting x-forwarded-user/x-forwarded-role (or any
+// client-supplied enterpriseId) outright. Mounted AFTER requireServiceToken
+// so the service-to-service trust boundary is unchanged — this adds a
+// SECOND, independent check on top of it: even a caller that holds the
+// shared INTERNAL_SERVICE_TOKEN can no longer assert an arbitrary
+// role/enterprise just by setting a header, because that header must now
+// also carry a valid signature over those exact claims. Always rejects
+// with 401 on any failure (missing/malformed/bad signature/expired/wrong
+// audience) — this is authentication ("who is this"), never authorization
+// ("can they do X") — route handlers decide that using req.identity.
+export function requireIdentity(expectedAudience: string) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    const secret = expectedToken();
+    if (!secret) {
+      res.status(500).json({ error: "Service misconfigured — internal auth token not set" });
+      return;
+    }
+    try {
+      req.identity = verifyIdentityAssertion(req.header(IDENTITY_HEADER), secret, expectedAudience);
+      next();
+    } catch (err) {
+      if (err instanceof IdentityAssertionError) {
+        res.status(401).json({ error: err.message });
+        return;
+      }
+      res.status(401).json({ error: "Invalid identity assertion" });
+    }
+  };
 }

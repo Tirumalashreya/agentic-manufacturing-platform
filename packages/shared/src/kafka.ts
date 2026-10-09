@@ -1,5 +1,6 @@
 import { Kafka, logLevel, type Producer, type Consumer } from "kafkajs";
 import type { TopicName } from "./topics";
+import { DownstreamSyncError } from "./errors";
 
 // Real kafkajs client against the real local broker (brew-installed Kafka
 // 4.x, KRaft mode, verified reachable on :9092 this session) — not a stub.
@@ -25,6 +26,25 @@ export async function publish(topic: TopicName, message: Record<string, unknown>
     topic,
     messages: [{ value: JSON.stringify(message) }],
   });
+}
+
+// Stage 01: the one safe place to call `publish()` from a route handler
+// that already committed a DB write. Never throws — a failed publish must
+// not turn an already-committed write into an HTTP 500 the caller might
+// retry (see errors.ts's own doc comment). Returns the DownstreamSyncError
+// instead of swallowing it, so the caller can log it and tell the client
+// the sync step specifically failed, rather than saying nothing happened.
+export async function publishTracked(
+  topic: TopicName,
+  message: Record<string, unknown>,
+  context: { operation: string; entityId: string }
+): Promise<DownstreamSyncError | null> {
+  try {
+    await publish(topic, message);
+    return null;
+  } catch (cause) {
+    return new DownstreamSyncError({ operation: context.operation, target: `kafka:${topic}`, entityId: context.entityId, cause });
+  }
 }
 
 export async function subscribe(

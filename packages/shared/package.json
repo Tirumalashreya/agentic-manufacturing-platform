@@ -6,7 +6,8 @@
   "types": "src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./serviceAuth": "./src/serviceAuth.ts"
+    "./serviceAuth": "./src/serviceAuth.ts",
+    "./identity": "./src/identity.ts"
   },
   "dependencies": {
     "express": "^4.21.1",
