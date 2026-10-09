@@ -29,13 +29,20 @@ export async function POST(req: Request) {
   const unauthorized = await requireSessionOrServiceCaller(req, "VIEWER");
   if (unauthorized) return unauthorized;
 
-  const { productId, productName, quantity, configurationNotes } = (await req.json()) as {
+  const { productId, productName, quantity, configurationNotes, idempotencyKey } = (await req.json()) as {
     productId: string;
     productName: string | null;
     quantity: number;
     requiredDate: string | null;
     configurationNotes: string | null;
+    idempotencyKey?: string | null;
   };
-  const result = await apsAgent.planProduction({ productId, productName, quantity, configurationNotes });
+  // Stage 07 (Observability/Correlation): agent-orchestrator forwards its
+  // own run's trace_id on this call (see manufacturing_services.py's
+  // _internal_headers) — relayed through to every TS service
+  // planProduction itself calls, so the whole chain stays correlated
+  // under one id, with no new identifier invented at this hop.
+  const traceId = req.headers.get("x-trace-id");
+  const result = await apsAgent.planProduction({ productId, productName, quantity, configurationNotes, idempotencyKey, traceId });
   return NextResponse.json(result);
 }

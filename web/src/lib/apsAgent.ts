@@ -13,12 +13,43 @@
 // the existing deterministic APS engine underneath. This module only
 // composes and interprets those real answers.
 import { internalServiceHeaders } from "@aps/shared/serviceAuth";
+import { signIdentityAssertion } from "@aps/shared/identity";
 
 // Auth/Authz hardening, Phase 1 (Finding 1.1) — see services.ts's identical
 // wrapper doc comment; this module is APS's other real caller of the
 // backend services, so it needs the same credential on every call.
-function internalFetch(input: string, init: RequestInit = {}): Promise<Response> {
-  return fetch(input, { ...init, headers: { ...init.headers, ...internalServiceHeaders() } });
+//
+// Stage 02 (Tenant Isolation + Service Identity): this module is called
+// from app/api/aps/* routes reached EITHER by a real browser session OR by
+// agent-orchestrator server-to-server (see routeAuth.ts's
+// requireSessionOrServiceCaller) — there is no session to mint a user
+// identity assertion from in the second case, and every method here
+// already operates on the one real, fixed MANUFACTURING_PLANT_ID below,
+// not a caller-supplied plant. So this mints a service-level assertion
+// for its own fixed enterprise, same pattern and same reasoning as
+// manufacturing_services.py's AGENT_ORCHESTRATOR_ENTERPRISE_ID — not a
+// per-request fallback, a real statement of which enterprise this
+// module's one real plant has always belonged to.
+const MANUFACTURING_ENTERPRISE_ID = process.env.MANUFACTURING_ENTERPRISE_ID ?? "seed-enterprise";
+
+// Stage 07 (Observability/Correlation): traceId, when given, is forwarded
+// as x-trace-id — every TS service's createApp() middleware
+// (packages/shared/src/http.ts) echoes/logs whatever it receives, so a
+// call chain starting at agent-orchestrator (which sets this on its own
+// outbound calls, see app/trace_context.py) stays correlated all the way
+// through APS Platform and into whichever of the 5 TS services below a
+// given method calls. Omitted when absent — e.g. a direct browser-session
+// call with no upstream run_id — exactly as every other optional header
+// here already behaves.
+function internalFetch(input: string, init: RequestInit = {}, traceId?: string | null): Promise<Response> {
+  const identityHeader = {
+    "x-identity-assertion": signIdentityAssertion(
+      { sub: "aps-platform", type: "service" as const, enterpriseId: MANUFACTURING_ENTERPRISE_ID, aud: "aps-internal" },
+      process.env.INTERNAL_SERVICE_TOKEN ?? ""
+    ),
+  };
+  const traceHeader: Record<string, string> = traceId ? { "x-trace-id": traceId } : {};
+  return fetch(input, { ...init, headers: { ...init.headers, ...internalServiceHeaders(), ...identityHeader, ...traceHeader } });
 }
 
 const ROUTING_SERVICE_URL = process.env.ROUTING_SERVICE_URL ?? "http://localhost:4002";
@@ -42,12 +73,18 @@ class APSAgent {
     productName: string | null;
     quantity: number;
     configurationNotes: string | null;
+    idempotencyKey?: string | null;
+    traceId?: string | null;
   }) {
-    const { productId, productName, quantity, configurationNotes } = params;
+    const { productId, productName, quantity, configurationNotes, idempotencyKey, traceId } = params;
+    // Scoped to this call chain only — every internalFetch below in this
+    // method forwards the same traceId, without changing internalFetch's
+    // default behavior for every other method in this class.
+    const fetchWithTrace = (input: string, init?: RequestInit) => internalFetch(input, init, traceId);
 
     const [bomRes, routingRes] = await Promise.all([
-      internalFetch(`${ROUTING_SERVICE_URL}/boms/resolve?productId=${encodeURIComponent(productId)}`),
-      internalFetch(`${ROUTING_SERVICE_URL}/routings/resolve?productId=${encodeURIComponent(productId)}`),
+      fetchWithTrace(`${ROUTING_SERVICE_URL}/boms/resolve?productId=${encodeURIComponent(productId)}`),
+      fetchWithTrace(`${ROUTING_SERVICE_URL}/routings/resolve?productId=${encodeURIComponent(productId)}`),
     ]);
     const bom = bomRes.ok ? await bomRes.json() : null;
     const routing = routingRes.ok ? await routingRes.json() : null;
@@ -77,7 +114,7 @@ class APSAgent {
     const materials: Material[] = [];
     if (bom) {
       for (const line of bom.lines as { componentId: string; component: { family: string }; quantityPer: number }[]) {
-        const invRes = await internalFetch(`${INVENTORY_SERVICE_URL}/inventory?productId=${encodeURIComponent(line.componentId)}`);
+        const invRes = await fetchWithTrace(`${INVENTORY_SERVICE_URL}/inventory?productId=${encodeURIComponent(line.componentId)}`);
         const invRows = invRes.ok ? ((await invRes.json()) as { qtyUnrestricted: number }[]) : [];
         const available = invRows.reduce((sum, row) => sum + row.qtyUnrestricted, 0);
         const required = line.quantityPer * quantity;
@@ -100,9 +137,19 @@ class APSAgent {
         }))
       : [];
 
-    const orderRes = await internalFetch(`${ORDER_SERVICE_URL}/orders`, {
+    // Stage 03C Part B: forwards the agent-orchestrator's real, request-
+    // derived Idempotency-Key, when one was sent, so a timeout/retry of
+    // this same POST (this whole planProduction call has no retry logic
+    // of its own today, but a caller-level retry does happen at the
+    // graph.py layer) converges on one ProductionOrder instead of two.
+    // Omitted entirely for any caller that doesn't send one — order-service
+    // treats a missing header exactly as it always has.
+    const orderRes = await fetchWithTrace(`${ORDER_SERVICE_URL}/orders`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        ...(idempotencyKey ? { "idempotency-key": idempotencyKey } : {}),
+      },
       body: JSON.stringify({
         plantId: MANUFACTURING_PLANT_ID,
         productId,
@@ -114,7 +161,7 @@ class APSAgent {
     const order = await orderRes.json();
     const productionOrderId = order.id as string;
 
-    const schedRes = await internalFetch(`${SCHEDULING_SERVICE_URL}/scheduling/what-if`, {
+    const schedRes = await fetchWithTrace(`${SCHEDULING_SERVICE_URL}/scheduling/what-if`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ plantId: MANUFACTURING_PLANT_ID, scope: "ALL", mode: "FORWARD" }),
@@ -126,7 +173,7 @@ class APSAgent {
     const opById = new Map(routingOperations.map((o) => [o.operation_id, o]));
     const simulatedOperations = [];
     for (const op of mySimOps) {
-      const machineRes = await internalFetch(`${MACHINE_SERVICE_URL}/machines/${op.machineId}`);
+      const machineRes = await fetchWithTrace(`${MACHINE_SERVICE_URL}/machines/${op.machineId}`);
       const machine = machineRes.ok ? await machineRes.json() : null;
       const routingOp = opById.get(op.routingOperationId);
       simulatedOperations.push({
@@ -165,14 +212,14 @@ class APSAgent {
       let globalVendors: { id: string; name: string; leadTimeDays: number }[] | null = null;
       for (const m of materials) {
         if (m.shortage <= 0) continue;
-        const perComponentRes = await internalFetch(`${INVENTORY_SERVICE_URL}/vendors?productId=${encodeURIComponent(m.component_id)}`);
+        const perComponentRes = await fetchWithTrace(`${INVENTORY_SERVICE_URL}/vendors?productId=${encodeURIComponent(m.component_id)}`);
         const perComponentVendors = perComponentRes.ok
           ? ((await perComponentRes.json()) as { id: string; name: string; leadTimeDays: number }[])
           : [];
         let vendor = perComponentVendors[0];
         if (!vendor) {
           if (globalVendors === null) {
-            const vendorsRes = await internalFetch(`${INVENTORY_SERVICE_URL}/vendors`);
+            const vendorsRes = await fetchWithTrace(`${INVENTORY_SERVICE_URL}/vendors`);
             globalVendors = vendorsRes.ok ? ((await vendorsRes.json()) as { id: string; name: string; leadTimeDays: number }[]) : [];
           }
           vendor = globalVendors[0]; // already sorted by leadTimeDays asc (inventory-service's GET /vendors)

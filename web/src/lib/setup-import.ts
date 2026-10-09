@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 import { matchColumnsToFields, type FieldMapping } from "@/lib/fuzzy-match";
 import { ENTITY_TYPES, type EntityType } from "@/lib/entity-types";
 import { internalServiceHeaders } from "@aps/shared/serviceAuth";
+import { signIdentityAssertion } from "@aps/shared/identity";
+import { auth } from "@/lib/auth";
 
 export { ENTITY_TYPES, type EntityType };
 
@@ -208,10 +210,24 @@ const CLASSIFICATION_FLOOR = 0.4;
 export type ImportRowError = { sheet: string; row: number; message: string };
 export type ImportSheetResult = { sheet: string; imported: number; errors: ImportRowError[] };
 
+// Stage 02 (Tenant Isolation + Service Identity): order-service's
+// /customers and /orders routes now require a verified identity assertion
+// (see web/src/lib/services.ts's identical fix) — minted here the same
+// way, from the already-verified NextAuth session, never from anything
+// caller-supplied.
 async function postJSON(url: string, body: unknown): Promise<Record<string, unknown>> {
+  const session = await auth();
+  const identityHeader: Record<string, string> = session?.user?.enterpriseId
+    ? {
+        "x-identity-assertion": signIdentityAssertion(
+          { sub: session.user.id, type: "user" as const, role: session.user.role, enterpriseId: session.user.enterpriseId, aud: "aps-internal" },
+          process.env.INTERNAL_SERVICE_TOKEN ?? ""
+        ),
+      }
+    : {};
   const response = await fetch(url, {
     method: "POST",
-    headers: { "content-type": "application/json", ...internalServiceHeaders() },
+    headers: { "content-type": "application/json", ...internalServiceHeaders(), ...identityHeader },
     body: JSON.stringify(body),
   });
   const data = await response.json();

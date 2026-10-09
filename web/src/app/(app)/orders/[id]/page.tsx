@@ -140,6 +140,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                   <th className="px-3 py-2">Status</th>
                   <th className="px-3 py-2">Promised</th>
                   <th className="px-3 py-2">Execution</th>
+                  <th className="px-3 py-2">Reason</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -158,6 +159,7 @@ export default async function OrderDetailPage({ params }: { params: Promise<{ id
                           ? `${line.vendorName ? `${line.vendorName} — ` : ""}${line.executionReference}`
                           : "—"}
                     </td>
+                    <td className="px-3 py-2 text-muted">{line.reason ?? "—"}</td>
                   </tr>
                 ))}
               </tbody>

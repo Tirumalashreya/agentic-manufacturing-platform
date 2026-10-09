@@ -76,13 +76,39 @@ export default async function DashboardPage({
       fetchShortages(),
     ]);
 
-  const atRiskCount = atRiskOrders.filter((order) => {
-    const dueDate = order.salesOrder?.dueDate ?? null;
-    return order.scheduledOperations.some((op) => {
-      const status = computeLatenessStatus(op.scheduledEnd, dueDate, op.actualEnd);
-      return status === "LATE" || status === "AT_RISK";
+  const atRiskOrderIds = atRiskOrders
+    .filter((order) => {
+      const dueDate = order.salesOrder?.dueDate ?? null;
+      return order.scheduledOperations.some((op) => {
+        const status = computeLatenessStatus(op.scheduledEnd, dueDate, op.actualEnd);
+        return status === "LATE" || status === "AT_RISK";
+      });
+    })
+    .map((order) => order.id);
+  const atRiskCount = atRiskOrderIds.length;
+
+  // Daily Ops Brief (Phase 3+, agreed with the user): deterministic
+  // suggestions over the exact real data already fetched above for the
+  // metric cards — no LLM, nothing invented. Each one names a specific
+  // real record and links straight to it, matching the master prompt's
+  // own "suggested actions must be traceable to actual data" requirement.
+  const suggestedActions: { text: string; href: string }[] = [];
+  for (const id of atRiskOrderIds.slice(0, 3)) {
+    suggestedActions.push({ text: `Review at-risk order #${id.slice(-8)}`, href: `/orders/${id}` });
+  }
+  if (shortagesResult.ok && shortagesResult.data.length > 0) {
+    const first = shortagesResult.data[0];
+    suggestedActions.push({
+      text: `Expedite material shortage — ${first.productId.slice(-8)}`,
+      href: `/materials?plantId=${selectedPlant?.id ?? ""}`,
     });
-  }).length;
+  }
+  if (exceptionsCount > 0) {
+    suggestedActions.push({
+      text: `Review ${exceptionsCount} open exception${exceptionsCount === 1 ? "" : "s"}`,
+      href: `/recovery?plantId=${selectedPlant?.id ?? ""}`,
+    });
+  }
 
   const bottleneckMachine = bottleneck?.bottleneck
     ? await prisma.machine.findUnique({ where: { id: bottleneck.bottleneck.machineId }, select: { id: true, name: true } })
@@ -162,6 +188,23 @@ export default async function DashboardPage({
               </Link>
             </div>
           </div>
+
+          {/* Suggested actions — Daily Ops Brief, real + deterministic, see
+          the computation above. */}
+          {suggestedActions.length > 0 && (
+            <Card>
+              <p className="text-xs font-semibold uppercase tracking-wide text-muted">Suggested actions</p>
+              <ul className="mt-2 flex flex-col gap-1.5">
+                {suggestedActions.map((action, i) => (
+                  <li key={i}>
+                    <Link href={action.href} className="text-sm text-brand-600 hover:underline">
+                      {i + 1}. {action.text} →
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
 
           {/* Planning */}
           <div>

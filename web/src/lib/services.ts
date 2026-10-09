@@ -5,6 +5,8 @@
 // rather than bypassing it, so the UI genuinely exercises the architecture.
 
 import { internalServiceHeaders } from "@aps/shared/serviceAuth";
+import { signIdentityAssertion } from "@aps/shared/identity";
+import { auth } from "@/lib/auth";
 
 // Auth/Authz hardening, Phase 1 (Finding 1.1): every one of these backend
 // services now requires the shared internal-service credential on every
@@ -12,8 +14,35 @@ import { internalServiceHeaders } from "@aps/shared/serviceAuth";
 // (all Server Components/Route Handlers — never the browser), so wrapping
 // the global fetch here, once, covers every call site below without
 // hand-editing each one's headers individually.
-function internalFetch(input: string, init: RequestInit = {}): Promise<Response> {
-  return fetch(input, { ...init, headers: { ...init.headers, ...internalServiceHeaders() } });
+//
+// Stage 02 (Tenant Isolation + Service Identity): also mints a real,
+// signed identity assertion from the ALREADY-VERIFIED NextAuth session
+// (never from any client-supplied field) and attaches it as
+// x-identity-assertion. order-service/inventory-service verify this
+// independently of the shared internal token — the rest of the services
+// below simply ignore the extra header, so this is safe to attach
+// unconditionally rather than special-casing which call sites need it.
+// `aud` is the shared "aps-internal" audience every Stage 02-protected
+// route this round checks against (see INTERNAL_IDENTITY_AUDIENCE in
+// serviceAuth.ts) — all of today's protected services share one internal
+// trust domain already (the same INTERNAL_SERVICE_TOKEN), so one audience
+// value is a deliberate simplification, not per-service replay protection;
+// a caller with no session at all (a page genuinely public per its own
+// route) sends no assertion, and those services correctly reject with 401
+// rather than guessing a tenant.
+async function identityAssertionHeader(): Promise<Record<string, string>> {
+  const session = await auth();
+  if (!session?.user?.enterpriseId) return {};
+  const token = signIdentityAssertion(
+    { sub: session.user.id, type: "user", role: session.user.role, enterpriseId: session.user.enterpriseId, aud: "aps-internal" },
+    process.env.INTERNAL_SERVICE_TOKEN ?? ""
+  );
+  return { "x-identity-assertion": token };
+}
+
+async function internalFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  const identityHeader = await identityAssertionHeader();
+  return fetch(input, { ...init, headers: { ...init.headers, ...internalServiceHeaders(), ...identityHeader } });
 }
 
 const ORDER_SERVICE_URL = process.env.ORDER_SERVICE_URL ?? "http://localhost:4001";
