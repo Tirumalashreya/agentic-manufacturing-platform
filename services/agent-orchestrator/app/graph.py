@@ -1647,7 +1647,15 @@ async def fulfillment_decision_node(state: SalesState):
 # Billing Agent decides terms/notes, erp.create_invoice() computes the amount
 # deterministically. Only ever called for a quantity that's really been
 # delivered — MTO/CTO's produced quantity never reaches this.
-async def _deliver_and_bill(state: SalesState, quantity: int) -> dict:
+async def _deliver_and_bill(state: SalesState, quantity: int, idempotency_key: str | None = None) -> dict:
+    # Scrap-aware completion: mes-integration's BILLING step passes a
+    # stable, step-scoped key (`{productionOrderId}:BILLING:billing`) so a
+    # retried completion can't create a second real delivery/invoice —
+    # reuses the SAME IdempotencyKeys-sheet mechanism create_delivery/
+    # create_invoice already have (6 existing callers across this file),
+    # not a new one. The one key is safe to pass to both calls below
+    # unchanged: get_idempotent_result scopes by (key, operation), so
+    # "create_delivery" and "create_invoice" never collide on it.
     delivery = erp.create_delivery(
         sales_order_id=state["sales_order_id"],
         customer_id=state["customer_id"],
@@ -1656,6 +1664,7 @@ async def _deliver_and_bill(state: SalesState, quantity: int) -> dict:
         product_name=state["product_name"],
         quantity=quantity,
         requested_delivery_date=state.get("requested_deadline"),
+        idempotency_key=idempotency_key,
     )
     if not delivery["created"]:
         return {
@@ -1682,6 +1691,7 @@ async def _deliver_and_bill(state: SalesState, quantity: int) -> dict:
         unit_price=state["price"],
         payment_terms_days=decision.payment_terms_days,
         notes=decision.notes,
+        idempotency_key=idempotency_key,
     )
 
     if not invoice["created"]:
@@ -2032,6 +2042,7 @@ async def _execute_production_plan(state: SalesState, production_plan: dict | No
     # portion goes through this leg, the rest is already delivered/billed
     # by _deliver_and_bill's stock leg, so billing this leg against the
     # full order quantity would double-bill it.
+    production_fulfillment_line_id = (state.get("fulfillment_line_ids") or {}).get("PRODUCTION")
     billing_context = {
         "salesOrderId": state.get("sales_order_id"),
         "customerId": state.get("customer_id"),
@@ -2045,9 +2056,15 @@ async def _execute_production_plan(state: SalesState, production_plan: dict | No
         # which sets ProductionOrder.salesOrderId from this alongside the
         # existing metadata write.
         "realSalesOrderId": state.get("real_sales_order_id"),
+        # Scrap-aware completion: the real FulfillmentLine this production
+        # leg satisfies, when one exists — without this, mes-integration's
+        # completion orchestration has no way to find which FulfillmentLine
+        # to update with the actual produced quantity (the FK only points
+        # the other way, FulfillmentLine -> ProductionOrder, and metadata
+        # is the one place Python's own ids reach the TS side).
+        "fulfillmentLineId": production_fulfillment_line_id,
     }
     commit = await _commit_production_plan(production_plan["production_order_id"], production_plan["plant_id"], billing_context)
-    production_fulfillment_line_id = (state.get("fulfillment_line_ids") or {}).get("PRODUCTION")
     if production_fulfillment_line_id:
         try:
             # Order Orchestration (Phase 2): the real, already-scheduled

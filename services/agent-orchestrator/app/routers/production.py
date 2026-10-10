@@ -9,11 +9,22 @@ quantity) was written onto the order's metadata at approval time by
 _commit_production_plan (see app/graph.py) — without that write there is
 nothing here to bill against, which is the deliberate, honest response
 below rather than a guessed default.
+
+Scrap-aware completion: mes-integration's BILLING step now sends the
+order's real actual-good-units (never the planned quantity) in the
+request body, plus an Idempotency-Key header — forwarded straight through
+to _deliver_and_bill, which forwards it to erp.create_delivery/
+create_invoice. Those two already had full idempotency_key support (used
+by 6 other real operations in this codebase, via
+app/tools/idempotency_tools.py's IdempotencyKeys-sheet mechanism) before
+this change — this endpoint simply wasn't passing one through yet. No new
+idempotency mechanism was built for this; a retry is protected the same
+way every other ERP write in this file already is.
 """
 import asyncio
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from app.graph import _deliver_and_bill
 from app.integrations import manufacturing_services as mfg
@@ -24,7 +35,11 @@ router = APIRouter(prefix="/production-orders")
 
 
 @router.post("/{ts_order_id}/complete")
-async def complete_production_order(ts_order_id: str):
+async def complete_production_order(ts_order_id: str, request: Request):
+    body = await request.json() if await request.body() else {}
+    requested_actual_good_units = body.get("actualGoodUnits")
+    idempotency_key = request.headers.get("idempotency-key")
+
     order = await mfg.get_production_order(ts_order_id)
     metadata = order.get("metadata") or {}
     sales_order_id = metadata.get("salesOrderId")
@@ -36,7 +51,12 @@ async def complete_production_order(ts_order_id: str):
         # Nothing to bill, and that's not an error.
         return {"billed": False, "reason": "no sales_order_id on this production order's metadata"}
 
-    quantity = metadata.get("quantity") or order.get("quantity")
+    # Scrap-aware billing: the actual good quantity this order really
+    # produced — never the planned quantity metadata carried at approval
+    # time — is what gets delivered and invoiced. Falls back to planned
+    # only when no actual was supplied at all (a caller outside
+    # mes-integration's own completion flow, preserving prior behavior).
+    quantity = requested_actual_good_units if requested_actual_good_units is not None else (metadata.get("quantity") or order.get("quantity"))
     state = {
         "sales_order_id": sales_order_id,
         "customer_id": metadata.get("customerId"),
@@ -48,7 +68,7 @@ async def complete_production_order(ts_order_id: str):
         "requested_deadline": None,
     }
 
-    billing_update = await _deliver_and_bill(state, quantity)
+    billing_update = await _deliver_and_bill(state, quantity, idempotency_key=idempotency_key)
 
     return {
         "billed": bool(billing_update["invoice_id"]),
