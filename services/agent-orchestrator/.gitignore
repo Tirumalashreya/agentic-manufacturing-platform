@@ -5,3 +5,4 @@ __pycache__/
 .env
 .pytest_cache/
 *.test_session_backup
+*.idempotency.lock

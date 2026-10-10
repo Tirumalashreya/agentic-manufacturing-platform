@@ -2,7 +2,7 @@
 import datetime
 import openpyxl
 
-from app.tools.idempotency_tools import get_idempotent_result, record_idempotent_result
+from app.tools.idempotency_tools import get_idempotent_result, idempotency_lock, record_idempotent_result
 
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
@@ -85,6 +85,7 @@ def find_delivery_by_sales_order(sales_order_id: str) -> dict | None:
 # Only ever called for a quantity that's actually been reserved from real
 # stock — MTS in full, HYBRID's stock leg. MTO/CTO's produced quantity has
 # no delivery path yet since nothing is actually finished.
+@idempotency_lock()
 def create_delivery(
     sales_order_id: str,
     customer_id: str | None,

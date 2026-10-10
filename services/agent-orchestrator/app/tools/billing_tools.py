@@ -2,7 +2,7 @@
 import datetime
 import openpyxl
 
-from app.tools.idempotency_tools import get_idempotent_result, record_idempotent_result
+from app.tools.idempotency_tools import get_idempotent_result, idempotency_lock, record_idempotent_result
 
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
@@ -43,6 +43,7 @@ def _next_invoice_id(sheet) -> str:
     return f"INV{max_num + 1:04d}"
 
 
+@idempotency_lock()
 def create_invoice(
     sales_order_id: str,
     delivery_id: str,
