@@ -2,7 +2,7 @@ process.env.SERVICE_NAME = "mes-integration";
 
 import { createApp, registerErrorHandler, logger, internalServiceHeaders } from "@aps/shared";
 import { signIdentityAssertion } from "@aps/shared/identity";
-import { prisma } from "@aps/domain";
+import { prisma, type Prisma } from "@aps/domain";
 
 // Split out of index.ts (same pattern as inventory-service/order-service's
 // own Stage 01 split) so vitest+supertest can exercise this app without
@@ -58,17 +58,20 @@ type ClaimedOrder = {
   actualTotalUnits: number | null;
 };
 
-// The atomic gate: only the caller whose UPDATE actually flips the status
-// gets a row back. Every other concurrent/duplicate completion signal for
-// the same order gets zero rows and does nothing further — this is what
-// makes "two completion requests for the same operation" produce exactly
-// one set of downstream effects, not a race between two full attempts.
-async function claimProductionOrderCompletion(
+type Db = Prisma.TransactionClient | typeof prisma;
+
+// The atomic gate itself — accepts either the module-level client or a
+// transaction client, so it can be reused both standalone (see
+// claimProductionOrderCompletion below, kept for its own existing unit
+// tests) and as one statement inside the larger transaction
+// claimCompletionAndPlanSteps wraps.
+async function runCompletionCAS(
+  db: Db,
   productionOrderId: string,
   actualGoodUnits: number,
   actualTotalUnits: number
 ): Promise<ClaimedOrder | null> {
-  const rows = await prisma.$queryRaw<ClaimedOrder[]>`
+  const rows = await db.$queryRaw<ClaimedOrder[]>`
     UPDATE "ProductionOrder"
     SET status = 'COMPLETED', "actualGoodUnits" = ${actualGoodUnits}, "actualTotalUnits" = ${actualTotalUnits}, "updatedAt" = now()
     WHERE id = ${productionOrderId} AND status != 'COMPLETED'
@@ -77,20 +80,41 @@ async function claimProductionOrderCompletion(
   return rows[0] ?? null;
 }
 
+// Only the caller whose UPDATE actually flips the status gets a row back.
+// Every other concurrent/duplicate completion signal for the same order
+// gets zero rows and does nothing further — this is what makes "two
+// completion requests for the same operation" produce exactly one set of
+// downstream effects, not a race between two full attempts. Kept as its
+// own standalone, directly-testable function (used by this file's own
+// concurrency unit tests); the real /mes/completions handler calls
+// claimCompletionAndPlanSteps below instead, which wraps this same CAS
+// together with step planning in one transaction.
+async function claimProductionOrderCompletion(
+  productionOrderId: string,
+  actualGoodUnits: number,
+  actualTotalUnits: number
+): Promise<ClaimedOrder | null> {
+  return runCompletionCAS(prisma, productionOrderId, actualGoodUnits, actualTotalUnits);
+}
+
 type PlannedStep = { stepType: "GOODS_ISSUE" | "GOODS_RECEIPT" | "FULFILLMENT_UPDATE" | "BILLING"; stepKey: string };
 
 // Determined once, right after the CAS wins — a real plant code (location)
 // is required for the two inventory steps, same precondition the original
 // backflush code already had; FULFILLMENT_UPDATE/BILLING never depended
-// on it and still don't.
-async function planCompletionSteps(order: ClaimedOrder): Promise<PlannedStep[]> {
+// on it and still don't. Accepts either client (defaults to the
+// module-level one) so it works both as its own standalone call (this
+// file's unit tests call it directly) and inside claimCompletionAndPlanSteps's
+// transaction, reading through `tx` so nothing it sees can be from a
+// snapshot inconsistent with the CAS that just ran in the same transaction.
+async function planCompletionSteps(order: ClaimedOrder, db: Db = prisma): Promise<PlannedStep[]> {
   const steps: PlannedStep[] = [];
 
-  const plant = await prisma.plant.findUnique({ where: { id: order.plantId }, select: { code: true } });
+  const plant = await db.plant.findUnique({ where: { id: order.plantId }, select: { code: true } });
   if (plant?.code) {
     const bom = order.bomId
-      ? await prisma.bOM.findUnique({ where: { id: order.bomId }, include: { lines: true } })
-      : await prisma.bOM.findFirst({ where: { productId: order.productId }, include: { lines: true } });
+      ? await db.bOM.findUnique({ where: { id: order.bomId }, include: { lines: true } })
+      : await db.bOM.findFirst({ where: { productId: order.productId }, include: { lines: true } });
     if (bom) {
       for (const line of bom.lines) {
         // Keyed by the specific BOM line, not componentId — two lines can
@@ -113,7 +137,48 @@ async function planCompletionSteps(order: ClaimedOrder): Promise<PlannedStep[]> 
   return steps;
 }
 
-async function claimStep(stepId: string): Promise<boolean> {
+// The real atomic entry point (independent-audit P0 fix): the CAS and the
+// insertion of this order's ProductionCompletionStep rows now happen
+// inside ONE transaction, not two separate statements. Previously a crash
+// or thrown error between them (e.g. planCompletionSteps failing to read
+// the BOM) would leave the ProductionOrder permanently COMPLETED with
+// zero steps ever created — the CAS's own WHERE clause then refuses every
+// future completion signal for that order, and retry-completion-steps
+// finds nothing to retry, silently abandoning it forever. Wrapping both
+// in prisma.$transaction means a failure here rolls back the status
+// change too, so the order simply stays eligible to be completed again
+// (by the next real /mes/completions signal, not a half-done one).
+async function claimCompletionAndPlanSteps(
+  productionOrderId: string,
+  actualGoodUnits: number,
+  actualTotalUnits: number
+): Promise<ClaimedOrder | null> {
+  return prisma.$transaction(async (tx) => {
+    const claimed = await runCompletionCAS(tx, productionOrderId, actualGoodUnits, actualTotalUnits);
+    if (!claimed) return null;
+
+    const planned = await planCompletionSteps(claimed, tx);
+    if (planned.length > 0) {
+      await tx.productionCompletionStep.createMany({
+        data: planned.map((p) => ({ productionOrderId: claimed.id, stepType: p.stepType, stepKey: p.stepKey })),
+        skipDuplicates: true,
+      });
+    }
+    return claimed;
+  });
+}
+
+// Lease fencing (independent-audit P1 fix): claimStep now returns the
+// winning claim's own `attempts` value as a fencing token, not just a
+// boolean. Without this, a worker whose lease expired (e.g. a stalled
+// network call past the 5-minute window) could still call succeedStep/
+// failStep by plain stepId after a SECOND worker had already reclaimed
+// and started processing the same step — the stale worker's late write
+// would silently clobber whatever the real, current worker was doing or
+// had already recorded. `attempts` already increments atomically on every
+// successful claim (see the UPDATE below), so it's already exactly the
+// right monotonically-increasing ownership token — no new column needed.
+async function claimStep(stepId: string): Promise<number | null> {
   // The lease cutoff is computed in JS and passed as a plain timestamp
   // parameter, rather than built as `now() - (N * interval '1 minute')`
   // inside the query — parameterizing a numeric multiplier against an
@@ -122,22 +187,42 @@ async function claimStep(stepId: string): Promise<boolean> {
   // query reclaimed even a *fresh* IN_PROGRESS claim). A plain `<
   // $cutoff` comparison has no such ambiguity.
   const leaseCutoff = new Date(Date.now() - LEASE_WINDOW_MINUTES * 60_000);
-  const rows = await prisma.$queryRaw<{ id: string }[]>`
+  const rows = await prisma.$queryRaw<{ id: string; attempts: number }[]>`
     UPDATE "ProductionCompletionStep"
     SET status = 'IN_PROGRESS', attempts = attempts + 1, "claimedAt" = now(), "updatedAt" = now()
     WHERE id = ${stepId}
       AND (status IN ('PENDING', 'FAILED') OR (status = 'IN_PROGRESS' AND "claimedAt" < ${leaseCutoff}))
-    RETURNING id
+    RETURNING id, attempts
   `;
-  return rows.length > 0;
+  return rows[0]?.attempts ?? null;
 }
 
-async function succeedStep(stepId: string, resultRef: string | null): Promise<void> {
-  await prisma.productionCompletionStep.update({ where: { id: stepId }, data: { status: "SUCCEEDED", resultRef, lastError: null } });
+// Both writes are now conditional on the caller still holding the lease
+// it was granted (id AND attempts both match, AND the row is still
+// IN_PROGRESS) — a stale worker's fenceToken no longer matches once
+// another worker has reclaimed the step (that reclaim bumped attempts),
+// so its write affects zero rows instead of overwriting the real
+// outcome. Zero rows is handled safely and observably: logged, not
+// thrown — the stale worker's own request still completes normally, it
+// just didn't get to decide this step's fate.
+async function succeedStep(stepId: string, fenceToken: number, resultRef: string | null): Promise<void> {
+  const result = await prisma.productionCompletionStep.updateMany({
+    where: { id: stepId, attempts: fenceToken, status: "IN_PROGRESS" },
+    data: { status: "SUCCEEDED", resultRef, lastError: null },
+  });
+  if (result.count === 0) {
+    logger.warn("succeedStep lost its lease — another worker reclaimed this step before this write; discarded, not applied", { stepId, fenceToken });
+  }
 }
 
-async function failStep(stepId: string, error: string): Promise<void> {
-  await prisma.productionCompletionStep.update({ where: { id: stepId }, data: { status: "FAILED", lastError: error } });
+async function failStep(stepId: string, fenceToken: number, error: string): Promise<void> {
+  const result = await prisma.productionCompletionStep.updateMany({
+    where: { id: stepId, attempts: fenceToken, status: "IN_PROGRESS" },
+    data: { status: "FAILED", lastError: error },
+  });
+  if (result.count === 0) {
+    logger.warn("failStep lost its lease — another worker reclaimed this step before this write; discarded, not applied", { stepId, fenceToken });
+  }
 }
 
 async function executeGoodsIssue(order: ClaimedOrder, stepKey: string): Promise<string> {
@@ -199,8 +284,8 @@ async function executeBilling(order: ClaimedOrder): Promise<string> {
 }
 
 async function runStep(order: ClaimedOrder, step: { id: string; stepType: string; stepKey: string }): Promise<void> {
-  const won = await claimStep(step.id);
-  if (!won) return; // another worker already has (or just finished) this step
+  const fenceToken = await claimStep(step.id);
+  if (fenceToken === null) return; // another worker already has (or just finished) this step
 
   try {
     let resultRef: string;
@@ -220,9 +305,9 @@ async function runStep(order: ClaimedOrder, step: { id: string; stepType: string
       default:
         throw new Error(`Unknown step type ${step.stepType}`);
     }
-    await succeedStep(step.id, resultRef);
+    await succeedStep(step.id, fenceToken, resultRef);
   } catch (error) {
-    await failStep(step.id, String(error));
+    await failStep(step.id, fenceToken, String(error));
     logger.error("Production completion step failed", { productionOrderId: order.id, stepType: step.stepType, stepKey: step.stepKey, error: String(error) });
   }
 }
@@ -388,22 +473,15 @@ app.post("/mes/completions", async (req, res) => {
 
     // The atomic gate (concurrent-duplicate-completion protection): only
     // one of any number of simultaneous completion signals for this order
-    // wins this UPDATE. Everyone else gets null back and does nothing
-    // further — no steps are planned, no side effects attempted.
-    const claimed = await claimProductionOrderCompletion(updated.productionOrderId, actualGoodUnits, actualTotalUnits);
+    // wins the CAS inside claimCompletionAndPlanSteps's transaction.
+    // Everyone else gets null back and does nothing further — no steps
+    // are planned, no side effects attempted. The step rows are planned
+    // and inserted in that SAME transaction (not here, and not as a
+    // separate statement after it) — see that function's own comment for
+    // why a crash between the two used to be able to abandon an order
+    // permanently COMPLETED with no steps and no way to retry.
+    const claimed = await claimCompletionAndPlanSteps(updated.productionOrderId, actualGoodUnits, actualTotalUnits);
     if (claimed) {
-      const planned = await planCompletionSteps(claimed);
-      if (planned.length > 0) {
-        // Durability guarantee: every planned step's PENDING row is
-        // committed in the SAME transaction as nothing else being able to
-        // re-win the CAS above — by the time this insert lands, the
-        // obligation to attempt every one of these steps is permanent,
-        // even if the process crashes on the very next line.
-        await prisma.productionCompletionStep.createMany({
-          data: planned.map((p) => ({ productionOrderId: claimed.id, stepType: p.stepType, stepKey: p.stepKey })),
-          skipDuplicates: true,
-        });
-      }
       await attemptCompletionSteps(claimed.id);
     }
   }
@@ -466,6 +544,15 @@ app.get("/production-orders/completion-failures", async (_req, res) => {
 // Exported for direct unit testing of the completion-orchestration
 // internals (the CAS, step claim/lease, and dependency gating) without
 // needing every downstream service live — see app.test.ts.
-export { claimProductionOrderCompletion, claimStep, planCompletionSteps, attemptCompletionSteps, LEASE_WINDOW_MINUTES };
+export {
+  claimProductionOrderCompletion,
+  claimCompletionAndPlanSteps,
+  claimStep,
+  succeedStep,
+  failStep,
+  planCompletionSteps,
+  attemptCompletionSteps,
+  LEASE_WINDOW_MINUTES,
+};
 
 registerErrorHandler(app);

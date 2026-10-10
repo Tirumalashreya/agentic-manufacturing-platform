@@ -15,7 +15,16 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { randomUUID } from "node:crypto";
 import request from "supertest";
 import { prisma, type Prisma } from "@aps/domain";
-import { app, claimProductionOrderCompletion, claimStep, planCompletionSteps, attemptCompletionSteps } from "./app";
+import {
+  app,
+  claimProductionOrderCompletion,
+  claimCompletionAndPlanSteps,
+  claimStep,
+  succeedStep,
+  failStep,
+  planCompletionSteps,
+  attemptCompletionSteps,
+} from "./app";
 
 const AUTH_HEADER = { "x-internal-token": process.env.INTERNAL_SERVICE_TOKEN ?? "" };
 
@@ -173,19 +182,19 @@ describe("mes-integration — completion orchestration primitives (no downstream
       data: { productionOrderId: fixture.productionOrder.id, stepType: "GOODS_ISSUE", stepKey: "test-line" },
     });
     const results = await Promise.all([claimStep(step.id), claimStep(step.id)]);
-    expect(results.filter(Boolean)).toHaveLength(1);
+    expect(results.filter((r) => r !== null)).toHaveLength(1);
   });
 
-  it("claimStep: a stale IN_PROGRESS claim (worker crashed mid-step) is reclaimable after the lease window", async () => {
+  it("claimStep: a stale IN_PROGRESS claim (worker crashed mid-step) is reclaimable after the lease window, and returns a fence token", async () => {
     fixture = await buildFixture(randomUUID().slice(0, 8));
     const step = await prisma.productionCompletionStep.create({
       data: {
         productionOrderId: fixture.productionOrder.id, stepType: "GOODS_ISSUE", stepKey: "test-line",
-        status: "IN_PROGRESS", claimedAt: new Date(Date.now() - 10 * 60 * 1000), // 10 min ago, past the 5-min lease
+        status: "IN_PROGRESS", claimedAt: new Date(Date.now() - 10 * 60 * 1000), attempts: 1, // 10 min ago, past the 5-min lease
       },
     });
-    const won = await claimStep(step.id);
-    expect(won).toBe(true);
+    const fenceToken = await claimStep(step.id);
+    expect(fenceToken).toBe(2); // attempts incremented 1 -> 2 on reclaim, returned as the new owner's token
   });
 
   it("claimStep: a fresh IN_PROGRESS claim (within the lease window) is NOT reclaimable", async () => {
@@ -196,8 +205,113 @@ describe("mes-integration — completion orchestration primitives (no downstream
         status: "IN_PROGRESS", claimedAt: new Date(),
       },
     });
-    const won = await claimStep(step.id);
-    expect(won).toBe(false);
+    const fenceToken = await claimStep(step.id);
+    expect(fenceToken).toBeNull();
+  });
+
+  it("lease fencing (independent-audit P1 fix): Worker A's late success/failure after Worker B reclaims the step must not overwrite Worker B's outcome", async () => {
+    fixture = await buildFixture(randomUUID().slice(0, 8));
+    const step = await prisma.productionCompletionStep.create({
+      data: { productionOrderId: fixture.productionOrder.id, stepType: "GOODS_ISSUE", stepKey: "test-line" },
+    });
+
+    // Worker A claims first (fenceToken 1), then stalls (simulated — it
+    // just never calls succeedStep/failStep yet).
+    const workerAToken = await claimStep(step.id);
+    expect(workerAToken).toBe(1);
+
+    // Worker A's lease expires; Worker B reclaims the SAME step and
+    // actually finishes it first.
+    await prisma.productionCompletionStep.update({
+      where: { id: step.id },
+      data: { claimedAt: new Date(Date.now() - 10 * 60 * 1000) },
+    });
+    const workerBToken = await claimStep(step.id);
+    expect(workerBToken).toBe(2);
+    await succeedStep(step.id, workerBToken!, "worker-b-result");
+
+    const afterB = await prisma.productionCompletionStep.findUniqueOrThrow({ where: { id: step.id } });
+    expect(afterB.status).toBe("SUCCEEDED");
+    expect(afterB.resultRef).toBe("worker-b-result");
+
+    // Worker A's stalled call finally resolves and tries to record ITS
+    // OWN (stale) outcome — both a late success and a late failure must
+    // be no-ops against Worker B's already-recorded, correct result.
+    await succeedStep(step.id, workerAToken!, "worker-a-stale-result");
+    const afterStaleSuccess = await prisma.productionCompletionStep.findUniqueOrThrow({ where: { id: step.id } });
+    expect(afterStaleSuccess.status).toBe("SUCCEEDED");
+    expect(afterStaleSuccess.resultRef).toBe("worker-b-result"); // unchanged — A's stale write was discarded
+
+    await failStep(step.id, workerAToken!, "worker-a-stale-failure");
+    const afterStaleFailure = await prisma.productionCompletionStep.findUniqueOrThrow({ where: { id: step.id } });
+    expect(afterStaleFailure.status).toBe("SUCCEEDED"); // still SUCCEEDED — A's stale failure never applied either
+    expect(afterStaleFailure.resultRef).toBe("worker-b-result");
+  });
+});
+
+describe("mes-integration — claimCompletionAndPlanSteps atomicity (independent-audit P0 fix)", () => {
+  let fixture: Awaited<ReturnType<typeof buildFixture>>;
+
+  afterEach(async () => {
+    if (fixture) await cleanupFixture(fixture);
+  });
+
+  it("happy path: the CAS and step planning/insertion both commit together through the new atomic function", async () => {
+    fixture = await buildFixture(randomUUID().slice(0, 8), { withFulfillmentLine: true, withSalesOrder: true });
+    const claimed = await claimCompletionAndPlanSteps(fixture.productionOrder.id, 60, 100);
+    expect(claimed).not.toBeNull();
+
+    const order = await prisma.productionOrder.findUniqueOrThrow({ where: { id: fixture.productionOrder.id } });
+    expect(order.status).toBe("COMPLETED");
+    const steps = await prisma.productionCompletionStep.findMany({ where: { productionOrderId: fixture.productionOrder.id } });
+    expect(steps.length).toBeGreaterThan(0); // CAS committed AND steps exist — not one without the other
+    expect(steps.every((s) => s.status === "PENDING")).toBe(true);
+  });
+
+  // planCompletionSteps is deliberately defensive (missing BOM/plant data
+  // never throws, it just plans fewer steps) — there is no normal-data
+  // path to make claimCompletionAndPlanSteps's real step-planning throw,
+  // so a genuine fault-injection test of THAT exact function isn't
+  // possible through its public surface. What this test proves instead:
+  // the underlying prisma.$transaction mechanism the fix relies on
+  // — a raw-SQL CAS UPDATE followed by a second statement, wrapped in one
+  // interactive transaction — really does roll back the CAS when the
+  // later statement throws. This is the same query shape and the same
+  // transaction pattern claimCompletionAndPlanSteps uses; it is evidence
+  // for the mechanism, not a black-box test of that function itself —
+  // noted explicitly rather than overclaimed.
+  it("transaction mechanism proof: a CAS UPDATE followed by a throwing statement in the same prisma.$transaction is rolled back, not partially committed", async () => {
+    fixture = await buildFixture(randomUUID().slice(0, 8));
+
+    await expect(
+      prisma.$transaction(async (tx) => {
+        const rows = await tx.$queryRaw<{ id: string }[]>`
+          UPDATE "ProductionOrder"
+          SET status = 'COMPLETED', "updatedAt" = now()
+          WHERE id = ${fixture.productionOrder.id} AND status != 'COMPLETED'
+          RETURNING id
+        `;
+        expect(rows).toHaveLength(1); // the CAS itself did win, inside the transaction
+        throw new Error("simulated failure after the CAS, before commit");
+      })
+    ).rejects.toThrow("simulated failure after the CAS, before commit");
+
+    // The whole transaction rolled back — status must be exactly what it
+    // was before, not 'COMPLETED'. This is the guarantee Defect 1's fix
+    // depends on: claimCompletionAndPlanSteps uses this identical
+    // CAS-then-further-statement shape, just with real step planning/
+    // insertion as the "further statement" instead of a forced throw.
+    const order = await prisma.productionOrder.findUniqueOrThrow({ where: { id: fixture.productionOrder.id } });
+    expect(order.status).not.toBe("COMPLETED");
+    expect(order.status).toBe("IN_PROGRESS"); // the fixture's real starting status, untouched
+  });
+
+  it("a second completion signal after a successful claimCompletionAndPlanSteps correctly loses the CAS (no change from before this fix)", async () => {
+    fixture = await buildFixture(randomUUID().slice(0, 8));
+    const first = await claimCompletionAndPlanSteps(fixture.productionOrder.id, 100, 100);
+    expect(first).not.toBeNull();
+    const second = await claimCompletionAndPlanSteps(fixture.productionOrder.id, 100, 100);
+    expect(second).toBeNull();
   });
 });
 
