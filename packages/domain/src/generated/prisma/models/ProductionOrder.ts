@@ -30,12 +30,16 @@ export type ProductionOrderAvgAggregateOutputType = {
   quantity: number | null
   priorityScore: number | null
   manualOverride: number | null
+  actualGoodUnits: number | null
+  actualTotalUnits: number | null
 }
 
 export type ProductionOrderSumAggregateOutputType = {
   quantity: number | null
   priorityScore: number | null
   manualOverride: number | null
+  actualGoodUnits: number | null
+  actualTotalUnits: number | null
 }
 
 export type ProductionOrderMinAggregateOutputType = {
@@ -51,6 +55,8 @@ export type ProductionOrderMinAggregateOutputType = {
   status: $Enums.ProductionOrderStatus | null
   priorityScore: number | null
   manualOverride: number | null
+  actualGoodUnits: number | null
+  actualTotalUnits: number | null
   createdAt: Date | null
   updatedAt: Date | null
   enterpriseId: string | null
@@ -69,6 +75,8 @@ export type ProductionOrderMaxAggregateOutputType = {
   status: $Enums.ProductionOrderStatus | null
   priorityScore: number | null
   manualOverride: number | null
+  actualGoodUnits: number | null
+  actualTotalUnits: number | null
   createdAt: Date | null
   updatedAt: Date | null
   enterpriseId: string | null
@@ -88,6 +96,8 @@ export type ProductionOrderCountAggregateOutputType = {
   priorityScore: number
   manualOverride: number
   metadata: number
+  actualGoodUnits: number
+  actualTotalUnits: number
   createdAt: number
   updatedAt: number
   enterpriseId: number
@@ -99,12 +109,16 @@ export type ProductionOrderAvgAggregateInputType = {
   quantity?: true
   priorityScore?: true
   manualOverride?: true
+  actualGoodUnits?: true
+  actualTotalUnits?: true
 }
 
 export type ProductionOrderSumAggregateInputType = {
   quantity?: true
   priorityScore?: true
   manualOverride?: true
+  actualGoodUnits?: true
+  actualTotalUnits?: true
 }
 
 export type ProductionOrderMinAggregateInputType = {
@@ -120,6 +134,8 @@ export type ProductionOrderMinAggregateInputType = {
   status?: true
   priorityScore?: true
   manualOverride?: true
+  actualGoodUnits?: true
+  actualTotalUnits?: true
   createdAt?: true
   updatedAt?: true
   enterpriseId?: true
@@ -138,6 +154,8 @@ export type ProductionOrderMaxAggregateInputType = {
   status?: true
   priorityScore?: true
   manualOverride?: true
+  actualGoodUnits?: true
+  actualTotalUnits?: true
   createdAt?: true
   updatedAt?: true
   enterpriseId?: true
@@ -157,6 +175,8 @@ export type ProductionOrderCountAggregateInputType = {
   priorityScore?: true
   manualOverride?: true
   metadata?: true
+  actualGoodUnits?: true
+  actualTotalUnits?: true
   createdAt?: true
   updatedAt?: true
   enterpriseId?: true
@@ -263,6 +283,8 @@ export type ProductionOrderGroupByOutputType = {
   priorityScore: number
   manualOverride: number
   metadata: runtime.JsonValue | null
+  actualGoodUnits: number | null
+  actualTotalUnits: number | null
   createdAt: Date
   updatedAt: Date
   enterpriseId: string
@@ -305,6 +327,8 @@ export type ProductionOrderWhereInput = {
   priorityScore?: Prisma.FloatFilter<"ProductionOrder"> | number
   manualOverride?: Prisma.FloatFilter<"ProductionOrder"> | number
   metadata?: Prisma.JsonNullableFilter<"ProductionOrder">
+  actualGoodUnits?: Prisma.FloatNullableFilter<"ProductionOrder"> | number | null
+  actualTotalUnits?: Prisma.FloatNullableFilter<"ProductionOrder"> | number | null
   createdAt?: Prisma.DateTimeFilter<"ProductionOrder"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"ProductionOrder"> | Date | string
   enterpriseId?: Prisma.StringFilter<"ProductionOrder"> | string
@@ -318,6 +342,7 @@ export type ProductionOrderWhereInput = {
   blocks?: Prisma.ProductionOrderDependencyListRelationFilter
   inventoryMovements?: Prisma.InventoryMovementListRelationFilter
   fulfillmentLines?: Prisma.FulfillmentLineListRelationFilter
+  completionSteps?: Prisma.ProductionCompletionStepListRelationFilter
 }
 
 export type ProductionOrderOrderByWithRelationInput = {
@@ -334,6 +359,8 @@ export type ProductionOrderOrderByWithRelationInput = {
   priorityScore?: Prisma.SortOrder
   manualOverride?: Prisma.SortOrder
   metadata?: Prisma.SortOrderInput | Prisma.SortOrder
+  actualGoodUnits?: Prisma.SortOrderInput | Prisma.SortOrder
+  actualTotalUnits?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   enterpriseId?: Prisma.SortOrder
@@ -347,6 +374,7 @@ export type ProductionOrderOrderByWithRelationInput = {
   blocks?: Prisma.ProductionOrderDependencyOrderByRelationAggregateInput
   inventoryMovements?: Prisma.InventoryMovementOrderByRelationAggregateInput
   fulfillmentLines?: Prisma.FulfillmentLineOrderByRelationAggregateInput
+  completionSteps?: Prisma.ProductionCompletionStepOrderByRelationAggregateInput
 }
 
 export type ProductionOrderWhereUniqueInput = Prisma.AtLeast<{
@@ -366,6 +394,8 @@ export type ProductionOrderWhereUniqueInput = Prisma.AtLeast<{
   priorityScore?: Prisma.FloatFilter<"ProductionOrder"> | number
   manualOverride?: Prisma.FloatFilter<"ProductionOrder"> | number
   metadata?: Prisma.JsonNullableFilter<"ProductionOrder">
+  actualGoodUnits?: Prisma.FloatNullableFilter<"ProductionOrder"> | number | null
+  actualTotalUnits?: Prisma.FloatNullableFilter<"ProductionOrder"> | number | null
   createdAt?: Prisma.DateTimeFilter<"ProductionOrder"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"ProductionOrder"> | Date | string
   enterpriseId?: Prisma.StringFilter<"ProductionOrder"> | string
@@ -379,6 +409,7 @@ export type ProductionOrderWhereUniqueInput = Prisma.AtLeast<{
   blocks?: Prisma.ProductionOrderDependencyListRelationFilter
   inventoryMovements?: Prisma.InventoryMovementListRelationFilter
   fulfillmentLines?: Prisma.FulfillmentLineListRelationFilter
+  completionSteps?: Prisma.ProductionCompletionStepListRelationFilter
 }, "id">
 
 export type ProductionOrderOrderByWithAggregationInput = {
@@ -395,6 +426,8 @@ export type ProductionOrderOrderByWithAggregationInput = {
   priorityScore?: Prisma.SortOrder
   manualOverride?: Prisma.SortOrder
   metadata?: Prisma.SortOrderInput | Prisma.SortOrder
+  actualGoodUnits?: Prisma.SortOrderInput | Prisma.SortOrder
+  actualTotalUnits?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   enterpriseId?: Prisma.SortOrder
@@ -422,6 +455,8 @@ export type ProductionOrderScalarWhereWithAggregatesInput = {
   priorityScore?: Prisma.FloatWithAggregatesFilter<"ProductionOrder"> | number
   manualOverride?: Prisma.FloatWithAggregatesFilter<"ProductionOrder"> | number
   metadata?: Prisma.JsonNullableWithAggregatesFilter<"ProductionOrder">
+  actualGoodUnits?: Prisma.FloatNullableWithAggregatesFilter<"ProductionOrder"> | number | null
+  actualTotalUnits?: Prisma.FloatNullableWithAggregatesFilter<"ProductionOrder"> | number | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"ProductionOrder"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"ProductionOrder"> | Date | string
   enterpriseId?: Prisma.StringWithAggregatesFilter<"ProductionOrder"> | string
@@ -437,6 +472,8 @@ export type ProductionOrderCreateInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterprise: Prisma.EnterpriseCreateNestedOneWithoutProductionOrdersInput
@@ -449,6 +486,7 @@ export type ProductionOrderCreateInput = {
   blocks?: Prisma.ProductionOrderDependencyCreateNestedManyWithoutParentInput
   inventoryMovements?: Prisma.InventoryMovementCreateNestedManyWithoutProductionOrderInput
   fulfillmentLines?: Prisma.FulfillmentLineCreateNestedManyWithoutProductionOrderInput
+  completionSteps?: Prisma.ProductionCompletionStepCreateNestedManyWithoutProductionOrderInput
 }
 
 export type ProductionOrderUncheckedCreateInput = {
@@ -465,6 +503,8 @@ export type ProductionOrderUncheckedCreateInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterpriseId: string
@@ -473,6 +513,7 @@ export type ProductionOrderUncheckedCreateInput = {
   blocks?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutParentInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutProductionOrderInput
   fulfillmentLines?: Prisma.FulfillmentLineUncheckedCreateNestedManyWithoutProductionOrderInput
+  completionSteps?: Prisma.ProductionCompletionStepUncheckedCreateNestedManyWithoutProductionOrderInput
 }
 
 export type ProductionOrderUpdateInput = {
@@ -485,6 +526,8 @@ export type ProductionOrderUpdateInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutProductionOrdersNestedInput
@@ -497,6 +540,7 @@ export type ProductionOrderUpdateInput = {
   blocks?: Prisma.ProductionOrderDependencyUpdateManyWithoutParentNestedInput
   inventoryMovements?: Prisma.InventoryMovementUpdateManyWithoutProductionOrderNestedInput
   fulfillmentLines?: Prisma.FulfillmentLineUpdateManyWithoutProductionOrderNestedInput
+  completionSteps?: Prisma.ProductionCompletionStepUpdateManyWithoutProductionOrderNestedInput
 }
 
 export type ProductionOrderUncheckedUpdateInput = {
@@ -513,6 +557,8 @@ export type ProductionOrderUncheckedUpdateInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -521,6 +567,7 @@ export type ProductionOrderUncheckedUpdateInput = {
   blocks?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutParentNestedInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutProductionOrderNestedInput
   fulfillmentLines?: Prisma.FulfillmentLineUncheckedUpdateManyWithoutProductionOrderNestedInput
+  completionSteps?: Prisma.ProductionCompletionStepUncheckedUpdateManyWithoutProductionOrderNestedInput
 }
 
 export type ProductionOrderCreateManyInput = {
@@ -537,6 +584,8 @@ export type ProductionOrderCreateManyInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterpriseId: string
@@ -552,6 +601,8 @@ export type ProductionOrderUpdateManyMutationInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -570,6 +621,8 @@ export type ProductionOrderUncheckedUpdateManyInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -599,6 +652,8 @@ export type ProductionOrderCountOrderByAggregateInput = {
   priorityScore?: Prisma.SortOrder
   manualOverride?: Prisma.SortOrder
   metadata?: Prisma.SortOrder
+  actualGoodUnits?: Prisma.SortOrder
+  actualTotalUnits?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   enterpriseId?: Prisma.SortOrder
@@ -608,6 +663,8 @@ export type ProductionOrderAvgOrderByAggregateInput = {
   quantity?: Prisma.SortOrder
   priorityScore?: Prisma.SortOrder
   manualOverride?: Prisma.SortOrder
+  actualGoodUnits?: Prisma.SortOrder
+  actualTotalUnits?: Prisma.SortOrder
 }
 
 export type ProductionOrderMaxOrderByAggregateInput = {
@@ -623,6 +680,8 @@ export type ProductionOrderMaxOrderByAggregateInput = {
   status?: Prisma.SortOrder
   priorityScore?: Prisma.SortOrder
   manualOverride?: Prisma.SortOrder
+  actualGoodUnits?: Prisma.SortOrder
+  actualTotalUnits?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   enterpriseId?: Prisma.SortOrder
@@ -641,6 +700,8 @@ export type ProductionOrderMinOrderByAggregateInput = {
   status?: Prisma.SortOrder
   priorityScore?: Prisma.SortOrder
   manualOverride?: Prisma.SortOrder
+  actualGoodUnits?: Prisma.SortOrder
+  actualTotalUnits?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   enterpriseId?: Prisma.SortOrder
@@ -650,6 +711,8 @@ export type ProductionOrderSumOrderByAggregateInput = {
   quantity?: Prisma.SortOrder
   priorityScore?: Prisma.SortOrder
   manualOverride?: Prisma.SortOrder
+  actualGoodUnits?: Prisma.SortOrder
+  actualTotalUnits?: Prisma.SortOrder
 }
 
 export type ProductionOrderNullableScalarRelationFilter = {
@@ -920,6 +983,20 @@ export type ProductionOrderUpdateOneRequiredWithoutDependsOnNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.ProductionOrderUpdateToOneWithWhereWithoutDependsOnInput, Prisma.ProductionOrderUpdateWithoutDependsOnInput>, Prisma.ProductionOrderUncheckedUpdateWithoutDependsOnInput>
 }
 
+export type ProductionOrderCreateNestedOneWithoutCompletionStepsInput = {
+  create?: Prisma.XOR<Prisma.ProductionOrderCreateWithoutCompletionStepsInput, Prisma.ProductionOrderUncheckedCreateWithoutCompletionStepsInput>
+  connectOrCreate?: Prisma.ProductionOrderCreateOrConnectWithoutCompletionStepsInput
+  connect?: Prisma.ProductionOrderWhereUniqueInput
+}
+
+export type ProductionOrderUpdateOneRequiredWithoutCompletionStepsNestedInput = {
+  create?: Prisma.XOR<Prisma.ProductionOrderCreateWithoutCompletionStepsInput, Prisma.ProductionOrderUncheckedCreateWithoutCompletionStepsInput>
+  connectOrCreate?: Prisma.ProductionOrderCreateOrConnectWithoutCompletionStepsInput
+  upsert?: Prisma.ProductionOrderUpsertWithoutCompletionStepsInput
+  connect?: Prisma.ProductionOrderWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.ProductionOrderUpdateToOneWithWhereWithoutCompletionStepsInput, Prisma.ProductionOrderUpdateWithoutCompletionStepsInput>, Prisma.ProductionOrderUncheckedUpdateWithoutCompletionStepsInput>
+}
+
 export type ProductionOrderCreateNestedOneWithoutScheduledOperationsInput = {
   create?: Prisma.XOR<Prisma.ProductionOrderCreateWithoutScheduledOperationsInput, Prisma.ProductionOrderUncheckedCreateWithoutScheduledOperationsInput>
   connectOrCreate?: Prisma.ProductionOrderCreateOrConnectWithoutScheduledOperationsInput
@@ -960,6 +1037,8 @@ export type ProductionOrderCreateWithoutEnterpriseInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   plant: Prisma.PlantCreateNestedOneWithoutProductionOrdersInput
@@ -971,6 +1050,7 @@ export type ProductionOrderCreateWithoutEnterpriseInput = {
   blocks?: Prisma.ProductionOrderDependencyCreateNestedManyWithoutParentInput
   inventoryMovements?: Prisma.InventoryMovementCreateNestedManyWithoutProductionOrderInput
   fulfillmentLines?: Prisma.FulfillmentLineCreateNestedManyWithoutProductionOrderInput
+  completionSteps?: Prisma.ProductionCompletionStepCreateNestedManyWithoutProductionOrderInput
 }
 
 export type ProductionOrderUncheckedCreateWithoutEnterpriseInput = {
@@ -987,6 +1067,8 @@ export type ProductionOrderUncheckedCreateWithoutEnterpriseInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   scheduledOperations?: Prisma.ScheduledOperationUncheckedCreateNestedManyWithoutProductionOrderInput
@@ -994,6 +1076,7 @@ export type ProductionOrderUncheckedCreateWithoutEnterpriseInput = {
   blocks?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutParentInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutProductionOrderInput
   fulfillmentLines?: Prisma.FulfillmentLineUncheckedCreateNestedManyWithoutProductionOrderInput
+  completionSteps?: Prisma.ProductionCompletionStepUncheckedCreateNestedManyWithoutProductionOrderInput
 }
 
 export type ProductionOrderCreateOrConnectWithoutEnterpriseInput = {
@@ -1039,6 +1122,8 @@ export type ProductionOrderScalarWhereInput = {
   priorityScore?: Prisma.FloatFilter<"ProductionOrder"> | number
   manualOverride?: Prisma.FloatFilter<"ProductionOrder"> | number
   metadata?: Prisma.JsonNullableFilter<"ProductionOrder">
+  actualGoodUnits?: Prisma.FloatNullableFilter<"ProductionOrder"> | number | null
+  actualTotalUnits?: Prisma.FloatNullableFilter<"ProductionOrder"> | number | null
   createdAt?: Prisma.DateTimeFilter<"ProductionOrder"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"ProductionOrder"> | Date | string
   enterpriseId?: Prisma.StringFilter<"ProductionOrder"> | string
@@ -1054,6 +1139,8 @@ export type ProductionOrderCreateWithoutPlantInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterprise: Prisma.EnterpriseCreateNestedOneWithoutProductionOrdersInput
@@ -1065,6 +1152,7 @@ export type ProductionOrderCreateWithoutPlantInput = {
   blocks?: Prisma.ProductionOrderDependencyCreateNestedManyWithoutParentInput
   inventoryMovements?: Prisma.InventoryMovementCreateNestedManyWithoutProductionOrderInput
   fulfillmentLines?: Prisma.FulfillmentLineCreateNestedManyWithoutProductionOrderInput
+  completionSteps?: Prisma.ProductionCompletionStepCreateNestedManyWithoutProductionOrderInput
 }
 
 export type ProductionOrderUncheckedCreateWithoutPlantInput = {
@@ -1080,6 +1168,8 @@ export type ProductionOrderUncheckedCreateWithoutPlantInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterpriseId: string
@@ -1088,6 +1178,7 @@ export type ProductionOrderUncheckedCreateWithoutPlantInput = {
   blocks?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutParentInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutProductionOrderInput
   fulfillmentLines?: Prisma.FulfillmentLineUncheckedCreateNestedManyWithoutProductionOrderInput
+  completionSteps?: Prisma.ProductionCompletionStepUncheckedCreateNestedManyWithoutProductionOrderInput
 }
 
 export type ProductionOrderCreateOrConnectWithoutPlantInput = {
@@ -1126,6 +1217,8 @@ export type ProductionOrderCreateWithoutProductInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterprise: Prisma.EnterpriseCreateNestedOneWithoutProductionOrdersInput
@@ -1137,6 +1230,7 @@ export type ProductionOrderCreateWithoutProductInput = {
   blocks?: Prisma.ProductionOrderDependencyCreateNestedManyWithoutParentInput
   inventoryMovements?: Prisma.InventoryMovementCreateNestedManyWithoutProductionOrderInput
   fulfillmentLines?: Prisma.FulfillmentLineCreateNestedManyWithoutProductionOrderInput
+  completionSteps?: Prisma.ProductionCompletionStepCreateNestedManyWithoutProductionOrderInput
 }
 
 export type ProductionOrderUncheckedCreateWithoutProductInput = {
@@ -1152,6 +1246,8 @@ export type ProductionOrderUncheckedCreateWithoutProductInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterpriseId: string
@@ -1160,6 +1256,7 @@ export type ProductionOrderUncheckedCreateWithoutProductInput = {
   blocks?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutParentInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutProductionOrderInput
   fulfillmentLines?: Prisma.FulfillmentLineUncheckedCreateNestedManyWithoutProductionOrderInput
+  completionSteps?: Prisma.ProductionCompletionStepUncheckedCreateNestedManyWithoutProductionOrderInput
 }
 
 export type ProductionOrderCreateOrConnectWithoutProductInput = {
@@ -1198,6 +1295,8 @@ export type ProductionOrderCreateWithoutRoutingInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterprise: Prisma.EnterpriseCreateNestedOneWithoutProductionOrdersInput
@@ -1209,6 +1308,7 @@ export type ProductionOrderCreateWithoutRoutingInput = {
   blocks?: Prisma.ProductionOrderDependencyCreateNestedManyWithoutParentInput
   inventoryMovements?: Prisma.InventoryMovementCreateNestedManyWithoutProductionOrderInput
   fulfillmentLines?: Prisma.FulfillmentLineCreateNestedManyWithoutProductionOrderInput
+  completionSteps?: Prisma.ProductionCompletionStepCreateNestedManyWithoutProductionOrderInput
 }
 
 export type ProductionOrderUncheckedCreateWithoutRoutingInput = {
@@ -1224,6 +1324,8 @@ export type ProductionOrderUncheckedCreateWithoutRoutingInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterpriseId: string
@@ -1232,6 +1334,7 @@ export type ProductionOrderUncheckedCreateWithoutRoutingInput = {
   blocks?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutParentInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutProductionOrderInput
   fulfillmentLines?: Prisma.FulfillmentLineUncheckedCreateNestedManyWithoutProductionOrderInput
+  completionSteps?: Prisma.ProductionCompletionStepUncheckedCreateNestedManyWithoutProductionOrderInput
 }
 
 export type ProductionOrderCreateOrConnectWithoutRoutingInput = {
@@ -1270,6 +1373,8 @@ export type ProductionOrderCreateWithoutSalesOrderInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterprise: Prisma.EnterpriseCreateNestedOneWithoutProductionOrdersInput
@@ -1281,6 +1386,7 @@ export type ProductionOrderCreateWithoutSalesOrderInput = {
   blocks?: Prisma.ProductionOrderDependencyCreateNestedManyWithoutParentInput
   inventoryMovements?: Prisma.InventoryMovementCreateNestedManyWithoutProductionOrderInput
   fulfillmentLines?: Prisma.FulfillmentLineCreateNestedManyWithoutProductionOrderInput
+  completionSteps?: Prisma.ProductionCompletionStepCreateNestedManyWithoutProductionOrderInput
 }
 
 export type ProductionOrderUncheckedCreateWithoutSalesOrderInput = {
@@ -1296,6 +1402,8 @@ export type ProductionOrderUncheckedCreateWithoutSalesOrderInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterpriseId: string
@@ -1304,6 +1412,7 @@ export type ProductionOrderUncheckedCreateWithoutSalesOrderInput = {
   blocks?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutParentInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutProductionOrderInput
   fulfillmentLines?: Prisma.FulfillmentLineUncheckedCreateNestedManyWithoutProductionOrderInput
+  completionSteps?: Prisma.ProductionCompletionStepUncheckedCreateNestedManyWithoutProductionOrderInput
 }
 
 export type ProductionOrderCreateOrConnectWithoutSalesOrderInput = {
@@ -1342,6 +1451,8 @@ export type ProductionOrderCreateWithoutFulfillmentLinesInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterprise: Prisma.EnterpriseCreateNestedOneWithoutProductionOrdersInput
@@ -1353,6 +1464,7 @@ export type ProductionOrderCreateWithoutFulfillmentLinesInput = {
   dependsOn?: Prisma.ProductionOrderDependencyCreateNestedManyWithoutChildInput
   blocks?: Prisma.ProductionOrderDependencyCreateNestedManyWithoutParentInput
   inventoryMovements?: Prisma.InventoryMovementCreateNestedManyWithoutProductionOrderInput
+  completionSteps?: Prisma.ProductionCompletionStepCreateNestedManyWithoutProductionOrderInput
 }
 
 export type ProductionOrderUncheckedCreateWithoutFulfillmentLinesInput = {
@@ -1369,6 +1481,8 @@ export type ProductionOrderUncheckedCreateWithoutFulfillmentLinesInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterpriseId: string
@@ -1376,6 +1490,7 @@ export type ProductionOrderUncheckedCreateWithoutFulfillmentLinesInput = {
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutChildInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutParentInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutProductionOrderInput
+  completionSteps?: Prisma.ProductionCompletionStepUncheckedCreateNestedManyWithoutProductionOrderInput
 }
 
 export type ProductionOrderCreateOrConnectWithoutFulfillmentLinesInput = {
@@ -1404,6 +1519,8 @@ export type ProductionOrderUpdateWithoutFulfillmentLinesInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutProductionOrdersNestedInput
@@ -1415,6 +1532,7 @@ export type ProductionOrderUpdateWithoutFulfillmentLinesInput = {
   dependsOn?: Prisma.ProductionOrderDependencyUpdateManyWithoutChildNestedInput
   blocks?: Prisma.ProductionOrderDependencyUpdateManyWithoutParentNestedInput
   inventoryMovements?: Prisma.InventoryMovementUpdateManyWithoutProductionOrderNestedInput
+  completionSteps?: Prisma.ProductionCompletionStepUpdateManyWithoutProductionOrderNestedInput
 }
 
 export type ProductionOrderUncheckedUpdateWithoutFulfillmentLinesInput = {
@@ -1431,6 +1549,8 @@ export type ProductionOrderUncheckedUpdateWithoutFulfillmentLinesInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1438,6 +1558,7 @@ export type ProductionOrderUncheckedUpdateWithoutFulfillmentLinesInput = {
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutChildNestedInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutParentNestedInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutProductionOrderNestedInput
+  completionSteps?: Prisma.ProductionCompletionStepUncheckedUpdateManyWithoutProductionOrderNestedInput
 }
 
 export type ProductionOrderCreateWithoutBlocksInput = {
@@ -1450,6 +1571,8 @@ export type ProductionOrderCreateWithoutBlocksInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterprise: Prisma.EnterpriseCreateNestedOneWithoutProductionOrdersInput
@@ -1461,6 +1584,7 @@ export type ProductionOrderCreateWithoutBlocksInput = {
   dependsOn?: Prisma.ProductionOrderDependencyCreateNestedManyWithoutChildInput
   inventoryMovements?: Prisma.InventoryMovementCreateNestedManyWithoutProductionOrderInput
   fulfillmentLines?: Prisma.FulfillmentLineCreateNestedManyWithoutProductionOrderInput
+  completionSteps?: Prisma.ProductionCompletionStepCreateNestedManyWithoutProductionOrderInput
 }
 
 export type ProductionOrderUncheckedCreateWithoutBlocksInput = {
@@ -1477,6 +1601,8 @@ export type ProductionOrderUncheckedCreateWithoutBlocksInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterpriseId: string
@@ -1484,6 +1610,7 @@ export type ProductionOrderUncheckedCreateWithoutBlocksInput = {
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutChildInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutProductionOrderInput
   fulfillmentLines?: Prisma.FulfillmentLineUncheckedCreateNestedManyWithoutProductionOrderInput
+  completionSteps?: Prisma.ProductionCompletionStepUncheckedCreateNestedManyWithoutProductionOrderInput
 }
 
 export type ProductionOrderCreateOrConnectWithoutBlocksInput = {
@@ -1501,6 +1628,8 @@ export type ProductionOrderCreateWithoutDependsOnInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterprise: Prisma.EnterpriseCreateNestedOneWithoutProductionOrdersInput
@@ -1512,6 +1641,7 @@ export type ProductionOrderCreateWithoutDependsOnInput = {
   blocks?: Prisma.ProductionOrderDependencyCreateNestedManyWithoutParentInput
   inventoryMovements?: Prisma.InventoryMovementCreateNestedManyWithoutProductionOrderInput
   fulfillmentLines?: Prisma.FulfillmentLineCreateNestedManyWithoutProductionOrderInput
+  completionSteps?: Prisma.ProductionCompletionStepCreateNestedManyWithoutProductionOrderInput
 }
 
 export type ProductionOrderUncheckedCreateWithoutDependsOnInput = {
@@ -1528,6 +1658,8 @@ export type ProductionOrderUncheckedCreateWithoutDependsOnInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterpriseId: string
@@ -1535,6 +1667,7 @@ export type ProductionOrderUncheckedCreateWithoutDependsOnInput = {
   blocks?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutParentInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutProductionOrderInput
   fulfillmentLines?: Prisma.FulfillmentLineUncheckedCreateNestedManyWithoutProductionOrderInput
+  completionSteps?: Prisma.ProductionCompletionStepUncheckedCreateNestedManyWithoutProductionOrderInput
 }
 
 export type ProductionOrderCreateOrConnectWithoutDependsOnInput = {
@@ -1563,6 +1696,8 @@ export type ProductionOrderUpdateWithoutBlocksInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutProductionOrdersNestedInput
@@ -1574,6 +1709,7 @@ export type ProductionOrderUpdateWithoutBlocksInput = {
   dependsOn?: Prisma.ProductionOrderDependencyUpdateManyWithoutChildNestedInput
   inventoryMovements?: Prisma.InventoryMovementUpdateManyWithoutProductionOrderNestedInput
   fulfillmentLines?: Prisma.FulfillmentLineUpdateManyWithoutProductionOrderNestedInput
+  completionSteps?: Prisma.ProductionCompletionStepUpdateManyWithoutProductionOrderNestedInput
 }
 
 export type ProductionOrderUncheckedUpdateWithoutBlocksInput = {
@@ -1590,6 +1726,8 @@ export type ProductionOrderUncheckedUpdateWithoutBlocksInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1597,6 +1735,7 @@ export type ProductionOrderUncheckedUpdateWithoutBlocksInput = {
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutChildNestedInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutProductionOrderNestedInput
   fulfillmentLines?: Prisma.FulfillmentLineUncheckedUpdateManyWithoutProductionOrderNestedInput
+  completionSteps?: Prisma.ProductionCompletionStepUncheckedUpdateManyWithoutProductionOrderNestedInput
 }
 
 export type ProductionOrderUpsertWithoutDependsOnInput = {
@@ -1620,6 +1759,8 @@ export type ProductionOrderUpdateWithoutDependsOnInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutProductionOrdersNestedInput
@@ -1631,6 +1772,7 @@ export type ProductionOrderUpdateWithoutDependsOnInput = {
   blocks?: Prisma.ProductionOrderDependencyUpdateManyWithoutParentNestedInput
   inventoryMovements?: Prisma.InventoryMovementUpdateManyWithoutProductionOrderNestedInput
   fulfillmentLines?: Prisma.FulfillmentLineUpdateManyWithoutProductionOrderNestedInput
+  completionSteps?: Prisma.ProductionCompletionStepUpdateManyWithoutProductionOrderNestedInput
 }
 
 export type ProductionOrderUncheckedUpdateWithoutDependsOnInput = {
@@ -1647,10 +1789,133 @@ export type ProductionOrderUncheckedUpdateWithoutDependsOnInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
   scheduledOperations?: Prisma.ScheduledOperationUncheckedUpdateManyWithoutProductionOrderNestedInput
+  blocks?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutParentNestedInput
+  inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutProductionOrderNestedInput
+  fulfillmentLines?: Prisma.FulfillmentLineUncheckedUpdateManyWithoutProductionOrderNestedInput
+  completionSteps?: Prisma.ProductionCompletionStepUncheckedUpdateManyWithoutProductionOrderNestedInput
+}
+
+export type ProductionOrderCreateWithoutCompletionStepsInput = {
+  id?: string
+  bomId?: string | null
+  quantity: number
+  scheduledStart?: Date | string | null
+  scheduledEnd?: Date | string | null
+  status?: $Enums.ProductionOrderStatus
+  priorityScore?: number
+  manualOverride?: number
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  enterprise: Prisma.EnterpriseCreateNestedOneWithoutProductionOrdersInput
+  plant: Prisma.PlantCreateNestedOneWithoutProductionOrdersInput
+  salesOrder?: Prisma.SalesOrderCreateNestedOneWithoutProductionOrdersInput
+  product: Prisma.ProductCreateNestedOneWithoutProductionOrdersInput
+  routing?: Prisma.RoutingCreateNestedOneWithoutProductionOrdersInput
+  scheduledOperations?: Prisma.ScheduledOperationCreateNestedManyWithoutProductionOrderInput
+  dependsOn?: Prisma.ProductionOrderDependencyCreateNestedManyWithoutChildInput
+  blocks?: Prisma.ProductionOrderDependencyCreateNestedManyWithoutParentInput
+  inventoryMovements?: Prisma.InventoryMovementCreateNestedManyWithoutProductionOrderInput
+  fulfillmentLines?: Prisma.FulfillmentLineCreateNestedManyWithoutProductionOrderInput
+}
+
+export type ProductionOrderUncheckedCreateWithoutCompletionStepsInput = {
+  id?: string
+  plantId: string
+  salesOrderId?: string | null
+  productId: string
+  routingId?: string | null
+  bomId?: string | null
+  quantity: number
+  scheduledStart?: Date | string | null
+  scheduledEnd?: Date | string | null
+  status?: $Enums.ProductionOrderStatus
+  priorityScore?: number
+  manualOverride?: number
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  enterpriseId: string
+  scheduledOperations?: Prisma.ScheduledOperationUncheckedCreateNestedManyWithoutProductionOrderInput
+  dependsOn?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutChildInput
+  blocks?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutParentInput
+  inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutProductionOrderInput
+  fulfillmentLines?: Prisma.FulfillmentLineUncheckedCreateNestedManyWithoutProductionOrderInput
+}
+
+export type ProductionOrderCreateOrConnectWithoutCompletionStepsInput = {
+  where: Prisma.ProductionOrderWhereUniqueInput
+  create: Prisma.XOR<Prisma.ProductionOrderCreateWithoutCompletionStepsInput, Prisma.ProductionOrderUncheckedCreateWithoutCompletionStepsInput>
+}
+
+export type ProductionOrderUpsertWithoutCompletionStepsInput = {
+  update: Prisma.XOR<Prisma.ProductionOrderUpdateWithoutCompletionStepsInput, Prisma.ProductionOrderUncheckedUpdateWithoutCompletionStepsInput>
+  create: Prisma.XOR<Prisma.ProductionOrderCreateWithoutCompletionStepsInput, Prisma.ProductionOrderUncheckedCreateWithoutCompletionStepsInput>
+  where?: Prisma.ProductionOrderWhereInput
+}
+
+export type ProductionOrderUpdateToOneWithWhereWithoutCompletionStepsInput = {
+  where?: Prisma.ProductionOrderWhereInput
+  data: Prisma.XOR<Prisma.ProductionOrderUpdateWithoutCompletionStepsInput, Prisma.ProductionOrderUncheckedUpdateWithoutCompletionStepsInput>
+}
+
+export type ProductionOrderUpdateWithoutCompletionStepsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  bomId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  quantity?: Prisma.FloatFieldUpdateOperationsInput | number
+  scheduledStart?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  scheduledEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  status?: Prisma.EnumProductionOrderStatusFieldUpdateOperationsInput | $Enums.ProductionOrderStatus
+  priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
+  manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutProductionOrdersNestedInput
+  plant?: Prisma.PlantUpdateOneRequiredWithoutProductionOrdersNestedInput
+  salesOrder?: Prisma.SalesOrderUpdateOneWithoutProductionOrdersNestedInput
+  product?: Prisma.ProductUpdateOneRequiredWithoutProductionOrdersNestedInput
+  routing?: Prisma.RoutingUpdateOneWithoutProductionOrdersNestedInput
+  scheduledOperations?: Prisma.ScheduledOperationUpdateManyWithoutProductionOrderNestedInput
+  dependsOn?: Prisma.ProductionOrderDependencyUpdateManyWithoutChildNestedInput
+  blocks?: Prisma.ProductionOrderDependencyUpdateManyWithoutParentNestedInput
+  inventoryMovements?: Prisma.InventoryMovementUpdateManyWithoutProductionOrderNestedInput
+  fulfillmentLines?: Prisma.FulfillmentLineUpdateManyWithoutProductionOrderNestedInput
+}
+
+export type ProductionOrderUncheckedUpdateWithoutCompletionStepsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  plantId?: Prisma.StringFieldUpdateOperationsInput | string
+  salesOrderId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  productId?: Prisma.StringFieldUpdateOperationsInput | string
+  routingId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  bomId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  quantity?: Prisma.FloatFieldUpdateOperationsInput | number
+  scheduledStart?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  scheduledEnd?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  status?: Prisma.EnumProductionOrderStatusFieldUpdateOperationsInput | $Enums.ProductionOrderStatus
+  priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
+  manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
+  metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
+  scheduledOperations?: Prisma.ScheduledOperationUncheckedUpdateManyWithoutProductionOrderNestedInput
+  dependsOn?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutChildNestedInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutParentNestedInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutProductionOrderNestedInput
   fulfillmentLines?: Prisma.FulfillmentLineUncheckedUpdateManyWithoutProductionOrderNestedInput
@@ -1666,6 +1931,8 @@ export type ProductionOrderCreateWithoutScheduledOperationsInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterprise: Prisma.EnterpriseCreateNestedOneWithoutProductionOrdersInput
@@ -1677,6 +1944,7 @@ export type ProductionOrderCreateWithoutScheduledOperationsInput = {
   blocks?: Prisma.ProductionOrderDependencyCreateNestedManyWithoutParentInput
   inventoryMovements?: Prisma.InventoryMovementCreateNestedManyWithoutProductionOrderInput
   fulfillmentLines?: Prisma.FulfillmentLineCreateNestedManyWithoutProductionOrderInput
+  completionSteps?: Prisma.ProductionCompletionStepCreateNestedManyWithoutProductionOrderInput
 }
 
 export type ProductionOrderUncheckedCreateWithoutScheduledOperationsInput = {
@@ -1693,6 +1961,8 @@ export type ProductionOrderUncheckedCreateWithoutScheduledOperationsInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterpriseId: string
@@ -1700,6 +1970,7 @@ export type ProductionOrderUncheckedCreateWithoutScheduledOperationsInput = {
   blocks?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutParentInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutProductionOrderInput
   fulfillmentLines?: Prisma.FulfillmentLineUncheckedCreateNestedManyWithoutProductionOrderInput
+  completionSteps?: Prisma.ProductionCompletionStepUncheckedCreateNestedManyWithoutProductionOrderInput
 }
 
 export type ProductionOrderCreateOrConnectWithoutScheduledOperationsInput = {
@@ -1728,6 +1999,8 @@ export type ProductionOrderUpdateWithoutScheduledOperationsInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutProductionOrdersNestedInput
@@ -1739,6 +2012,7 @@ export type ProductionOrderUpdateWithoutScheduledOperationsInput = {
   blocks?: Prisma.ProductionOrderDependencyUpdateManyWithoutParentNestedInput
   inventoryMovements?: Prisma.InventoryMovementUpdateManyWithoutProductionOrderNestedInput
   fulfillmentLines?: Prisma.FulfillmentLineUpdateManyWithoutProductionOrderNestedInput
+  completionSteps?: Prisma.ProductionCompletionStepUpdateManyWithoutProductionOrderNestedInput
 }
 
 export type ProductionOrderUncheckedUpdateWithoutScheduledOperationsInput = {
@@ -1755,6 +2029,8 @@ export type ProductionOrderUncheckedUpdateWithoutScheduledOperationsInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1762,6 +2038,7 @@ export type ProductionOrderUncheckedUpdateWithoutScheduledOperationsInput = {
   blocks?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutParentNestedInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutProductionOrderNestedInput
   fulfillmentLines?: Prisma.FulfillmentLineUncheckedUpdateManyWithoutProductionOrderNestedInput
+  completionSteps?: Prisma.ProductionCompletionStepUncheckedUpdateManyWithoutProductionOrderNestedInput
 }
 
 export type ProductionOrderCreateWithoutInventoryMovementsInput = {
@@ -1774,6 +2051,8 @@ export type ProductionOrderCreateWithoutInventoryMovementsInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterprise: Prisma.EnterpriseCreateNestedOneWithoutProductionOrdersInput
@@ -1785,6 +2064,7 @@ export type ProductionOrderCreateWithoutInventoryMovementsInput = {
   dependsOn?: Prisma.ProductionOrderDependencyCreateNestedManyWithoutChildInput
   blocks?: Prisma.ProductionOrderDependencyCreateNestedManyWithoutParentInput
   fulfillmentLines?: Prisma.FulfillmentLineCreateNestedManyWithoutProductionOrderInput
+  completionSteps?: Prisma.ProductionCompletionStepCreateNestedManyWithoutProductionOrderInput
 }
 
 export type ProductionOrderUncheckedCreateWithoutInventoryMovementsInput = {
@@ -1801,6 +2081,8 @@ export type ProductionOrderUncheckedCreateWithoutInventoryMovementsInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterpriseId: string
@@ -1808,6 +2090,7 @@ export type ProductionOrderUncheckedCreateWithoutInventoryMovementsInput = {
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutChildInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedCreateNestedManyWithoutParentInput
   fulfillmentLines?: Prisma.FulfillmentLineUncheckedCreateNestedManyWithoutProductionOrderInput
+  completionSteps?: Prisma.ProductionCompletionStepUncheckedCreateNestedManyWithoutProductionOrderInput
 }
 
 export type ProductionOrderCreateOrConnectWithoutInventoryMovementsInput = {
@@ -1836,6 +2119,8 @@ export type ProductionOrderUpdateWithoutInventoryMovementsInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutProductionOrdersNestedInput
@@ -1847,6 +2132,7 @@ export type ProductionOrderUpdateWithoutInventoryMovementsInput = {
   dependsOn?: Prisma.ProductionOrderDependencyUpdateManyWithoutChildNestedInput
   blocks?: Prisma.ProductionOrderDependencyUpdateManyWithoutParentNestedInput
   fulfillmentLines?: Prisma.FulfillmentLineUpdateManyWithoutProductionOrderNestedInput
+  completionSteps?: Prisma.ProductionCompletionStepUpdateManyWithoutProductionOrderNestedInput
 }
 
 export type ProductionOrderUncheckedUpdateWithoutInventoryMovementsInput = {
@@ -1863,6 +2149,8 @@ export type ProductionOrderUncheckedUpdateWithoutInventoryMovementsInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -1870,6 +2158,7 @@ export type ProductionOrderUncheckedUpdateWithoutInventoryMovementsInput = {
   dependsOn?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutChildNestedInput
   blocks?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutParentNestedInput
   fulfillmentLines?: Prisma.FulfillmentLineUncheckedUpdateManyWithoutProductionOrderNestedInput
+  completionSteps?: Prisma.ProductionCompletionStepUncheckedUpdateManyWithoutProductionOrderNestedInput
 }
 
 export type ProductionOrderCreateManyEnterpriseInput = {
@@ -1886,6 +2175,8 @@ export type ProductionOrderCreateManyEnterpriseInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -1900,6 +2191,8 @@ export type ProductionOrderUpdateWithoutEnterpriseInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   plant?: Prisma.PlantUpdateOneRequiredWithoutProductionOrdersNestedInput
@@ -1911,6 +2204,7 @@ export type ProductionOrderUpdateWithoutEnterpriseInput = {
   blocks?: Prisma.ProductionOrderDependencyUpdateManyWithoutParentNestedInput
   inventoryMovements?: Prisma.InventoryMovementUpdateManyWithoutProductionOrderNestedInput
   fulfillmentLines?: Prisma.FulfillmentLineUpdateManyWithoutProductionOrderNestedInput
+  completionSteps?: Prisma.ProductionCompletionStepUpdateManyWithoutProductionOrderNestedInput
 }
 
 export type ProductionOrderUncheckedUpdateWithoutEnterpriseInput = {
@@ -1927,6 +2221,8 @@ export type ProductionOrderUncheckedUpdateWithoutEnterpriseInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   scheduledOperations?: Prisma.ScheduledOperationUncheckedUpdateManyWithoutProductionOrderNestedInput
@@ -1934,6 +2230,7 @@ export type ProductionOrderUncheckedUpdateWithoutEnterpriseInput = {
   blocks?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutParentNestedInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutProductionOrderNestedInput
   fulfillmentLines?: Prisma.FulfillmentLineUncheckedUpdateManyWithoutProductionOrderNestedInput
+  completionSteps?: Prisma.ProductionCompletionStepUncheckedUpdateManyWithoutProductionOrderNestedInput
 }
 
 export type ProductionOrderUncheckedUpdateManyWithoutEnterpriseInput = {
@@ -1950,6 +2247,8 @@ export type ProductionOrderUncheckedUpdateManyWithoutEnterpriseInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -1967,6 +2266,8 @@ export type ProductionOrderCreateManyPlantInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterpriseId: string
@@ -1982,6 +2283,8 @@ export type ProductionOrderUpdateWithoutPlantInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutProductionOrdersNestedInput
@@ -1993,6 +2296,7 @@ export type ProductionOrderUpdateWithoutPlantInput = {
   blocks?: Prisma.ProductionOrderDependencyUpdateManyWithoutParentNestedInput
   inventoryMovements?: Prisma.InventoryMovementUpdateManyWithoutProductionOrderNestedInput
   fulfillmentLines?: Prisma.FulfillmentLineUpdateManyWithoutProductionOrderNestedInput
+  completionSteps?: Prisma.ProductionCompletionStepUpdateManyWithoutProductionOrderNestedInput
 }
 
 export type ProductionOrderUncheckedUpdateWithoutPlantInput = {
@@ -2008,6 +2312,8 @@ export type ProductionOrderUncheckedUpdateWithoutPlantInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -2016,6 +2322,7 @@ export type ProductionOrderUncheckedUpdateWithoutPlantInput = {
   blocks?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutParentNestedInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutProductionOrderNestedInput
   fulfillmentLines?: Prisma.FulfillmentLineUncheckedUpdateManyWithoutProductionOrderNestedInput
+  completionSteps?: Prisma.ProductionCompletionStepUncheckedUpdateManyWithoutProductionOrderNestedInput
 }
 
 export type ProductionOrderUncheckedUpdateManyWithoutPlantInput = {
@@ -2031,6 +2338,8 @@ export type ProductionOrderUncheckedUpdateManyWithoutPlantInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -2049,6 +2358,8 @@ export type ProductionOrderCreateManyProductInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterpriseId: string
@@ -2064,6 +2375,8 @@ export type ProductionOrderUpdateWithoutProductInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutProductionOrdersNestedInput
@@ -2075,6 +2388,7 @@ export type ProductionOrderUpdateWithoutProductInput = {
   blocks?: Prisma.ProductionOrderDependencyUpdateManyWithoutParentNestedInput
   inventoryMovements?: Prisma.InventoryMovementUpdateManyWithoutProductionOrderNestedInput
   fulfillmentLines?: Prisma.FulfillmentLineUpdateManyWithoutProductionOrderNestedInput
+  completionSteps?: Prisma.ProductionCompletionStepUpdateManyWithoutProductionOrderNestedInput
 }
 
 export type ProductionOrderUncheckedUpdateWithoutProductInput = {
@@ -2090,6 +2404,8 @@ export type ProductionOrderUncheckedUpdateWithoutProductInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -2098,6 +2414,7 @@ export type ProductionOrderUncheckedUpdateWithoutProductInput = {
   blocks?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutParentNestedInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutProductionOrderNestedInput
   fulfillmentLines?: Prisma.FulfillmentLineUncheckedUpdateManyWithoutProductionOrderNestedInput
+  completionSteps?: Prisma.ProductionCompletionStepUncheckedUpdateManyWithoutProductionOrderNestedInput
 }
 
 export type ProductionOrderUncheckedUpdateManyWithoutProductInput = {
@@ -2113,6 +2430,8 @@ export type ProductionOrderUncheckedUpdateManyWithoutProductInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -2131,6 +2450,8 @@ export type ProductionOrderCreateManyRoutingInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterpriseId: string
@@ -2146,6 +2467,8 @@ export type ProductionOrderUpdateWithoutRoutingInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutProductionOrdersNestedInput
@@ -2157,6 +2480,7 @@ export type ProductionOrderUpdateWithoutRoutingInput = {
   blocks?: Prisma.ProductionOrderDependencyUpdateManyWithoutParentNestedInput
   inventoryMovements?: Prisma.InventoryMovementUpdateManyWithoutProductionOrderNestedInput
   fulfillmentLines?: Prisma.FulfillmentLineUpdateManyWithoutProductionOrderNestedInput
+  completionSteps?: Prisma.ProductionCompletionStepUpdateManyWithoutProductionOrderNestedInput
 }
 
 export type ProductionOrderUncheckedUpdateWithoutRoutingInput = {
@@ -2172,6 +2496,8 @@ export type ProductionOrderUncheckedUpdateWithoutRoutingInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -2180,6 +2506,7 @@ export type ProductionOrderUncheckedUpdateWithoutRoutingInput = {
   blocks?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutParentNestedInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutProductionOrderNestedInput
   fulfillmentLines?: Prisma.FulfillmentLineUncheckedUpdateManyWithoutProductionOrderNestedInput
+  completionSteps?: Prisma.ProductionCompletionStepUncheckedUpdateManyWithoutProductionOrderNestedInput
 }
 
 export type ProductionOrderUncheckedUpdateManyWithoutRoutingInput = {
@@ -2195,6 +2522,8 @@ export type ProductionOrderUncheckedUpdateManyWithoutRoutingInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -2213,6 +2542,8 @@ export type ProductionOrderCreateManySalesOrderInput = {
   priorityScore?: number
   manualOverride?: number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: number | null
+  actualTotalUnits?: number | null
   createdAt?: Date | string
   updatedAt?: Date | string
   enterpriseId: string
@@ -2228,6 +2559,8 @@ export type ProductionOrderUpdateWithoutSalesOrderInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutProductionOrdersNestedInput
@@ -2239,6 +2572,7 @@ export type ProductionOrderUpdateWithoutSalesOrderInput = {
   blocks?: Prisma.ProductionOrderDependencyUpdateManyWithoutParentNestedInput
   inventoryMovements?: Prisma.InventoryMovementUpdateManyWithoutProductionOrderNestedInput
   fulfillmentLines?: Prisma.FulfillmentLineUpdateManyWithoutProductionOrderNestedInput
+  completionSteps?: Prisma.ProductionCompletionStepUpdateManyWithoutProductionOrderNestedInput
 }
 
 export type ProductionOrderUncheckedUpdateWithoutSalesOrderInput = {
@@ -2254,6 +2588,8 @@ export type ProductionOrderUncheckedUpdateWithoutSalesOrderInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -2262,6 +2598,7 @@ export type ProductionOrderUncheckedUpdateWithoutSalesOrderInput = {
   blocks?: Prisma.ProductionOrderDependencyUncheckedUpdateManyWithoutParentNestedInput
   inventoryMovements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutProductionOrderNestedInput
   fulfillmentLines?: Prisma.FulfillmentLineUncheckedUpdateManyWithoutProductionOrderNestedInput
+  completionSteps?: Prisma.ProductionCompletionStepUncheckedUpdateManyWithoutProductionOrderNestedInput
 }
 
 export type ProductionOrderUncheckedUpdateManyWithoutSalesOrderInput = {
@@ -2277,6 +2614,8 @@ export type ProductionOrderUncheckedUpdateManyWithoutSalesOrderInput = {
   priorityScore?: Prisma.FloatFieldUpdateOperationsInput | number
   manualOverride?: Prisma.FloatFieldUpdateOperationsInput | number
   metadata?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  actualGoodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  actualTotalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
@@ -2293,6 +2632,7 @@ export type ProductionOrderCountOutputType = {
   blocks: number
   inventoryMovements: number
   fulfillmentLines: number
+  completionSteps: number
 }
 
 export type ProductionOrderCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2301,6 +2641,7 @@ export type ProductionOrderCountOutputTypeSelect<ExtArgs extends runtime.Types.E
   blocks?: boolean | ProductionOrderCountOutputTypeCountBlocksArgs
   inventoryMovements?: boolean | ProductionOrderCountOutputTypeCountInventoryMovementsArgs
   fulfillmentLines?: boolean | ProductionOrderCountOutputTypeCountFulfillmentLinesArgs
+  completionSteps?: boolean | ProductionOrderCountOutputTypeCountCompletionStepsArgs
 }
 
 /**
@@ -2348,6 +2689,13 @@ export type ProductionOrderCountOutputTypeCountFulfillmentLinesArgs<ExtArgs exte
   where?: Prisma.FulfillmentLineWhereInput
 }
 
+/**
+ * ProductionOrderCountOutputType without action
+ */
+export type ProductionOrderCountOutputTypeCountCompletionStepsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.ProductionCompletionStepWhereInput
+}
+
 
 export type ProductionOrderSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -2363,6 +2711,8 @@ export type ProductionOrderSelect<ExtArgs extends runtime.Types.Extensions.Inter
   priorityScore?: boolean
   manualOverride?: boolean
   metadata?: boolean
+  actualGoodUnits?: boolean
+  actualTotalUnits?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   enterpriseId?: boolean
@@ -2376,6 +2726,7 @@ export type ProductionOrderSelect<ExtArgs extends runtime.Types.Extensions.Inter
   blocks?: boolean | Prisma.ProductionOrder$blocksArgs<ExtArgs>
   inventoryMovements?: boolean | Prisma.ProductionOrder$inventoryMovementsArgs<ExtArgs>
   fulfillmentLines?: boolean | Prisma.ProductionOrder$fulfillmentLinesArgs<ExtArgs>
+  completionSteps?: boolean | Prisma.ProductionOrder$completionStepsArgs<ExtArgs>
   _count?: boolean | Prisma.ProductionOrderCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["productionOrder"]>
 
@@ -2393,6 +2744,8 @@ export type ProductionOrderSelectCreateManyAndReturn<ExtArgs extends runtime.Typ
   priorityScore?: boolean
   manualOverride?: boolean
   metadata?: boolean
+  actualGoodUnits?: boolean
+  actualTotalUnits?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   enterpriseId?: boolean
@@ -2417,6 +2770,8 @@ export type ProductionOrderSelectUpdateManyAndReturn<ExtArgs extends runtime.Typ
   priorityScore?: boolean
   manualOverride?: boolean
   metadata?: boolean
+  actualGoodUnits?: boolean
+  actualTotalUnits?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   enterpriseId?: boolean
@@ -2441,12 +2796,14 @@ export type ProductionOrderSelectScalar = {
   priorityScore?: boolean
   manualOverride?: boolean
   metadata?: boolean
+  actualGoodUnits?: boolean
+  actualTotalUnits?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   enterpriseId?: boolean
 }
 
-export type ProductionOrderOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "plantId" | "salesOrderId" | "productId" | "routingId" | "bomId" | "quantity" | "scheduledStart" | "scheduledEnd" | "status" | "priorityScore" | "manualOverride" | "metadata" | "createdAt" | "updatedAt" | "enterpriseId", ExtArgs["result"]["productionOrder"]>
+export type ProductionOrderOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "plantId" | "salesOrderId" | "productId" | "routingId" | "bomId" | "quantity" | "scheduledStart" | "scheduledEnd" | "status" | "priorityScore" | "manualOverride" | "metadata" | "actualGoodUnits" | "actualTotalUnits" | "createdAt" | "updatedAt" | "enterpriseId", ExtArgs["result"]["productionOrder"]>
 export type ProductionOrderInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   enterprise?: boolean | Prisma.EnterpriseDefaultArgs<ExtArgs>
   plant?: boolean | Prisma.PlantDefaultArgs<ExtArgs>
@@ -2458,6 +2815,7 @@ export type ProductionOrderInclude<ExtArgs extends runtime.Types.Extensions.Inte
   blocks?: boolean | Prisma.ProductionOrder$blocksArgs<ExtArgs>
   inventoryMovements?: boolean | Prisma.ProductionOrder$inventoryMovementsArgs<ExtArgs>
   fulfillmentLines?: boolean | Prisma.ProductionOrder$fulfillmentLinesArgs<ExtArgs>
+  completionSteps?: boolean | Prisma.ProductionOrder$completionStepsArgs<ExtArgs>
   _count?: boolean | Prisma.ProductionOrderCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type ProductionOrderIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -2488,6 +2846,7 @@ export type $ProductionOrderPayload<ExtArgs extends runtime.Types.Extensions.Int
     blocks: Prisma.$ProductionOrderDependencyPayload<ExtArgs>[]
     inventoryMovements: Prisma.$InventoryMovementPayload<ExtArgs>[]
     fulfillmentLines: Prisma.$FulfillmentLinePayload<ExtArgs>[]
+    completionSteps: Prisma.$ProductionCompletionStepPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -2503,6 +2862,8 @@ export type $ProductionOrderPayload<ExtArgs extends runtime.Types.Extensions.Int
     priorityScore: number
     manualOverride: number
     metadata: runtime.JsonValue | null
+    actualGoodUnits: number | null
+    actualTotalUnits: number | null
     createdAt: Date
     updatedAt: Date
     enterpriseId: string
@@ -2910,6 +3271,7 @@ export interface Prisma__ProductionOrderClient<T, Null = never, ExtArgs extends 
   blocks<T extends Prisma.ProductionOrder$blocksArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ProductionOrder$blocksArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ProductionOrderDependencyPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   inventoryMovements<T extends Prisma.ProductionOrder$inventoryMovementsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ProductionOrder$inventoryMovementsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$InventoryMovementPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   fulfillmentLines<T extends Prisma.ProductionOrder$fulfillmentLinesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ProductionOrder$fulfillmentLinesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$FulfillmentLinePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  completionSteps<T extends Prisma.ProductionOrder$completionStepsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.ProductionOrder$completionStepsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ProductionCompletionStepPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2952,6 +3314,8 @@ export interface ProductionOrderFieldRefs {
   readonly priorityScore: Prisma.FieldRef<"ProductionOrder", 'Float'>
   readonly manualOverride: Prisma.FieldRef<"ProductionOrder", 'Float'>
   readonly metadata: Prisma.FieldRef<"ProductionOrder", 'Json'>
+  readonly actualGoodUnits: Prisma.FieldRef<"ProductionOrder", 'Float'>
+  readonly actualTotalUnits: Prisma.FieldRef<"ProductionOrder", 'Float'>
   readonly createdAt: Prisma.FieldRef<"ProductionOrder", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"ProductionOrder", 'DateTime'>
   readonly enterpriseId: Prisma.FieldRef<"ProductionOrder", 'String'>
@@ -3511,6 +3875,30 @@ export type ProductionOrder$fulfillmentLinesArgs<ExtArgs extends runtime.Types.E
   take?: number
   skip?: number
   distinct?: Prisma.FulfillmentLineScalarFieldEnum | Prisma.FulfillmentLineScalarFieldEnum[]
+}
+
+/**
+ * ProductionOrder.completionSteps
+ */
+export type ProductionOrder$completionStepsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the ProductionCompletionStep
+   */
+  select?: Prisma.ProductionCompletionStepSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the ProductionCompletionStep
+   */
+  omit?: Prisma.ProductionCompletionStepOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.ProductionCompletionStepInclude<ExtArgs> | null
+  where?: Prisma.ProductionCompletionStepWhereInput
+  orderBy?: Prisma.ProductionCompletionStepOrderByWithRelationInput | Prisma.ProductionCompletionStepOrderByWithRelationInput[]
+  cursor?: Prisma.ProductionCompletionStepWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.ProductionCompletionStepScalarFieldEnum | Prisma.ProductionCompletionStepScalarFieldEnum[]
 }
 
 /**

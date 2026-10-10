@@ -617,6 +617,15 @@ model ProductionOrder {
   priorityScore  Float                 @default(0)
   manualOverride Float                 @default(0)
   metadata       Json? // human-supplied extra fields from setup import, display-only — never read by scheduling logic
+  // Scrap-aware completion: the real reported good/total quantities from
+  // the order's final operation, set exactly once by mes-integration's
+  // atomic status != 'COMPLETED' -> 'COMPLETED' claim. Null until the
+  // order actually completes. Finished-goods receipt and billing read
+  // actualGoodUnits — never the planned `quantity` above once this is set.
+  // actualTotalUnits (good + scrap) is what raw-material backflush uses,
+  // since material was genuinely consumed for every attempted unit.
+  actualGoodUnits  Float?
+  actualTotalUnits Float?
   createdAt      DateTime              @default(now())
   updatedAt      DateTime              @updatedAt
   // Stage 02 (Tenant Isolation): denormalized from plantId's own real,
@@ -640,6 +649,7 @@ model ProductionOrder {
   blocks              ProductionOrderDependency[] @relation("ParentOrder")
   inventoryMovements  InventoryMovement[]
   fulfillmentLines    FulfillmentLine[]
+  completionSteps     ProductionCompletionStep[]
 
   @@index([plantId, status])
   @@index([plantId, priorityScore])
@@ -766,6 +776,24 @@ model FulfillmentLine {
   executionReference String?
   vendorId           String?
   vendorName         String?
+  // Scrap-aware completion: the real accepted quantity this leg actually
+  // produced/delivered, set once at production completion — never written
+  // into `quantity` above, which stays the original demand this leg was
+  // allocated (read today by promise-inbox.ts and both frontends as
+  // exactly that; overwriting it would silently rewrite history for any
+  // past reader). Remaining demand is `quantity - fulfilledQuantity`,
+  // computed where displayed, not stored — a third column holding the
+  // same two numbers' difference would just be a second place for it to
+  // drift from the truth.
+  fulfilledQuantity Float?
+  // Set only when fulfilledQuantity < quantity — the real deterministic
+  // reason production fell short (never invented), same philosophy as
+  // `reason` above but deliberately a separate field: `reason` is scoped
+  // to problem-status transitions (FAILED/ON_HOLD/CANCELLED) and is
+  // auto-cleared on every other transition (see order-service's PATCH
+  // handler) — this line is still FULFILLED, not a problem state, so
+  // reusing `reason` would conflict with that existing auto-clear logic.
+  shortfallReason   String?
   createdAt          DateTime              @default(now())
   updatedAt          DateTime              @updatedAt
 
@@ -785,6 +813,60 @@ model ProductionOrderDependency {
   child  ProductionOrder @relation("ChildOrder", fields: [childId], references: [id], onDelete: Cascade)
 
   @@unique([parentId, childId])
+}
+
+// Durable per-step state for a ProductionOrder's completion side-effects
+// (goods issue, goods receipt, fulfillment update, billing). Rows for a
+// given order are inserted in the SAME transaction as the ProductionOrder
+// status CAS that marks it COMPLETED — the durability guarantee that lets
+// a crash or failure between steps be recovered from later, instead of
+// only ever being logged and forgotten. stepKey disambiguates multiple
+// steps of the same type (one GOODS_ISSUE row per BOM line, keyed by
+// BOMLine.id — never by componentId, since two BOM lines can legitimately
+// share a component).
+enum CompletionStepType {
+  GOODS_ISSUE
+  GOODS_RECEIPT
+  FULFILLMENT_UPDATE
+  BILLING
+}
+
+enum CompletionStepStatus {
+  PENDING
+  IN_PROGRESS
+  SUCCEEDED
+  FAILED
+}
+
+model ProductionCompletionStep {
+  id                String                @id @default(cuid())
+  productionOrderId String
+  stepType          CompletionStepType
+  stepKey           String
+  status            CompletionStepStatus  @default(PENDING)
+  // Claim/lease fields: a retry or the inline post-CAS attempt must win
+  // an atomic `status IN (PENDING, FAILED) OR (IN_PROGRESS AND claimedAt
+  // older than the lease window) -> IN_PROGRESS` update before doing any
+  // work, so two concurrent workers (an inline attempt racing a manual
+  // retry, or two retry calls) can never both execute the same step. A
+  // stale IN_PROGRESS claim (worker crashed mid-step) becomes reclaimable
+  // once the lease window elapses rather than blocking recovery forever.
+  attempts          Int                   @default(0)
+  claimedAt         DateTime?
+  lastError         String?
+  // The created InventoryMovement/Delivery/Invoice id, or the patched
+  // FulfillmentLine id — set on success, both for audit and so a replay
+  // of an already-SUCCEEDED step (idempotency-key hit) has something real
+  // to point back to without re-deriving it.
+  resultRef         String?
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  productionOrder ProductionOrder @relation(fields: [productionOrderId], references: [id], onDelete: Cascade)
+
+  @@unique([productionOrderId, stepType, stepKey])
+  @@index([productionOrderId])
+  @@index([status])
 }
 
 enum ScheduledOpStatus {
@@ -812,6 +894,16 @@ model ScheduledOperation {
   // alongside a real completion (see mes-integration's /mes/completions);
   // null means either not yet completed, or completed with zero rejects.
   rejectionReason    String?
+  // The real quantitative counterpart to rejectionReason's text — null
+  // until this exact operation reports a completion. totalUnits is what
+  // actually went through this operation (good + rejected); goodUnits/
+  // rejectedUnits must sum to it. Previously these only ever reached
+  // ClickHouse via the analytics forward in /mes/completions and were
+  // never persisted here — this is what makes the order's final
+  // operation's own report readable back for backflush/receipt/billing.
+  goodUnits          Float?
+  rejectedUnits      Float?
+  totalUnits         Float?
   // Stage 05 (Schedule Versioning): which Schedule (candidate/published
   // version) this row belongs to — null only for rows written before this
   // migration. A rerun no longer deletes the previous version's rows; it

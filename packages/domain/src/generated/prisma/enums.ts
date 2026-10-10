@@ -140,6 +140,26 @@ export const FulfillmentLineStatus = {
 export type FulfillmentLineStatus = (typeof FulfillmentLineStatus)[keyof typeof FulfillmentLineStatus]
 
 
+export const CompletionStepType = {
+  GOODS_ISSUE: 'GOODS_ISSUE',
+  GOODS_RECEIPT: 'GOODS_RECEIPT',
+  FULFILLMENT_UPDATE: 'FULFILLMENT_UPDATE',
+  BILLING: 'BILLING'
+} as const
+
+export type CompletionStepType = (typeof CompletionStepType)[keyof typeof CompletionStepType]
+
+
+export const CompletionStepStatus = {
+  PENDING: 'PENDING',
+  IN_PROGRESS: 'IN_PROGRESS',
+  SUCCEEDED: 'SUCCEEDED',
+  FAILED: 'FAILED'
+} as const
+
+export type CompletionStepStatus = (typeof CompletionStepStatus)[keyof typeof CompletionStepStatus]
+
+
 export const ScheduledOpStatus = {
   PLANNED: 'PLANNED',
   SCHEDULED: 'SCHEDULED',

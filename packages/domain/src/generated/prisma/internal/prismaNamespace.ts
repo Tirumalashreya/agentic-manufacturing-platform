@@ -430,6 +430,7 @@ export const ModelName = {
   FulfillmentPlan: 'FulfillmentPlan',
   FulfillmentLine: 'FulfillmentLine',
   ProductionOrderDependency: 'ProductionOrderDependency',
+  ProductionCompletionStep: 'ProductionCompletionStep',
   ScheduledOperation: 'ScheduledOperation',
   QualityInspection: 'QualityInspection',
   ProductionException: 'ProductionException',
@@ -468,7 +469,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "verificationToken" | "passwordResetToken" | "enterprise" | "site" | "plant" | "productionLine" | "workCenter" | "machine" | "machineCapability" | "skill" | "operator" | "operatorSkill" | "shift" | "workCenterShift" | "operatorShift" | "factoryCalendar" | "factoryCalendarDay" | "holidayCalendar" | "holiday" | "product" | "bOM" | "bOMLine" | "routing" | "routingOperation" | "routingOpDependency" | "customer" | "salesOrder" | "productionOrder" | "orderLine" | "fulfillmentPlan" | "fulfillmentLine" | "productionOrderDependency" | "scheduledOperation" | "qualityInspection" | "productionException" | "tool" | "toolUsage" | "inventory" | "vendor" | "vendorProduct" | "purchaseOrder" | "inventoryMovement" | "maintenancePlan" | "maintenanceOrder" | "resourceReservation" | "schedule" | "scheduleRun" | "machineEvent" | "sensorReading" | "idempotencyKey" | "scheduleAuditLog" | "auditLog" | "changeoverMatrix" | "agentPipelineRun" | "agentStageResult"
+    modelProps: "user" | "verificationToken" | "passwordResetToken" | "enterprise" | "site" | "plant" | "productionLine" | "workCenter" | "machine" | "machineCapability" | "skill" | "operator" | "operatorSkill" | "shift" | "workCenterShift" | "operatorShift" | "factoryCalendar" | "factoryCalendarDay" | "holidayCalendar" | "holiday" | "product" | "bOM" | "bOMLine" | "routing" | "routingOperation" | "routingOpDependency" | "customer" | "salesOrder" | "productionOrder" | "orderLine" | "fulfillmentPlan" | "fulfillmentLine" | "productionOrderDependency" | "productionCompletionStep" | "scheduledOperation" | "qualityInspection" | "productionException" | "tool" | "toolUsage" | "inventory" | "vendor" | "vendorProduct" | "purchaseOrder" | "inventoryMovement" | "maintenancePlan" | "maintenanceOrder" | "resourceReservation" | "schedule" | "scheduleRun" | "machineEvent" | "sensorReading" | "idempotencyKey" | "scheduleAuditLog" | "auditLog" | "changeoverMatrix" | "agentPipelineRun" | "agentStageResult"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2914,6 +2915,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    ProductionCompletionStep: {
+      payload: Prisma.$ProductionCompletionStepPayload<ExtArgs>
+      fields: Prisma.ProductionCompletionStepFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.ProductionCompletionStepFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductionCompletionStepPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.ProductionCompletionStepFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductionCompletionStepPayload>
+        }
+        findFirst: {
+          args: Prisma.ProductionCompletionStepFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductionCompletionStepPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.ProductionCompletionStepFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductionCompletionStepPayload>
+        }
+        findMany: {
+          args: Prisma.ProductionCompletionStepFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductionCompletionStepPayload>[]
+        }
+        create: {
+          args: Prisma.ProductionCompletionStepCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductionCompletionStepPayload>
+        }
+        createMany: {
+          args: Prisma.ProductionCompletionStepCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.ProductionCompletionStepCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductionCompletionStepPayload>[]
+        }
+        delete: {
+          args: Prisma.ProductionCompletionStepDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductionCompletionStepPayload>
+        }
+        update: {
+          args: Prisma.ProductionCompletionStepUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductionCompletionStepPayload>
+        }
+        deleteMany: {
+          args: Prisma.ProductionCompletionStepDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.ProductionCompletionStepUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.ProductionCompletionStepUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductionCompletionStepPayload>[]
+        }
+        upsert: {
+          args: Prisma.ProductionCompletionStepUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$ProductionCompletionStepPayload>
+        }
+        aggregate: {
+          args: Prisma.ProductionCompletionStepAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateProductionCompletionStep>
+        }
+        groupBy: {
+          args: Prisma.ProductionCompletionStepGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ProductionCompletionStepGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.ProductionCompletionStepCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.ProductionCompletionStepCountAggregateOutputType> | number
+        }
+      }
+    }
     ScheduledOperation: {
       payload: Prisma.$ScheduledOperationPayload<ExtArgs>
       fields: Prisma.ScheduledOperationFieldRefs
@@ -5017,6 +5092,8 @@ export const ProductionOrderScalarFieldEnum = {
   priorityScore: 'priorityScore',
   manualOverride: 'manualOverride',
   metadata: 'metadata',
+  actualGoodUnits: 'actualGoodUnits',
+  actualTotalUnits: 'actualTotalUnits',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   enterpriseId: 'enterpriseId'
@@ -5068,6 +5145,8 @@ export const FulfillmentLineScalarFieldEnum = {
   executionReference: 'executionReference',
   vendorId: 'vendorId',
   vendorName: 'vendorName',
+  fulfilledQuantity: 'fulfilledQuantity',
+  shortfallReason: 'shortfallReason',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -5084,6 +5163,23 @@ export const ProductionOrderDependencyScalarFieldEnum = {
 export type ProductionOrderDependencyScalarFieldEnum = (typeof ProductionOrderDependencyScalarFieldEnum)[keyof typeof ProductionOrderDependencyScalarFieldEnum]
 
 
+export const ProductionCompletionStepScalarFieldEnum = {
+  id: 'id',
+  productionOrderId: 'productionOrderId',
+  stepType: 'stepType',
+  stepKey: 'stepKey',
+  status: 'status',
+  attempts: 'attempts',
+  claimedAt: 'claimedAt',
+  lastError: 'lastError',
+  resultRef: 'resultRef',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ProductionCompletionStepScalarFieldEnum = (typeof ProductionCompletionStepScalarFieldEnum)[keyof typeof ProductionCompletionStepScalarFieldEnum]
+
+
 export const ScheduledOperationScalarFieldEnum = {
   id: 'id',
   productionOrderId: 'productionOrderId',
@@ -5097,6 +5193,9 @@ export const ScheduledOperationScalarFieldEnum = {
   status: 'status',
   deviationMinutes: 'deviationMinutes',
   rejectionReason: 'rejectionReason',
+  goodUnits: 'goodUnits',
+  rejectedUnits: 'rejectedUnits',
+  totalUnits: 'totalUnits',
   scheduleVersionId: 'scheduleVersionId',
   supersededAt: 'supersededAt',
   createdAt: 'createdAt',
@@ -5696,6 +5795,34 @@ export type ListEnumFulfillmentLineStatusFieldRefInput<$PrismaModel> = FieldRefI
 
 
 /**
+ * Reference to a field of type 'CompletionStepType'
+ */
+export type EnumCompletionStepTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CompletionStepType'>
+    
+
+
+/**
+ * Reference to a field of type 'CompletionStepType[]'
+ */
+export type ListEnumCompletionStepTypeFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CompletionStepType[]'>
+    
+
+
+/**
+ * Reference to a field of type 'CompletionStepStatus'
+ */
+export type EnumCompletionStepStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CompletionStepStatus'>
+    
+
+
+/**
+ * Reference to a field of type 'CompletionStepStatus[]'
+ */
+export type ListEnumCompletionStepStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'CompletionStepStatus[]'>
+    
+
+
+/**
  * Reference to a field of type 'ScheduledOpStatus'
  */
 export type EnumScheduledOpStatusFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'ScheduledOpStatus'>
@@ -6046,6 +6173,7 @@ export type GlobalOmitConfig = {
   fulfillmentPlan?: Prisma.FulfillmentPlanOmit
   fulfillmentLine?: Prisma.FulfillmentLineOmit
   productionOrderDependency?: Prisma.ProductionOrderDependencyOmit
+  productionCompletionStep?: Prisma.ProductionCompletionStepOmit
   scheduledOperation?: Prisma.ScheduledOperationOmit
   qualityInspection?: Prisma.QualityInspectionOmit
   productionException?: Prisma.ProductionExceptionOmit

@@ -28,10 +28,16 @@ export type AggregateScheduledOperation = {
 
 export type ScheduledOperationAvgAggregateOutputType = {
   deviationMinutes: number | null
+  goodUnits: number | null
+  rejectedUnits: number | null
+  totalUnits: number | null
 }
 
 export type ScheduledOperationSumAggregateOutputType = {
   deviationMinutes: number | null
+  goodUnits: number | null
+  rejectedUnits: number | null
+  totalUnits: number | null
 }
 
 export type ScheduledOperationMinAggregateOutputType = {
@@ -47,6 +53,9 @@ export type ScheduledOperationMinAggregateOutputType = {
   status: $Enums.ScheduledOpStatus | null
   deviationMinutes: number | null
   rejectionReason: string | null
+  goodUnits: number | null
+  rejectedUnits: number | null
+  totalUnits: number | null
   scheduleVersionId: string | null
   supersededAt: Date | null
   createdAt: Date | null
@@ -66,6 +75,9 @@ export type ScheduledOperationMaxAggregateOutputType = {
   status: $Enums.ScheduledOpStatus | null
   deviationMinutes: number | null
   rejectionReason: string | null
+  goodUnits: number | null
+  rejectedUnits: number | null
+  totalUnits: number | null
   scheduleVersionId: string | null
   supersededAt: Date | null
   createdAt: Date | null
@@ -85,6 +97,9 @@ export type ScheduledOperationCountAggregateOutputType = {
   status: number
   deviationMinutes: number
   rejectionReason: number
+  goodUnits: number
+  rejectedUnits: number
+  totalUnits: number
   scheduleVersionId: number
   supersededAt: number
   createdAt: number
@@ -95,10 +110,16 @@ export type ScheduledOperationCountAggregateOutputType = {
 
 export type ScheduledOperationAvgAggregateInputType = {
   deviationMinutes?: true
+  goodUnits?: true
+  rejectedUnits?: true
+  totalUnits?: true
 }
 
 export type ScheduledOperationSumAggregateInputType = {
   deviationMinutes?: true
+  goodUnits?: true
+  rejectedUnits?: true
+  totalUnits?: true
 }
 
 export type ScheduledOperationMinAggregateInputType = {
@@ -114,6 +135,9 @@ export type ScheduledOperationMinAggregateInputType = {
   status?: true
   deviationMinutes?: true
   rejectionReason?: true
+  goodUnits?: true
+  rejectedUnits?: true
+  totalUnits?: true
   scheduleVersionId?: true
   supersededAt?: true
   createdAt?: true
@@ -133,6 +157,9 @@ export type ScheduledOperationMaxAggregateInputType = {
   status?: true
   deviationMinutes?: true
   rejectionReason?: true
+  goodUnits?: true
+  rejectedUnits?: true
+  totalUnits?: true
   scheduleVersionId?: true
   supersededAt?: true
   createdAt?: true
@@ -152,6 +179,9 @@ export type ScheduledOperationCountAggregateInputType = {
   status?: true
   deviationMinutes?: true
   rejectionReason?: true
+  goodUnits?: true
+  rejectedUnits?: true
+  totalUnits?: true
   scheduleVersionId?: true
   supersededAt?: true
   createdAt?: true
@@ -258,6 +288,9 @@ export type ScheduledOperationGroupByOutputType = {
   status: $Enums.ScheduledOpStatus
   deviationMinutes: number | null
   rejectionReason: string | null
+  goodUnits: number | null
+  rejectedUnits: number | null
+  totalUnits: number | null
   scheduleVersionId: string | null
   supersededAt: Date | null
   createdAt: Date
@@ -300,6 +333,9 @@ export type ScheduledOperationWhereInput = {
   status?: Prisma.EnumScheduledOpStatusFilter<"ScheduledOperation"> | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.IntNullableFilter<"ScheduledOperation"> | number | null
   rejectionReason?: Prisma.StringNullableFilter<"ScheduledOperation"> | string | null
+  goodUnits?: Prisma.FloatNullableFilter<"ScheduledOperation"> | number | null
+  rejectedUnits?: Prisma.FloatNullableFilter<"ScheduledOperation"> | number | null
+  totalUnits?: Prisma.FloatNullableFilter<"ScheduledOperation"> | number | null
   scheduleVersionId?: Prisma.StringNullableFilter<"ScheduledOperation"> | string | null
   supersededAt?: Prisma.DateTimeNullableFilter<"ScheduledOperation"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"ScheduledOperation"> | Date | string
@@ -328,6 +364,9 @@ export type ScheduledOperationOrderByWithRelationInput = {
   status?: Prisma.SortOrder
   deviationMinutes?: Prisma.SortOrderInput | Prisma.SortOrder
   rejectionReason?: Prisma.SortOrderInput | Prisma.SortOrder
+  goodUnits?: Prisma.SortOrderInput | Prisma.SortOrder
+  rejectedUnits?: Prisma.SortOrderInput | Prisma.SortOrder
+  totalUnits?: Prisma.SortOrderInput | Prisma.SortOrder
   scheduleVersionId?: Prisma.SortOrderInput | Prisma.SortOrder
   supersededAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -359,6 +398,9 @@ export type ScheduledOperationWhereUniqueInput = Prisma.AtLeast<{
   status?: Prisma.EnumScheduledOpStatusFilter<"ScheduledOperation"> | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.IntNullableFilter<"ScheduledOperation"> | number | null
   rejectionReason?: Prisma.StringNullableFilter<"ScheduledOperation"> | string | null
+  goodUnits?: Prisma.FloatNullableFilter<"ScheduledOperation"> | number | null
+  rejectedUnits?: Prisma.FloatNullableFilter<"ScheduledOperation"> | number | null
+  totalUnits?: Prisma.FloatNullableFilter<"ScheduledOperation"> | number | null
   scheduleVersionId?: Prisma.StringNullableFilter<"ScheduledOperation"> | string | null
   supersededAt?: Prisma.DateTimeNullableFilter<"ScheduledOperation"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"ScheduledOperation"> | Date | string
@@ -387,6 +429,9 @@ export type ScheduledOperationOrderByWithAggregationInput = {
   status?: Prisma.SortOrder
   deviationMinutes?: Prisma.SortOrderInput | Prisma.SortOrder
   rejectionReason?: Prisma.SortOrderInput | Prisma.SortOrder
+  goodUnits?: Prisma.SortOrderInput | Prisma.SortOrder
+  rejectedUnits?: Prisma.SortOrderInput | Prisma.SortOrder
+  totalUnits?: Prisma.SortOrderInput | Prisma.SortOrder
   scheduleVersionId?: Prisma.SortOrderInput | Prisma.SortOrder
   supersededAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -414,6 +459,9 @@ export type ScheduledOperationScalarWhereWithAggregatesInput = {
   status?: Prisma.EnumScheduledOpStatusWithAggregatesFilter<"ScheduledOperation"> | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.IntNullableWithAggregatesFilter<"ScheduledOperation"> | number | null
   rejectionReason?: Prisma.StringNullableWithAggregatesFilter<"ScheduledOperation"> | string | null
+  goodUnits?: Prisma.FloatNullableWithAggregatesFilter<"ScheduledOperation"> | number | null
+  rejectedUnits?: Prisma.FloatNullableWithAggregatesFilter<"ScheduledOperation"> | number | null
+  totalUnits?: Prisma.FloatNullableWithAggregatesFilter<"ScheduledOperation"> | number | null
   scheduleVersionId?: Prisma.StringNullableWithAggregatesFilter<"ScheduledOperation"> | string | null
   supersededAt?: Prisma.DateTimeNullableWithAggregatesFilter<"ScheduledOperation"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"ScheduledOperation"> | Date | string
@@ -429,6 +477,9 @@ export type ScheduledOperationCreateInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -456,6 +507,9 @@ export type ScheduledOperationUncheckedCreateInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   scheduleVersionId?: string | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
@@ -475,6 +529,9 @@ export type ScheduledOperationUpdateInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -502,6 +559,9 @@ export type ScheduledOperationUncheckedUpdateInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -525,6 +585,9 @@ export type ScheduledOperationCreateManyInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   scheduleVersionId?: string | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
@@ -540,6 +603,9 @@ export type ScheduledOperationUpdateManyMutationInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -558,6 +624,9 @@ export type ScheduledOperationUncheckedUpdateManyInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -587,6 +656,9 @@ export type ScheduledOperationCountOrderByAggregateInput = {
   status?: Prisma.SortOrder
   deviationMinutes?: Prisma.SortOrder
   rejectionReason?: Prisma.SortOrder
+  goodUnits?: Prisma.SortOrder
+  rejectedUnits?: Prisma.SortOrder
+  totalUnits?: Prisma.SortOrder
   scheduleVersionId?: Prisma.SortOrder
   supersededAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -595,6 +667,9 @@ export type ScheduledOperationCountOrderByAggregateInput = {
 
 export type ScheduledOperationAvgOrderByAggregateInput = {
   deviationMinutes?: Prisma.SortOrder
+  goodUnits?: Prisma.SortOrder
+  rejectedUnits?: Prisma.SortOrder
+  totalUnits?: Prisma.SortOrder
 }
 
 export type ScheduledOperationMaxOrderByAggregateInput = {
@@ -610,6 +685,9 @@ export type ScheduledOperationMaxOrderByAggregateInput = {
   status?: Prisma.SortOrder
   deviationMinutes?: Prisma.SortOrder
   rejectionReason?: Prisma.SortOrder
+  goodUnits?: Prisma.SortOrder
+  rejectedUnits?: Prisma.SortOrder
+  totalUnits?: Prisma.SortOrder
   scheduleVersionId?: Prisma.SortOrder
   supersededAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -629,6 +707,9 @@ export type ScheduledOperationMinOrderByAggregateInput = {
   status?: Prisma.SortOrder
   deviationMinutes?: Prisma.SortOrder
   rejectionReason?: Prisma.SortOrder
+  goodUnits?: Prisma.SortOrder
+  rejectedUnits?: Prisma.SortOrder
+  totalUnits?: Prisma.SortOrder
   scheduleVersionId?: Prisma.SortOrder
   supersededAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
@@ -637,6 +718,9 @@ export type ScheduledOperationMinOrderByAggregateInput = {
 
 export type ScheduledOperationSumOrderByAggregateInput = {
   deviationMinutes?: Prisma.SortOrder
+  goodUnits?: Prisma.SortOrder
+  rejectedUnits?: Prisma.SortOrder
+  totalUnits?: Prisma.SortOrder
 }
 
 export type ScheduledOperationScalarRelationFilter = {
@@ -930,6 +1014,9 @@ export type ScheduledOperationCreateWithoutMachineInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -955,6 +1042,9 @@ export type ScheduledOperationUncheckedCreateWithoutMachineInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   scheduleVersionId?: string | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
@@ -1007,6 +1097,9 @@ export type ScheduledOperationScalarWhereInput = {
   status?: Prisma.EnumScheduledOpStatusFilter<"ScheduledOperation"> | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.IntNullableFilter<"ScheduledOperation"> | number | null
   rejectionReason?: Prisma.StringNullableFilter<"ScheduledOperation"> | string | null
+  goodUnits?: Prisma.FloatNullableFilter<"ScheduledOperation"> | number | null
+  rejectedUnits?: Prisma.FloatNullableFilter<"ScheduledOperation"> | number | null
+  totalUnits?: Prisma.FloatNullableFilter<"ScheduledOperation"> | number | null
   scheduleVersionId?: Prisma.StringNullableFilter<"ScheduledOperation"> | string | null
   supersededAt?: Prisma.DateTimeNullableFilter<"ScheduledOperation"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"ScheduledOperation"> | Date | string
@@ -1022,6 +1115,9 @@ export type ScheduledOperationCreateWithoutOperatorInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1047,6 +1143,9 @@ export type ScheduledOperationUncheckedCreateWithoutOperatorInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   scheduleVersionId?: string | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
@@ -1092,6 +1191,9 @@ export type ScheduledOperationCreateWithoutRoutingOperationInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1117,6 +1219,9 @@ export type ScheduledOperationUncheckedCreateWithoutRoutingOperationInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   scheduleVersionId?: string | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
@@ -1162,6 +1267,9 @@ export type ScheduledOperationCreateWithoutProductionOrderInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1187,6 +1295,9 @@ export type ScheduledOperationUncheckedCreateWithoutProductionOrderInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   scheduleVersionId?: string | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
@@ -1232,6 +1343,9 @@ export type ScheduledOperationCreateWithoutQualityInspectionsInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1258,6 +1372,9 @@ export type ScheduledOperationUncheckedCreateWithoutQualityInspectionsInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   scheduleVersionId?: string | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
@@ -1292,6 +1409,9 @@ export type ScheduledOperationUpdateWithoutQualityInspectionsInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1318,6 +1438,9 @@ export type ScheduledOperationUncheckedUpdateWithoutQualityInspectionsInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1336,6 +1459,9 @@ export type ScheduledOperationCreateWithoutExceptionsInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1362,6 +1488,9 @@ export type ScheduledOperationUncheckedCreateWithoutExceptionsInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   scheduleVersionId?: string | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
@@ -1396,6 +1525,9 @@ export type ScheduledOperationUpdateWithoutExceptionsInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1422,6 +1554,9 @@ export type ScheduledOperationUncheckedUpdateWithoutExceptionsInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1440,6 +1575,9 @@ export type ScheduledOperationCreateWithoutToolUsagesInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1466,6 +1604,9 @@ export type ScheduledOperationUncheckedCreateWithoutToolUsagesInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   scheduleVersionId?: string | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
@@ -1500,6 +1641,9 @@ export type ScheduledOperationUpdateWithoutToolUsagesInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1526,6 +1670,9 @@ export type ScheduledOperationUncheckedUpdateWithoutToolUsagesInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1544,6 +1691,9 @@ export type ScheduledOperationCreateWithoutReservationsInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1570,6 +1720,9 @@ export type ScheduledOperationUncheckedCreateWithoutReservationsInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   scheduleVersionId?: string | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
@@ -1604,6 +1757,9 @@ export type ScheduledOperationUpdateWithoutReservationsInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1630,6 +1786,9 @@ export type ScheduledOperationUncheckedUpdateWithoutReservationsInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1648,6 +1807,9 @@ export type ScheduledOperationCreateWithoutScheduleVersionInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1674,6 +1836,9 @@ export type ScheduledOperationUncheckedCreateWithoutScheduleVersionInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -1721,6 +1886,9 @@ export type ScheduledOperationCreateManyMachineInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   scheduleVersionId?: string | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
@@ -1736,6 +1904,9 @@ export type ScheduledOperationUpdateWithoutMachineInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1761,6 +1932,9 @@ export type ScheduledOperationUncheckedUpdateWithoutMachineInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1783,6 +1957,9 @@ export type ScheduledOperationUncheckedUpdateManyWithoutMachineInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1801,6 +1978,9 @@ export type ScheduledOperationCreateManyOperatorInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   scheduleVersionId?: string | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
@@ -1816,6 +1996,9 @@ export type ScheduledOperationUpdateWithoutOperatorInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1841,6 +2024,9 @@ export type ScheduledOperationUncheckedUpdateWithoutOperatorInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1863,6 +2049,9 @@ export type ScheduledOperationUncheckedUpdateManyWithoutOperatorInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1881,6 +2070,9 @@ export type ScheduledOperationCreateManyRoutingOperationInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   scheduleVersionId?: string | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
@@ -1896,6 +2088,9 @@ export type ScheduledOperationUpdateWithoutRoutingOperationInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1921,6 +2116,9 @@ export type ScheduledOperationUncheckedUpdateWithoutRoutingOperationInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1943,6 +2141,9 @@ export type ScheduledOperationUncheckedUpdateManyWithoutRoutingOperationInput = 
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -1961,6 +2162,9 @@ export type ScheduledOperationCreateManyProductionOrderInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   scheduleVersionId?: string | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
@@ -1976,6 +2180,9 @@ export type ScheduledOperationUpdateWithoutProductionOrderInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2001,6 +2208,9 @@ export type ScheduledOperationUncheckedUpdateWithoutProductionOrderInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2023,6 +2233,9 @@ export type ScheduledOperationUncheckedUpdateManyWithoutProductionOrderInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   scheduleVersionId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2042,6 +2255,9 @@ export type ScheduledOperationCreateManyScheduleVersionInput = {
   status?: $Enums.ScheduledOpStatus
   deviationMinutes?: number | null
   rejectionReason?: string | null
+  goodUnits?: number | null
+  rejectedUnits?: number | null
+  totalUnits?: number | null
   supersededAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
@@ -2056,6 +2272,9 @@ export type ScheduledOperationUpdateWithoutScheduleVersionInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2082,6 +2301,9 @@ export type ScheduledOperationUncheckedUpdateWithoutScheduleVersionInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2104,6 +2326,9 @@ export type ScheduledOperationUncheckedUpdateManyWithoutScheduleVersionInput = {
   status?: Prisma.EnumScheduledOpStatusFieldUpdateOperationsInput | $Enums.ScheduledOpStatus
   deviationMinutes?: Prisma.NullableIntFieldUpdateOperationsInput | number | null
   rejectionReason?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  goodUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  rejectedUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  totalUnits?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
   supersededAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
@@ -2180,6 +2405,9 @@ export type ScheduledOperationSelect<ExtArgs extends runtime.Types.Extensions.In
   status?: boolean
   deviationMinutes?: boolean
   rejectionReason?: boolean
+  goodUnits?: boolean
+  rejectedUnits?: boolean
+  totalUnits?: boolean
   scheduleVersionId?: boolean
   supersededAt?: boolean
   createdAt?: boolean
@@ -2209,6 +2437,9 @@ export type ScheduledOperationSelectCreateManyAndReturn<ExtArgs extends runtime.
   status?: boolean
   deviationMinutes?: boolean
   rejectionReason?: boolean
+  goodUnits?: boolean
+  rejectedUnits?: boolean
+  totalUnits?: boolean
   scheduleVersionId?: boolean
   supersededAt?: boolean
   createdAt?: boolean
@@ -2233,6 +2464,9 @@ export type ScheduledOperationSelectUpdateManyAndReturn<ExtArgs extends runtime.
   status?: boolean
   deviationMinutes?: boolean
   rejectionReason?: boolean
+  goodUnits?: boolean
+  rejectedUnits?: boolean
+  totalUnits?: boolean
   scheduleVersionId?: boolean
   supersededAt?: boolean
   createdAt?: boolean
@@ -2257,13 +2491,16 @@ export type ScheduledOperationSelectScalar = {
   status?: boolean
   deviationMinutes?: boolean
   rejectionReason?: boolean
+  goodUnits?: boolean
+  rejectedUnits?: boolean
+  totalUnits?: boolean
   scheduleVersionId?: boolean
   supersededAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type ScheduledOperationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "productionOrderId" | "routingOperationId" | "machineId" | "operatorId" | "scheduledStart" | "scheduledEnd" | "actualStart" | "actualEnd" | "status" | "deviationMinutes" | "rejectionReason" | "scheduleVersionId" | "supersededAt" | "createdAt" | "updatedAt", ExtArgs["result"]["scheduledOperation"]>
+export type ScheduledOperationOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "productionOrderId" | "routingOperationId" | "machineId" | "operatorId" | "scheduledStart" | "scheduledEnd" | "actualStart" | "actualEnd" | "status" | "deviationMinutes" | "rejectionReason" | "goodUnits" | "rejectedUnits" | "totalUnits" | "scheduleVersionId" | "supersededAt" | "createdAt" | "updatedAt", ExtArgs["result"]["scheduledOperation"]>
 export type ScheduledOperationInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   productionOrder?: boolean | Prisma.ProductionOrderDefaultArgs<ExtArgs>
   routingOperation?: boolean | Prisma.ScheduledOperation$routingOperationArgs<ExtArgs>
@@ -2317,6 +2554,9 @@ export type $ScheduledOperationPayload<ExtArgs extends runtime.Types.Extensions.
     status: $Enums.ScheduledOpStatus
     deviationMinutes: number | null
     rejectionReason: string | null
+    goodUnits: number | null
+    rejectedUnits: number | null
+    totalUnits: number | null
     scheduleVersionId: string | null
     supersededAt: Date | null
     createdAt: Date
@@ -2765,6 +3005,9 @@ export interface ScheduledOperationFieldRefs {
   readonly status: Prisma.FieldRef<"ScheduledOperation", 'ScheduledOpStatus'>
   readonly deviationMinutes: Prisma.FieldRef<"ScheduledOperation", 'Int'>
   readonly rejectionReason: Prisma.FieldRef<"ScheduledOperation", 'String'>
+  readonly goodUnits: Prisma.FieldRef<"ScheduledOperation", 'Float'>
+  readonly rejectedUnits: Prisma.FieldRef<"ScheduledOperation", 'Float'>
+  readonly totalUnits: Prisma.FieldRef<"ScheduledOperation", 'Float'>
   readonly scheduleVersionId: Prisma.FieldRef<"ScheduledOperation", 'String'>
   readonly supersededAt: Prisma.FieldRef<"ScheduledOperation", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"ScheduledOperation", 'DateTime'>

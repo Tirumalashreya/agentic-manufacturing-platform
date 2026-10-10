@@ -183,6 +183,11 @@ export type FulfillmentLine = Prisma.FulfillmentLineModel
  */
 export type ProductionOrderDependency = Prisma.ProductionOrderDependencyModel
 /**
+ * Model ProductionCompletionStep
+ * 
+ */
+export type ProductionCompletionStep = Prisma.ProductionCompletionStepModel
+/**
  * Model ScheduledOperation
  * 
  */

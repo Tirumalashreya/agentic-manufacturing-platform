@@ -528,6 +528,40 @@ export type EnumFulfillmentLineStatusWithAggregatesFilter<$PrismaModel = never> 
   _max?: Prisma.NestedEnumFulfillmentLineStatusFilter<$PrismaModel>
 }
 
+export type EnumCompletionStepTypeFilter<$PrismaModel = never> = {
+  equals?: $Enums.CompletionStepType | Prisma.EnumCompletionStepTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.CompletionStepType[] | Prisma.ListEnumCompletionStepTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.CompletionStepType[] | Prisma.ListEnumCompletionStepTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumCompletionStepTypeFilter<$PrismaModel> | $Enums.CompletionStepType
+}
+
+export type EnumCompletionStepStatusFilter<$PrismaModel = never> = {
+  equals?: $Enums.CompletionStepStatus | Prisma.EnumCompletionStepStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.CompletionStepStatus[] | Prisma.ListEnumCompletionStepStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.CompletionStepStatus[] | Prisma.ListEnumCompletionStepStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumCompletionStepStatusFilter<$PrismaModel> | $Enums.CompletionStepStatus
+}
+
+export type EnumCompletionStepTypeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.CompletionStepType | Prisma.EnumCompletionStepTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.CompletionStepType[] | Prisma.ListEnumCompletionStepTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.CompletionStepType[] | Prisma.ListEnumCompletionStepTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumCompletionStepTypeWithAggregatesFilter<$PrismaModel> | $Enums.CompletionStepType
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumCompletionStepTypeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumCompletionStepTypeFilter<$PrismaModel>
+}
+
+export type EnumCompletionStepStatusWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.CompletionStepStatus | Prisma.EnumCompletionStepStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.CompletionStepStatus[] | Prisma.ListEnumCompletionStepStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.CompletionStepStatus[] | Prisma.ListEnumCompletionStepStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumCompletionStepStatusWithAggregatesFilter<$PrismaModel> | $Enums.CompletionStepStatus
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumCompletionStepStatusFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumCompletionStepStatusFilter<$PrismaModel>
+}
+
 export type EnumScheduledOpStatusFilter<$PrismaModel = never> = {
   equals?: $Enums.ScheduledOpStatus | Prisma.EnumScheduledOpStatusFieldRefInput<$PrismaModel>
   in?: $Enums.ScheduledOpStatus[] | Prisma.ListEnumScheduledOpStatusFieldRefInput<$PrismaModel>
@@ -1259,6 +1293,40 @@ export type NestedEnumFulfillmentLineStatusWithAggregatesFilter<$PrismaModel = n
   _count?: Prisma.NestedIntFilter<$PrismaModel>
   _min?: Prisma.NestedEnumFulfillmentLineStatusFilter<$PrismaModel>
   _max?: Prisma.NestedEnumFulfillmentLineStatusFilter<$PrismaModel>
+}
+
+export type NestedEnumCompletionStepTypeFilter<$PrismaModel = never> = {
+  equals?: $Enums.CompletionStepType | Prisma.EnumCompletionStepTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.CompletionStepType[] | Prisma.ListEnumCompletionStepTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.CompletionStepType[] | Prisma.ListEnumCompletionStepTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumCompletionStepTypeFilter<$PrismaModel> | $Enums.CompletionStepType
+}
+
+export type NestedEnumCompletionStepStatusFilter<$PrismaModel = never> = {
+  equals?: $Enums.CompletionStepStatus | Prisma.EnumCompletionStepStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.CompletionStepStatus[] | Prisma.ListEnumCompletionStepStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.CompletionStepStatus[] | Prisma.ListEnumCompletionStepStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumCompletionStepStatusFilter<$PrismaModel> | $Enums.CompletionStepStatus
+}
+
+export type NestedEnumCompletionStepTypeWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.CompletionStepType | Prisma.EnumCompletionStepTypeFieldRefInput<$PrismaModel>
+  in?: $Enums.CompletionStepType[] | Prisma.ListEnumCompletionStepTypeFieldRefInput<$PrismaModel>
+  notIn?: $Enums.CompletionStepType[] | Prisma.ListEnumCompletionStepTypeFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumCompletionStepTypeWithAggregatesFilter<$PrismaModel> | $Enums.CompletionStepType
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumCompletionStepTypeFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumCompletionStepTypeFilter<$PrismaModel>
+}
+
+export type NestedEnumCompletionStepStatusWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.CompletionStepStatus | Prisma.EnumCompletionStepStatusFieldRefInput<$PrismaModel>
+  in?: $Enums.CompletionStepStatus[] | Prisma.ListEnumCompletionStepStatusFieldRefInput<$PrismaModel>
+  notIn?: $Enums.CompletionStepStatus[] | Prisma.ListEnumCompletionStepStatusFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumCompletionStepStatusWithAggregatesFilter<$PrismaModel> | $Enums.CompletionStepStatus
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumCompletionStepStatusFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumCompletionStepStatusFilter<$PrismaModel>
 }
 
 export type NestedEnumScheduledOpStatusFilter<$PrismaModel = never> = {

@@ -84,6 +84,7 @@ export const ModelName = {
   FulfillmentPlan: 'FulfillmentPlan',
   FulfillmentLine: 'FulfillmentLine',
   ProductionOrderDependency: 'ProductionOrderDependency',
+  ProductionCompletionStep: 'ProductionCompletionStep',
   ScheduledOperation: 'ScheduledOperation',
   QualityInspection: 'QualityInspection',
   ProductionException: 'ProductionException',
@@ -487,6 +488,8 @@ export const ProductionOrderScalarFieldEnum = {
   priorityScore: 'priorityScore',
   manualOverride: 'manualOverride',
   metadata: 'metadata',
+  actualGoodUnits: 'actualGoodUnits',
+  actualTotalUnits: 'actualTotalUnits',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
   enterpriseId: 'enterpriseId'
@@ -538,6 +541,8 @@ export const FulfillmentLineScalarFieldEnum = {
   executionReference: 'executionReference',
   vendorId: 'vendorId',
   vendorName: 'vendorName',
+  fulfilledQuantity: 'fulfilledQuantity',
+  shortfallReason: 'shortfallReason',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const
@@ -554,6 +559,23 @@ export const ProductionOrderDependencyScalarFieldEnum = {
 export type ProductionOrderDependencyScalarFieldEnum = (typeof ProductionOrderDependencyScalarFieldEnum)[keyof typeof ProductionOrderDependencyScalarFieldEnum]
 
 
+export const ProductionCompletionStepScalarFieldEnum = {
+  id: 'id',
+  productionOrderId: 'productionOrderId',
+  stepType: 'stepType',
+  stepKey: 'stepKey',
+  status: 'status',
+  attempts: 'attempts',
+  claimedAt: 'claimedAt',
+  lastError: 'lastError',
+  resultRef: 'resultRef',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+} as const
+
+export type ProductionCompletionStepScalarFieldEnum = (typeof ProductionCompletionStepScalarFieldEnum)[keyof typeof ProductionCompletionStepScalarFieldEnum]
+
+
 export const ScheduledOperationScalarFieldEnum = {
   id: 'id',
   productionOrderId: 'productionOrderId',
@@ -567,6 +589,9 @@ export const ScheduledOperationScalarFieldEnum = {
   status: 'status',
   deviationMinutes: 'deviationMinutes',
   rejectionReason: 'rejectionReason',
+  goodUnits: 'goodUnits',
+  rejectedUnits: 'rejectedUnits',
+  totalUnits: 'totalUnits',
   scheduleVersionId: 'scheduleVersionId',
   supersededAt: 'supersededAt',
   createdAt: 'createdAt',
