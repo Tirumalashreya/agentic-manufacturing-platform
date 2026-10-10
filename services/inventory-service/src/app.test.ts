@@ -285,3 +285,125 @@ describe("inventory-service — Stage 06 POST /inventory/goods-issue", () => {
     }
   });
 });
+
+// Scrap-aware completion work (P0 defect fix, verified live): finished
+// goods were never credited into inventory anywhere on production
+// completion. POST /inventory/goods-receipt is the missing leg, and both
+// it and the existing goods-issue route now accept an Idempotency-Key so
+// mes-integration's per-step completion orchestration can retry a failed
+// step without ever creating a second real InventoryMovement.
+describe("inventory-service — POST /inventory/goods-receipt + idempotency", () => {
+  const suffix = randomUUID().slice(0, 8);
+  let enterpriseId: string;
+  let productId: string;
+  let productionOrder: { id: string };
+  const LOCATION = `TEST-GR-LOC-${suffix}`;
+
+  beforeAll(async () => {
+    const enterprise = await prisma.enterprise.create({
+      data: { name: `test-goods-receipt-${suffix}`, timezone: "UTC", currency: "USD" },
+    });
+    enterpriseId = enterprise.id;
+    defaultEnterpriseId = enterpriseId;
+    const product = await prisma.product.create({ data: { sku: `SKU-GR-${suffix}`, family: "Test", uom: "EA", leadTimeDays: 1 } });
+    productId = product.id;
+    const site = await prisma.site.create({ data: { enterpriseId, name: `test-site-gr-${suffix}`, timezone: "UTC" } });
+    const plant = await prisma.plant.create({ data: { siteId: site.id, code: `TEST-GR-PLANT-${suffix}`, type: "DISCRETE", capacityUnit: "hours" } });
+    productionOrder = await prisma.productionOrder.create({
+      data: { plantId: plant.id, enterpriseId, productId, quantity: 100, status: "COMPLETED", priorityScore: 0 },
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.idempotencyKey.deleteMany({ where: { enterpriseId } });
+    await prisma.inventoryMovement.deleteMany({ where: { productionOrderId: productionOrder.id } });
+    await prisma.inventory.deleteMany({ where: { productId, location: LOCATION } });
+    await prisma.productionOrder.deleteMany({ where: { id: productionOrder.id } });
+    await prisma.product.deleteMany({ where: { id: productId } });
+    await prisma.plant.deleteMany({ where: { site: { enterpriseId } } });
+    await prisma.site.deleteMany({ where: { enterpriseId } });
+    await prisma.enterprise.deleteMany({ where: { id: enterpriseId } });
+    await prisma.$disconnect();
+  });
+
+  it("credits real stock for the actual accepted quantity and records a real GOODS_RECEIPT movement", async () => {
+    const res = await req().post("/inventory/goods-receipt").send({
+      productId, location: LOCATION, quantity: 60, productionOrderId: productionOrder.id,
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.type).toBe("GOODS_RECEIPT");
+    expect(res.body.quantity).toBe(60);
+
+    const inventory = await prisma.inventory.findUnique({
+      where: { enterpriseId_productId_location: { enterpriseId, productId, location: LOCATION } },
+    });
+    expect(inventory!.qtyUnrestricted).toBe(60);
+  });
+
+  it("replaying the same Idempotency-Key + body is a true no-op — identical response, zero new movements or stock change", async () => {
+    const key = `test-idem-${suffix}-1`;
+    const body = { productId, location: LOCATION, quantity: 15, productionOrderId: productionOrder.id };
+
+    const first = await req().post("/inventory/goods-receipt").set("Idempotency-Key", key).send(body);
+    expect(first.status).toBe(201);
+
+    const before = await prisma.inventoryMovement.count({ where: { productionOrderId: productionOrder.id } });
+    const beforeQty = (await prisma.inventory.findUnique({
+      where: { enterpriseId_productId_location: { enterpriseId, productId, location: LOCATION } },
+    }))!.qtyUnrestricted;
+
+    const replay = await req().post("/inventory/goods-receipt").set("Idempotency-Key", key).send(body);
+    expect(replay.status).toBe(201);
+    expect(replay.body).toEqual(first.body); // verbatim replay, not re-executed
+
+    const after = await prisma.inventoryMovement.count({ where: { productionOrderId: productionOrder.id } });
+    const afterQty = (await prisma.inventory.findUnique({
+      where: { enterpriseId_productId_location: { enterpriseId, productId, location: LOCATION } },
+    }))!.qtyUnrestricted;
+    expect(after).toBe(before); // no second movement row
+    expect(afterQty).toBe(beforeQty); // stock not double-credited
+  });
+
+  it("replaying the same Idempotency-Key with a different body is refused (409), not silently accepted as a fresh request", async () => {
+    const key = `test-idem-${suffix}-2`;
+    await req().post("/inventory/goods-receipt").set("Idempotency-Key", key).send({
+      productId, location: LOCATION, quantity: 5, productionOrderId: productionOrder.id,
+    });
+
+    const conflicting = await req().post("/inventory/goods-receipt").set("Idempotency-Key", key).send({
+      productId, location: LOCATION, quantity: 999, productionOrderId: productionOrder.id,
+    });
+    expect(conflicting.status).toBe(409);
+
+    // The mismatched retry must not have been executed at all.
+    const movement = await prisma.inventoryMovement.findFirst({ where: { productionOrderId: productionOrder.id, quantity: 999 } });
+    expect(movement).toBeNull();
+  });
+
+  it("the same protection applies to goods-issue — a retried issue step cannot double-debit stock", async () => {
+    await req().post("/inventory").send({ productId, location: LOCATION, qtyUnrestricted: 50, qtyReserved: 0, qtyInTransit: 0 });
+    const key = `test-idem-issue-${suffix}`;
+    const body = { productId, location: LOCATION, quantity: 10, productionOrderId: productionOrder.id };
+
+    const first = await req().post("/inventory/goods-issue").set("Idempotency-Key", key).send(body);
+    expect(first.status).toBe(201);
+    const afterFirst = (await prisma.inventory.findUnique({
+      where: { enterpriseId_productId_location: { enterpriseId, productId, location: LOCATION } },
+    }))!.qtyUnrestricted;
+
+    const replay = await req().post("/inventory/goods-issue").set("Idempotency-Key", key).send(body);
+    expect(replay.status).toBe(201);
+    const afterReplay = (await prisma.inventory.findUnique({
+      where: { enterpriseId_productId_location: { enterpriseId, productId, location: LOCATION } },
+    }))!.qtyUnrestricted;
+    expect(afterReplay).toBe(afterFirst); // not debited twice
+  });
+
+  it("without an Idempotency-Key header, behavior is unchanged from before this work — every call executes", async () => {
+    const before = await prisma.inventoryMovement.count({ where: { productionOrderId: productionOrder.id, type: "GOODS_RECEIPT" } });
+    await req().post("/inventory/goods-receipt").send({ productId, location: LOCATION, quantity: 1, productionOrderId: productionOrder.id });
+    await req().post("/inventory/goods-receipt").send({ productId, location: LOCATION, quantity: 1, productionOrderId: productionOrder.id });
+    const after = await prisma.inventoryMovement.count({ where: { productionOrderId: productionOrder.id, type: "GOODS_RECEIPT" } });
+    expect(after).toBe(before + 2); // both executed — no key means no dedup, exactly like today
+  });
+});

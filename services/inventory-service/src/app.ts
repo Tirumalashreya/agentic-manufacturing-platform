@@ -2,6 +2,7 @@ process.env.SERVICE_NAME = "inventory-service";
 
 import { createApp, registerErrorHandler, logger, publish, publishTracked, TOPICS, requireIdentity } from "@aps/shared";
 import { prisma, checkMaterialAvailability } from "@aps/domain";
+import { withIdempotency } from "./idempotency";
 
 // Split out of index.ts (Stage 01 HIGH-risk debt closure — same pattern as
 // order-service/machine-service/maintenance-service) so vitest+supertest
@@ -58,35 +59,81 @@ app.post("/inventory", requireInventoryIdentity, async (req, res) => {
 // here unchanged so inventory-service becomes the one real writer of its
 // own tables, and the resulting domain event is published from the same
 // place the write actually happens, not from the caller.
+// Idempotency (scrap-aware completion work): mes-integration's per-step
+// completion orchestration calls this once per BOM line, keyed by
+// `${productionOrderId}:GOODS_ISSUE:${bomLineId}` — a retried step (the
+// inline attempt racing a manual retry, or a network-level retry of the
+// same HTTP call) replays the stored result instead of debiting stock
+// twice. No Idempotency-Key header means the caller didn't ask for this
+// protection — existing callers without the header keep today's exact
+// behavior, unchanged.
 app.post("/inventory/goods-issue", requireInventoryIdentity, async (req, res) => {
-  const { productId, location, quantity, productionOrderId } = req.body as {
-    productId: string;
-    location: string;
-    quantity: number;
-    productionOrderId: string;
-  };
   const enterpriseId = req.identity!.enterpriseId;
-  const existing = await prisma.inventory.findUnique({
-    where: { enterpriseId_productId_location: { enterpriseId, productId, location } },
+  await withIdempotency(req, res, enterpriseId, "POST /inventory/goods-issue", async () => {
+    const { productId, location, quantity, productionOrderId } = req.body as {
+      productId: string;
+      location: string;
+      quantity: number;
+      productionOrderId: string;
+    };
+    const existing = await prisma.inventory.findUnique({
+      where: { enterpriseId_productId_location: { enterpriseId, productId, location } },
+    });
+    const newQty = Math.max((existing?.qtyUnrestricted ?? 0) - quantity, 0);
+    await prisma.inventory.upsert({
+      where: { enterpriseId_productId_location: { enterpriseId, productId, location } },
+      create: { productId, location, qtyUnrestricted: newQty, qtyReserved: 0, qtyInTransit: 0, enterpriseId },
+      update: { qtyUnrestricted: newQty },
+    });
+    const movement = await prisma.inventoryMovement.create({
+      data: { type: "GOODS_ISSUE", productId, location, quantity, productionOrderId },
+    });
+    await publish(TOPICS.INVENTORY_MOVEMENT_RECORDED, {
+      movementId: movement.id,
+      type: movement.type,
+      productId: movement.productId,
+      location: movement.location,
+      quantity: movement.quantity,
+      productionOrderId,
+    });
+    return { status: 201, body: movement };
   });
-  const newQty = Math.max((existing?.qtyUnrestricted ?? 0) - quantity, 0);
-  await prisma.inventory.upsert({
-    where: { enterpriseId_productId_location: { enterpriseId, productId, location } },
-    create: { productId, location, qtyUnrestricted: newQty, qtyReserved: 0, qtyInTransit: 0, enterpriseId },
-    update: { qtyUnrestricted: newQty },
+});
+
+// The missing finished-goods leg (P0 defect, verified live against this
+// codebase: completing a ProductionOrder issued raw materials but never
+// credited the finished product into stock anywhere — GOODS_RECEIPT
+// previously only ever came from PO receiving below). Mirrors
+// goods-issue's shape exactly, incrementing instead of decrementing, and
+// carries the same per-step Idempotency-Key protection — keyed by
+// mes-integration as `${productionOrderId}:GOODS_RECEIPT:${productId}`.
+app.post("/inventory/goods-receipt", requireInventoryIdentity, async (req, res) => {
+  const enterpriseId = req.identity!.enterpriseId;
+  await withIdempotency(req, res, enterpriseId, "POST /inventory/goods-receipt", async () => {
+    const { productId, location, quantity, productionOrderId } = req.body as {
+      productId: string;
+      location: string;
+      quantity: number;
+      productionOrderId: string;
+    };
+    await prisma.inventory.upsert({
+      where: { enterpriseId_productId_location: { enterpriseId, productId, location } },
+      create: { productId, location, qtyUnrestricted: quantity, qtyReserved: 0, qtyInTransit: 0, enterpriseId },
+      update: { qtyUnrestricted: { increment: quantity } },
+    });
+    const movement = await prisma.inventoryMovement.create({
+      data: { type: "GOODS_RECEIPT", productId, location, quantity, productionOrderId },
+    });
+    await publish(TOPICS.INVENTORY_MOVEMENT_RECORDED, {
+      movementId: movement.id,
+      type: movement.type,
+      productId: movement.productId,
+      location: movement.location,
+      quantity: movement.quantity,
+      productionOrderId,
+    });
+    return { status: 201, body: movement };
   });
-  const movement = await prisma.inventoryMovement.create({
-    data: { type: "GOODS_ISSUE", productId, location, quantity, productionOrderId },
-  });
-  await publish(TOPICS.INVENTORY_MOVEMENT_RECORDED, {
-    movementId: movement.id,
-    type: movement.type,
-    productId: movement.productId,
-    location: movement.location,
-    quantity: movement.quantity,
-    productionOrderId,
-  });
-  res.status(201).json(movement);
 });
 
 // Checks one product's BOM components against stock, publishing
