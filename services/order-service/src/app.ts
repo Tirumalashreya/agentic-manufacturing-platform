@@ -616,12 +616,20 @@ async function recomputeSalesOrderStatus(tx: Prisma.TransactionClient, salesOrde
 // nothing slow ever runs while the row lock is held — the lock's whole
 // lifetime is a handful of local Postgres reads and one write.
 app.patch("/fulfillment-lines/:id", async (req, res) => {
-  const { productionOrderId, executionReference, status, promisedDate, reason } = req.body as {
+  const { productionOrderId, executionReference, status, promisedDate, reason, fulfilledQuantity, shortfallReason } = req.body as {
     productionOrderId?: string;
     executionReference?: string;
     status?: string;
     promisedDate?: string;
     reason?: string;
+    // Scrap-aware completion: the real accepted quantity this leg actually
+    // produced, set once at production completion — deliberately NOT a
+    // status transition (see this field's schema comment: `quantity`
+    // stays the original demand, `status` here is left untouched by this
+    // write so retrying it is a plain idempotent field overwrite, not
+    // subject to the status-transition race-detection 409 below).
+    fulfilledQuantity?: number;
+    shortfallReason?: string;
   };
 
   try {
@@ -712,6 +720,8 @@ app.patch("/fulfillment-lines/:id", async (req, res) => {
           // delivery date for STOCK) — never invented here, just recorded.
           ...(promisedDate !== undefined ? { promisedDate: promisedDate ? new Date(promisedDate) : null } : {}),
           ...(nextReason !== undefined ? { reason: nextReason } : {}),
+          ...(fulfilledQuantity !== undefined ? { fulfilledQuantity } : {}),
+          ...(shortfallReason !== undefined ? { shortfallReason } : {}),
         },
       });
       await recomputeSalesOrderStatus(tx, existing.fulfillmentPlan.orderLine.orderId);

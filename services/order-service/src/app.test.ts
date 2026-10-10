@@ -1780,3 +1780,104 @@ describe("GET /sales-orders/promises", () => {
     expect(runsAfter).toBe(runsBefore);
   });
 });
+
+// Scrap-aware completion work (P0 defect fix): PATCH /fulfillment-lines/:id
+// gains fulfilledQuantity/shortfallReason. Deliberately self-contained
+// fixture — not chained onto the describe block above — so these tests
+// don't depend on, or affect, that block's own stateful test ordering.
+describe("order-service — PATCH /fulfillment-lines/:id fulfilledQuantity/shortfallReason", () => {
+  const suffix = randomUUID().slice(0, 8);
+  let enterpriseId: string;
+  let customerId: string;
+  let salesOrderId: string;
+  let lineId: string;
+  const AUTH = { "x-internal-token": process.env.INTERNAL_SERVICE_TOKEN ?? "" };
+
+  function identity(entId: string) {
+    const token = shared.signIdentityAssertion(
+      { sub: "test-user", type: "user", role: "PLANNER", enterpriseId: entId, aud: "aps-internal" },
+      process.env.INTERNAL_SERVICE_TOKEN ?? ""
+    );
+    return { "x-identity-assertion": token };
+  }
+
+  beforeAll(async () => {
+    const enterprise = await prisma.enterprise.create({ data: { name: `test-fq-${suffix}`, timezone: "UTC", currency: "USD" } });
+    enterpriseId = enterprise.id;
+    const customer = await prisma.customer.create({ data: { name: `Test Customer FQ ${suffix}`, enterpriseId } });
+    customerId = customer.id;
+    const salesOrder = await prisma.salesOrder.create({ data: { customerId, dueDate: new Date(), value: 1000, enterpriseId } });
+    salesOrderId = salesOrder.id;
+    const orderLine = await prisma.orderLine.create({
+      data: { orderId: salesOrder.id, productName: "Test Widget", quantity: 100, unitPrice: 10 },
+    });
+    const plan = await prisma.fulfillmentPlan.create({ data: { orderLineId: orderLine.id, strategy: "MTO" } });
+    const line = await prisma.fulfillmentLine.create({
+      data: { fulfillmentPlanId: plan.id, sourceType: "PRODUCTION", quantity: 100, status: "IN_PROGRESS" },
+    });
+    lineId = line.id;
+  });
+
+  afterAll(async () => {
+    await prisma.fulfillmentLine.deleteMany({ where: { id: lineId } });
+    await prisma.fulfillmentPlan.deleteMany({ where: { orderLine: { orderId: salesOrderId } } });
+    await prisma.orderLine.deleteMany({ where: { orderId: salesOrderId } });
+    await prisma.salesOrder.deleteMany({ where: { id: salesOrderId } });
+    await prisma.customer.deleteMany({ where: { id: customerId } });
+    await prisma.enterprise.deleteMany({ where: { id: enterpriseId } });
+  });
+
+  it("sets fulfilledQuantity and shortfallReason without touching quantity or status — original demand is preserved", async () => {
+    const res = await request(app)
+      .patch(`/fulfillment-lines/${lineId}`)
+      .set(AUTH)
+      .set(identity(enterpriseId))
+      .send({ fulfilledQuantity: 60, shortfallReason: "60 of 100 ordered units produced (40 short)" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.fulfilledQuantity).toBe(60);
+    expect(res.body.shortfallReason).toBe("60 of 100 ordered units produced (40 short)");
+    expect(res.body.quantity).toBe(100); // untouched — the original demand, never overwritten
+    expect(res.body.status).toBe("IN_PROGRESS"); // untouched — this write never transitions status
+  });
+
+  it("omitting shortfallReason (full completion, nothing short) leaves it null", async () => {
+    const full = await prisma.fulfillmentLine.create({
+      data: { fulfillmentPlanId: (await prisma.fulfillmentLine.findUniqueOrThrow({ where: { id: lineId } })).fulfillmentPlanId, sourceType: "PRODUCTION", quantity: 50, status: "IN_PROGRESS" },
+    });
+    try {
+      const res = await request(app)
+        .patch(`/fulfillment-lines/${full.id}`)
+        .set(AUTH)
+        .set(identity(enterpriseId))
+        .send({ fulfilledQuantity: 50 });
+      expect(res.status).toBe(200);
+      expect(res.body.fulfilledQuantity).toBe(50);
+      expect(res.body.shortfallReason).toBeNull();
+    } finally {
+      await prisma.fulfillmentLine.deleteMany({ where: { id: full.id } });
+    }
+  });
+
+  it("retrying the same fulfilledQuantity write is a safe no-op (plain field overwrite, not an accumulator)", async () => {
+    const first = await request(app).patch(`/fulfillment-lines/${lineId}`).set(AUTH).set(identity(enterpriseId)).send({ fulfilledQuantity: 75 });
+    const retry = await request(app).patch(`/fulfillment-lines/${lineId}`).set(AUTH).set(identity(enterpriseId)).send({ fulfilledQuantity: 75 });
+    expect(first.status).toBe(200);
+    expect(retry.status).toBe(200); // not a 409 — unlike a status-transition retry, this field has no race-detection guard needed
+    expect(retry.body.fulfilledQuantity).toBe(75); // not 150 — confirms it's an overwrite, never an accumulator
+  });
+
+  it("a different enterprise's identity cannot patch this line (tenant isolation unaffected by the new fields)", async () => {
+    const other = await prisma.enterprise.create({ data: { name: `test-fq-other-${suffix}`, timezone: "UTC", currency: "USD" } });
+    try {
+      const res = await request(app)
+        .patch(`/fulfillment-lines/${lineId}`)
+        .set(AUTH)
+        .set(identity(other.id))
+        .send({ fulfilledQuantity: 999 });
+      expect(res.status).toBe(404); // same "not found" convention as every other cross-tenant access in this file
+    } finally {
+      await prisma.enterprise.deleteMany({ where: { id: other.id } });
+    }
+  });
+});
