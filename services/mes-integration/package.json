@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "start": "tsx src/index.ts"
+    "start": "tsx src/index.ts",
+    "test": "vitest run"
   },
   "dependencies": {
     "@aps/domain": "*",
@@ -13,6 +14,9 @@
   },
   "devDependencies": {
     "tsx": "^4.19.0",
-    "@types/express": "^5.0.0"
+    "@types/express": "^5.0.0",
+    "vitest": "^5.0.1",
+    "supertest": "^7.0.0",
+    "@types/supertest": "^6.0.2"
   }
 }
