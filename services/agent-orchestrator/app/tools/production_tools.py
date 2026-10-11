@@ -2,6 +2,8 @@
 import datetime
 import openpyxl
 
+from app.tools.idempotency_tools import get_idempotent_result, idempotency_lock, record_idempotent_result
+
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
 PRODUCTION_ORDER_HEADERS = [
@@ -130,12 +132,27 @@ def _next_reservation_id(sheet) -> str:
 # the one tool in this file that mutates existing data rather than just
 # appending a new record, so it guards against a torn state: if the real,
 # current Inventory can't cover the request, nothing is written at all.
+#
+# Independent-audit finding (confirmed before fixing): the read (sum
+# available Inventory) and the write (decrement it) were a single
+# in-memory openpyxl workbook with no lock around the whole read-decide-
+# write sequence — two concurrent reservations for the same product could
+# both read the SAME available quantity, both decide they can cover it,
+# and both write, overselling real stock. @idempotency_lock() now
+# serializes the whole function; idempotency_key additionally protects a
+# genuine retry from reserving twice.
+@idempotency_lock()
 def reserve_stock(
     sales_order_id: str,
     product_id: str,
     product_name: str,
     quantity: int,
+    idempotency_key: str | None = None,
 ) -> dict:
+    cached = get_idempotent_result(idempotency_key, "reserve_stock")
+    if cached is not None:
+        return cached
+
     if quantity is None or quantity <= 0:
         return {
             "reserved": False,
@@ -188,8 +205,10 @@ def reserve_stock(
         ])
     wb.save(MOCK_ERP_PATH)
 
-    return {
+    result = {
         "reserved": True,
         "reservation_id": reservation_id,
         "allocations": allocations,
     }
+    record_idempotent_result(idempotency_key, "reserve_stock", result)
+    return result

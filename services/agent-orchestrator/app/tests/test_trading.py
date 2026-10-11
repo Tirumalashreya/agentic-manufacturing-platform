@@ -334,3 +334,50 @@ async def test_deliver_drop_ship_order_rejects_not_shipped():
     result = await deliver_drop_ship_order(order["trading_order_id"])
 
     assert result["dispatched"] is False
+
+
+# Independent-audit fix: even though update_trading_order_status's own
+# validate-then-write happens against one in-memory workbook, two
+# concurrent calls each load an independent copy before either saves —
+# whichever saves last silently wins for the whole file. A double
+# WAREHOUSED transition could double-credit Inventory. Real threads, not
+# a sequential call.
+def test_update_trading_order_status_concurrent_warehoused_credits_inventory_exactly_once():
+    import threading
+
+    before = {row["plant"]: row["stock_qty"] for row in get_stock("P016")}
+    order = _new_trading_order(quantity=40)
+    tid = order["trading_order_id"]
+    update_trading_order_status(tid, "RECEIVED")
+    update_trading_order_status(tid, "QC_PASSED")
+
+    results: list[dict] = []
+
+    def call():
+        results.append(update_trading_order_status(tid, "WAREHOUSED"))
+
+    threads = [threading.Thread(target=call) for _ in range(5)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    succeeded = [r for r in results if r["updated"]]
+    assert len(succeeded) == 1, f"expected exactly one real transition, got {len(succeeded)}: {results}"
+
+    after = {row["plant"]: row["stock_qty"] for row in get_stock("P016")}
+    assert sum(after.values()) == sum(before.values()) + 40  # credited exactly once, not 5 times
+    assert find_trading_order(tid)["status"] == "WAREHOUSED"
+
+
+def test_update_trading_order_status_retried_with_the_same_key_replays_verbatim():
+    order = _new_trading_order(quantity=10)
+    tid = order["trading_order_id"]
+    update_trading_order_status(tid, "RECEIVED")
+    key = f"warehouse-{tid}"
+
+    first = update_trading_order_status(tid, "QC_PASSED", idempotency_key=key)
+    second = update_trading_order_status(tid, "QC_PASSED", idempotency_key=key)
+
+    assert first["updated"] is True
+    assert second == first

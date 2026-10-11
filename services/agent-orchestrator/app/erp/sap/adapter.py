@@ -133,7 +133,7 @@ class SAPAdapter(ERPAdapter):
     def check_credit(self, customer_id, credit_limit, new_order_amount, exclude_sales_order_id=None):
         self._not_implemented("check_credit")
 
-    def reserve_stock(self, sales_order_id, product_id, product_name, quantity):
+    def reserve_stock(self, sales_order_id, product_id, product_name, quantity, idempotency_key=None):
         self._not_implemented("reserve_stock")
 
     def create_production_order(

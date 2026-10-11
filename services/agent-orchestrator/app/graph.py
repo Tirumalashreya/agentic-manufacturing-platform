@@ -1730,6 +1730,10 @@ async def mts_node(state: SalesState):
         product_id=state["product_id"],
         product_name=state["product_name"],
         quantity=state["fulfillment_from_stock"],
+        # A retry of this exact node (e.g. a replayed message) must not
+        # reserve the same stock twice — keyed on the order's own stable
+        # mock-ERP id, same convention as the approval-run-id key above.
+        idempotency_key=f"reserve-stock-{state['sales_order_id']}-MTS",
     )
     if not result["reserved"]:
         return {
@@ -2131,6 +2135,7 @@ async def _execute_hybrid_with_plan(state: SalesState, production_plan: dict | N
         product_id=state["product_id"],
         product_name=state["product_name"],
         quantity=state["fulfillment_from_stock"],
+        idempotency_key=f"reserve-stock-{state['sales_order_id']}-HYBRID",
     )
     if not reservation["reserved"]:
         await _patch_stock_execution(state, {"status": "FULFILLMENT_FAILED", "reason": reservation["reason"]})

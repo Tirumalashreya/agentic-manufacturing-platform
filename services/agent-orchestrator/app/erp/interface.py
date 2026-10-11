@@ -87,6 +87,7 @@ class ERPAdapter(ABC):
         product_id: str,
         product_name: str,
         quantity: int,
+        idempotency_key: str | None = None,
     ) -> dict: ...
 
     @abstractmethod

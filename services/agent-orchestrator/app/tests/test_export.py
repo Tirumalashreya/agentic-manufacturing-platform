@@ -209,3 +209,62 @@ async def test_list_open_export_orders_excludes_closed():
 
     assert open_order["export_order_id"] in ids
     assert to_close["export_order_id"] not in ids
+
+
+# Independent-audit fix: ship_export_order/invoice_export_order/
+# create_export_order called create_delivery/create_invoice without an
+# idempotency_key, so the protection those two functions already have
+# never actually engaged for the export channel — a double-submitted
+# "ship" or "invoice" chat action could create two real Deliveries/
+# Invoices. Each export function's own status-machine gate (e.g.
+# ship_export_order requires FREIGHT_BOOKED) already prevents calling it
+# a second time sequentially once the first succeeded, so proving the
+# wiring means reproducing the exact key each function now constructs
+# and confirming create_delivery/create_invoice treat it as a real
+# replay — the same key a genuine concurrent/retried call would carry.
+from app.erp.mock_erp_adapter import default_erp_adapter as _erp
+
+
+@pytest.mark.asyncio
+async def test_ship_export_order_delivery_key_is_wired_and_prevents_a_duplicate_real_delivery():
+    order = _new_export_order(quantity=2, unit_price=800.0)
+    export_order_id = order["export_order_id"]
+    await _advance_to_shipped(export_order_id)
+    real_delivery_id = find_export_order(export_order_id)["delivery_id"]
+
+    # The exact key ship_export_order constructs internally — a genuine
+    # retry of the same shipment action would carry this same key.
+    replay = _erp.create_delivery(
+        sales_order_id=None, customer_id="C001",
+        customer_name="ABC Corp", product_id="P011", product_name="Wireless Mouse",
+        quantity=2, idempotency_key=f"export-ship-{export_order_id}",
+    )
+    assert replay["delivery_id"] == real_delivery_id  # replayed, not a second real delivery
+
+
+@pytest.mark.asyncio
+async def test_invoice_export_order_invoice_key_is_wired_and_prevents_a_duplicate_real_invoice():
+    order = _new_export_order(quantity=2, unit_price=800.0)
+    export_order_id = order["export_order_id"]
+    await _advance_to_shipped(export_order_id)
+    real = invoice_export_order(export_order_id)
+    assert real["updated"] is True
+
+    replay = _erp.create_invoice(
+        sales_order_id=None, delivery_id=find_export_order(export_order_id)["delivery_id"],
+        customer_id="C001", customer_name="ABC Corp",
+        quantity_billed=2, unit_price=800.0, payment_terms_days=30, notes="replay",
+        idempotency_key=f"export-commercial-invoice-{export_order_id}",
+    )
+    assert replay["invoice_id"] == real["export_invoice_id"]  # replayed, not a second real invoice
+
+
+def test_create_export_order_proforma_invoice_key_is_wired_and_prevents_a_duplicate_real_invoice():
+    order = _new_export_order(quantity=5, unit_price=800.0)
+
+    replay = _erp.create_invoice(
+        sales_order_id=None, delivery_id=None, customer_id="C001", customer_name="ABC Corp",
+        quantity_billed=5, unit_price=800.0, payment_terms_days=30, notes="replay",
+        idempotency_key=f"export-proforma-invoice-{order['export_order_id']}",
+    )
+    assert replay["invoice_id"] == order["proforma_invoice_id"]

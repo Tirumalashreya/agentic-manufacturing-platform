@@ -1,7 +1,7 @@
 # app/routers/approvals.py
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from app import db
 from app.approval_proposal import compute_proposal_hash, revalidate_proposal
@@ -214,16 +214,20 @@ async def list_financial_approvals():
 
 
 @router.post("/financial/{financial_adjustment_id}/resolve", dependencies=[_require_planner])
-async def resolve_financial(financial_adjustment_id: str, body: ResolveRequest):
-    result = resolve_financial_approval(financial_adjustment_id, body.decision, approved_by=body.resolved_by)
+async def resolve_financial(financial_adjustment_id: str, body: ResolveRequest, request: Request):
+    idempotency_key = request.headers.get("idempotency-key")
+    result = resolve_financial_approval(
+        financial_adjustment_id, body.decision, approved_by=body.resolved_by, idempotency_key=idempotency_key
+    )
     if not result["resolved"]:
         raise HTTPException(status_code=400, detail=result["reason"])
     return result
 
 
 @router.post("/financial/{financial_adjustment_id}/post", dependencies=[_require_planner])
-async def post_financial(financial_adjustment_id: str):
-    result = post_financial_adjustment(financial_adjustment_id)
+async def post_financial(financial_adjustment_id: str, request: Request):
+    idempotency_key = request.headers.get("idempotency-key")
+    result = post_financial_adjustment(financial_adjustment_id, idempotency_key=idempotency_key)
     if not result["posted"]:
         raise HTTPException(status_code=400, detail=result["reason"])
     return result

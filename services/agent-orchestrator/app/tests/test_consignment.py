@@ -158,3 +158,67 @@ def test_list_open_consignments_excludes_closed():
 
     assert open_consignment["consignment_id"] in ids
     assert to_close["consignment_id"] not in ids
+
+
+# Independent-audit fix: report_consignment_sale's oversell check and its
+# write used to be two separate load_workbook calls with no lock — two
+# near-simultaneous "report sale" messages on the same consignment could
+# both pass the oversell check before either write landed. Real threads,
+# not a sequential call: 5 concurrent reports of 3 units each against a
+# consignment of only 10 units sent — without the fix, more than 3 of
+# them could race past the check; with it, settled quantity can never
+# exceed quantity_sent no matter how many threads race.
+def test_report_consignment_sale_concurrent_calls_never_oversell():
+    import threading
+
+    created = _new_consignment(quantity_sent=10, unit_price=800.0)
+    results: list[dict] = []
+
+    def call():
+        results.append(report_consignment_sale(created["consignment_id"], 3))
+
+    threads = [threading.Thread(target=call) for _ in range(5)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    succeeded = [r for r in results if r["reported"]]
+    consignment = find_consignment(created["consignment_id"])
+    assert consignment["quantity_sold"] == len(succeeded) * 3
+    assert consignment["quantity_sold"] <= 10  # the real guarantee — never oversold regardless of race timing
+    assert consignment["quantity_remaining"] == 10 - consignment["quantity_sold"]
+
+
+def test_report_consignment_sale_retried_with_the_same_key_does_not_double_invoice():
+    created = _new_consignment(quantity_sent=10, unit_price=800.0)
+    key = f"consignment-sale-{created['consignment_id']}"
+
+    first = report_consignment_sale(created["consignment_id"], 4, idempotency_key=key)
+    second = report_consignment_sale(created["consignment_id"], 4, idempotency_key=key)
+
+    assert first["reported"] is True
+    assert second == first
+    consignment = find_consignment(created["consignment_id"])
+    assert consignment["quantity_sold"] == 4  # not 8 — the retry was a replay, not a second real sale
+
+
+def test_return_unsold_consignment_stock_concurrent_calls_never_exceed_sent_quantity():
+    import threading
+
+    created = _new_consignment(quantity_sent=10, unit_price=800.0)
+    results: list[dict] = []
+
+    def call():
+        results.append(return_unsold_consignment_stock(created["consignment_id"], 3))
+
+    threads = [threading.Thread(target=call) for _ in range(5)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    succeeded = [r for r in results if r["returned"]]
+    consignment = find_consignment(created["consignment_id"])
+    assert consignment["quantity_returned"] == len(succeeded) * 3
+    assert consignment["quantity_returned"] <= 10

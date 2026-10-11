@@ -192,6 +192,12 @@ def create_export_order(
         unit_price=unit_price,
         payment_terms_days=EXPORT_PROFORMA_TERMS_DAYS,
         notes=f"Proforma invoice for export order {export_order_id} to {destination_country}.",
+        # Independent-audit fix: create_invoice already supports
+        # idempotency_key, but every export call site was omitting it, so
+        # that protection never actually engaged for this channel — a
+        # double-submitted export creation could silently issue two real
+        # proforma invoices for the same order.
+        idempotency_key=f"export-proforma-invoice-{export_order_id}",
     )
     proforma_invoice_id = invoice["invoice_id"] if invoice["created"] else None
     _set_fields(export_order_id, proforma_invoice_id=proforma_invoice_id)
@@ -272,6 +278,11 @@ def ship_export_order(export_order_id: str, bl_awb_number: str) -> dict:
         product_id=order["product_id"],
         product_name=order["product_name"],
         quantity=order["quantity"],
+        # Independent-audit fix — same gap as the proforma invoice above:
+        # create_delivery already supports idempotency_key, this call
+        # just wasn't passing one, so a double-submitted "ship" action
+        # could create two real Deliveries for the same export order.
+        idempotency_key=f"export-ship-{export_order_id}",
     )
     if not delivery["created"]:
         return {"updated": False, "reason": f"Shipment failed: {delivery['reason']}"}
@@ -309,6 +320,8 @@ def invoice_export_order(export_order_id: str) -> dict:
         unit_price=order["unit_price"],
         payment_terms_days=EXPORT_INVOICE_PAYMENT_TERMS_DAYS,
         notes=f"Export commercial invoice for {export_order_id} ({order['incoterm']} to {order['destination_country']}).",
+        # Independent-audit fix — same gap as above, for the commercial invoice.
+        idempotency_key=f"export-commercial-invoice-{export_order_id}",
     )
     if not invoice["created"]:
         return {"updated": False, "reason": f"Invoicing failed: {invoice['reason']}"}

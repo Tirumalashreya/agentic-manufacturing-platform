@@ -3,6 +3,7 @@ import datetime
 import openpyxl
 
 from app.tools.audit_tools import record_audit_event
+from app.tools.idempotency_tools import get_idempotent_result, idempotency_lock, record_idempotent_result
 
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
@@ -211,7 +212,22 @@ def list_open_trading_orders() -> list[dict]:
 # vendor liability/replacement handling is a real gap, not faked here.
 # DISPATCHED is deliberately not reachable through this function — see
 # dispatch_trading_order() in graph.py, which also bills.
-def update_trading_order_status(trading_order_id: str, new_status: str) -> dict:
+#
+# Independent-audit finding (confirmed before fixing): even though this
+# function's own validate-then-write happens against one in-memory
+# workbook, two CONCURRENT calls each load their own independent copy
+# before either saves — openpyxl's save() rewrites the whole file, so
+# whichever call saves last silently wins for the entire workbook, not
+# just this row. A double WAREHOUSED transition could double-credit
+# Inventory even though each call's own internal logic looked correct in
+# isolation. @idempotency_lock() closes this the same way as every other
+# fix in this pass; idempotency_key protects a genuine retry.
+@idempotency_lock()
+def update_trading_order_status(trading_order_id: str, new_status: str, idempotency_key: str | None = None) -> dict:
+    cached = get_idempotent_result(idempotency_key, "update_trading_order_status")
+    if cached is not None:
+        return cached
+
     if new_status not in {"RECEIVED", "QC_PASSED", "QC_FAILED", "WAREHOUSED", "SHIPPED"}:
         return {"updated": False, "reason": f"Invalid status: {new_status}"}
 
@@ -265,7 +281,9 @@ def update_trading_order_status(trading_order_id: str, new_status: str) -> dict:
 
         wb.save(MOCK_ERP_PATH)
         record_audit_event("TradingOrder", trading_order_id, f"TRADING_ORDER_{new_status}")
-        return {"updated": True, "trading_order_id": trading_order_id, "status": new_status}
+        result = {"updated": True, "trading_order_id": trading_order_id, "status": new_status}
+        record_idempotent_result(idempotency_key, "update_trading_order_status", result)
+        return result
 
     return {"updated": False, "reason": f"No trading order found with id {trading_order_id}"}
 

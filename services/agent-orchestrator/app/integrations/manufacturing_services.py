@@ -4,10 +4,16 @@ The Production Planning Agent's real connection to the existing TS
 manufacturing microservices (order-service, routing-service, machine-
 service, inventory-service, scheduling-service) — the first outbound HTTP
 calls this codebase makes to any of them. This module is deliberately thin:
-one function per real endpoint, no business logic, no retries beyond what
-httpx gives for free — the same "compose already-existing, already-tested
-operations" principle plan_executor.py already established for the mock-ERP
-side, just over HTTP instead of in-process.
+one function per real endpoint, no business logic beyond what's needed to
+call it — the same "compose already-existing, already-tested operations"
+principle plan_executor.py already established for the mock-ERP side, just
+over HTTP instead of in-process.
+
+Independent-audit fix: every call now goes through the shared _request()
+helper (see its own doc comment below), which retries a connection-level
+failure or a 502/503/504 — the two failure modes that almost always mean
+the request never reached the application process — with a short backoff.
+It deliberately never retries a definite 4xx/5xx application response.
 
 Every call is a plain async httpx request against a real endpoint that
 already exists and is already used by other real callers (the setup-import
@@ -15,6 +21,7 @@ tool, or the services' own tests where they have them) — nothing here
 invents a new capability on the TS side except get_bom, which mirrors an
 endpoint added deliberately for this (see routing-service/src/index.ts).
 """
+import asyncio
 import base64
 import hashlib
 import hmac
@@ -117,12 +124,56 @@ def _internal_headers() -> dict[str, str]:
     return headers
 
 
+# Independent-audit finding (confirmed before fixing): every call in this
+# module had a real timeout but no retry at all beyond that — this
+# module's own docstring previously said so explicitly ("no retries
+# beyond what httpx gives for free", i.e. none). An unreachable
+# scheduling-service/APS Platform surfaced as an unhandled exception,
+# requiring a human to notice and retry manually.
+#
+# _request() retries ONLY genuinely transient failures: a connection-
+# level error (DNS/TCP failure, connect timeout, or a read timeout before
+# any response arrived) or a 502/503/504, which almost always means a
+# gateway rejected the request before the application process ever ran
+# it. It deliberately never retries a definite 4xx or plain 5xx response
+# — that status means the server DID process the request, and blindly
+# retrying a non-idempotent write (e.g. create_production_order,
+# create_purchase_order) in that case could create a duplicate. This is
+# the same safe-by-default policy most HTTP client SDKs use; it is not a
+# guarantee against every failure mode — a response lost in transit AFTER
+# the server actually committed a write is the one residual case this
+# can't fully protect against without a real idempotency key on every
+# write endpoint here, a larger, separate piece of work (plan_production
+# already has one — see its idempotency_key parameter).
+_RETRY_ATTEMPTS = 3
+_RETRY_BACKOFF_SECONDS = (0.5, 1.5)  # delay before attempt 2, and before attempt 3
+_RETRYABLE_STATUS_CODES = {502, 503, 504}
+
+
+async def _request(method: str, url: str, *, timeout: float = _TIMEOUT, **kwargs) -> httpx.Response:
+    last_exc: Exception | None = None
+    for attempt in range(_RETRY_ATTEMPTS):
+        try:
+            async with httpx.AsyncClient(timeout=timeout, headers=_internal_headers()) as client:
+                resp = await client.request(method, url, **kwargs)
+        except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout) as exc:
+            last_exc = exc
+            if attempt < _RETRY_ATTEMPTS - 1:
+                await asyncio.sleep(_RETRY_BACKOFF_SECONDS[attempt])
+                continue
+            raise
+        if resp.status_code in _RETRYABLE_STATUS_CODES and attempt < _RETRY_ATTEMPTS - 1:
+            await asyncio.sleep(_RETRY_BACKOFF_SECONDS[attempt])
+            continue
+        return resp
+    raise last_exc  # pragma: no cover — loop above always returns or raises
+
+
 async def get_bom(product_id: str) -> dict | None:
     """None means no active BOM exists for this product — a legitimate,
     honest result (see production_planning_agent's UNPLANNABLE verdict),
     not an error."""
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.get(f"{ROUTING_SERVICE_URL}/boms/resolve", params={"productId": product_id})
+    resp = await _request("GET", f"{ROUTING_SERVICE_URL}/boms/resolve", params={"productId": product_id})
     if resp.status_code == 404:
         return None
     resp.raise_for_status()
@@ -131,8 +182,7 @@ async def get_bom(product_id: str) -> dict | None:
 
 async def get_routing(product_id: str) -> dict | None:
     """None means no active routing exists for this product."""
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.get(f"{ROUTING_SERVICE_URL}/routings/resolve", params={"productId": product_id})
+    resp = await _request("GET", f"{ROUTING_SERVICE_URL}/routings/resolve", params={"productId": product_id})
     if resp.status_code == 404:
         return None
     resp.raise_for_status()
@@ -143,8 +193,7 @@ async def get_machine(machine_id: str) -> dict:
     """Used to turn a simulated/scheduled operation's raw machineId into a
     real machine name for display — the what-if/run responses only carry
     ids, not names."""
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.get(f"{MACHINE_SERVICE_URL}/machines/{machine_id}")
+    resp = await _request("GET", f"{MACHINE_SERVICE_URL}/machines/{machine_id}")
     resp.raise_for_status()
     return resp.json()
 
@@ -155,8 +204,7 @@ async def get_operators() -> list[dict]:
     per-id route exists on operator-service, so this fetches the whole
     roster and the caller looks up by id (four names, not worth adding a
     new route for)."""
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.get(f"{OPERATOR_SERVICE_URL}/operators")
+    resp = await _request("GET", f"{OPERATOR_SERVICE_URL}/operators")
     resp.raise_for_status()
     return resp.json()
 
@@ -166,25 +214,22 @@ async def get_vendors() -> list[dict]:
     name/leadTimeDays/reliabilityScore) — the caller picks by lead time,
     deterministically, rather than needing an LLM cost/lead-time tradeoff
     the way the mock-ERP side's procurement_agent does."""
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.get(f"{INVENTORY_SERVICE_URL}/vendors")
+    resp = await _request("GET", f"{INVENTORY_SERVICE_URL}/vendors")
     resp.raise_for_status()
     return resp.json()
 
 
 async def create_purchase_order(vendor_id: str, product_sku: str, quantity: int, expected_date: str) -> dict:
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.post(
-            f"{INVENTORY_SERVICE_URL}/purchase-orders",
-            json={"vendorId": vendor_id, "productSku": product_sku, "quantity": quantity, "expectedDate": expected_date, "confirmed": True},
-        )
+    resp = await _request(
+        "POST", f"{INVENTORY_SERVICE_URL}/purchase-orders",
+        json={"vendorId": vendor_id, "productSku": product_sku, "quantity": quantity, "expectedDate": expected_date, "confirmed": True},
+    )
     resp.raise_for_status()
     return resp.json()
 
 
 async def get_inventory(product_id: str) -> list[dict]:
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.get(f"{INVENTORY_SERVICE_URL}/inventory", params={"productId": product_id})
+    resp = await _request("GET", f"{INVENTORY_SERVICE_URL}/inventory", params={"productId": product_id})
     resp.raise_for_status()
     return resp.json()
 
@@ -199,31 +244,28 @@ async def create_production_order(
     """order-service defaults status to PLANNED — this is the planning
     object, not a commitment. See delete_production_order for the reject
     path and update_production_order_status for the approve path."""
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.post(
-            f"{ORDER_SERVICE_URL}/orders",
-            json={
-                "plantId": plant_id,
-                "productId": product_id,
-                "routingId": routing_id,
-                "bomId": bom_id,
-                "quantity": quantity,
-            },
-        )
+    resp = await _request(
+        "POST", f"{ORDER_SERVICE_URL}/orders",
+        json={
+            "plantId": plant_id,
+            "productId": product_id,
+            "routingId": routing_id,
+            "bomId": bom_id,
+            "quantity": quantity,
+        },
+    )
     resp.raise_for_status()
     return resp.json()
 
 
 async def get_production_order(order_id: str) -> dict:
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.get(f"{ORDER_SERVICE_URL}/orders/{order_id}")
+    resp = await _request("GET", f"{ORDER_SERVICE_URL}/orders/{order_id}")
     resp.raise_for_status()
     return resp.json()
 
 
 async def update_production_order_status(order_id: str, status: str) -> dict:
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.patch(f"{ORDER_SERVICE_URL}/orders/{order_id}", json={"status": status})
+    resp = await _request("PATCH", f"{ORDER_SERVICE_URL}/orders/{order_id}", json={"status": status})
     resp.raise_for_status()
     return resp.json()
 
@@ -236,8 +278,7 @@ async def update_production_order_metadata(order_id: str, metadata: dict) -> dic
     once the shop floor actually finishes it. Written right after RELEASE
     in _commit_production_plan, never before — there's nothing to bill
     until the plan is actually approved."""
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.patch(f"{ORDER_SERVICE_URL}/orders/{order_id}", json={"metadata": metadata})
+    resp = await _request("PATCH", f"{ORDER_SERVICE_URL}/orders/{order_id}", json={"metadata": metadata})
     resp.raise_for_status()
     return resp.json()
 
@@ -245,8 +286,7 @@ async def update_production_order_metadata(order_id: str, metadata: dict) -> dic
 async def delete_production_order(order_id: str) -> None:
     """Real cascading delete (order-service's own DELETE /orders/:id) —
     used when a plan is rejected, so a PLANNED order never lingers."""
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.delete(f"{ORDER_SERVICE_URL}/orders/{order_id}")
+    resp = await _request("DELETE", f"{ORDER_SERVICE_URL}/orders/{order_id}")
     resp.raise_for_status()
 
 
@@ -256,11 +296,10 @@ async def trigger_what_if_scheduling(plant_id: str) -> dict:
     scheduling-service/src/pipeline.ts's DryRunCtx). Never use
     trigger_scheduling_run for a preview — that one is a real, plant-wide
     commit."""
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.post(
-            f"{SCHEDULING_SERVICE_URL}/scheduling/what-if",
-            json={"plantId": plant_id, "scope": "ALL", "mode": "FORWARD"},
-        )
+    resp = await _request(
+        "POST", f"{SCHEDULING_SERVICE_URL}/scheduling/what-if",
+        json={"plantId": plant_id, "scope": "ALL", "mode": "FORWARD"},
+    )
     resp.raise_for_status()
     return resp.json()
 
@@ -305,18 +344,17 @@ class APSAgentClient:
         _plan_production_via_manufacturing_services in graph.py for how
         the key is derived — a real business identity (the already-created
         sales order id + product + quantity), never LLM output."""
-        async with httpx.AsyncClient(timeout=60.0, headers=_internal_headers()) as client:
-            resp = await client.post(
-                f"{APS_PLATFORM_URL}/api/plan-production",
-                json={
-                    "productId": product_id,
-                    "productName": product_name,
-                    "quantity": quantity,
-                    "requiredDate": required_date,
-                    "configurationNotes": configuration_notes,
-                    "idempotencyKey": idempotency_key,
-                },
-            )
+        resp = await _request(
+            "POST", f"{APS_PLATFORM_URL}/api/plan-production", timeout=60.0,
+            json={
+                "productId": product_id,
+                "productName": product_name,
+                "quantity": quantity,
+                "requiredDate": required_date,
+                "configurationNotes": configuration_notes,
+                "idempotencyKey": idempotency_key,
+            },
+        )
         resp.raise_for_status()
         return resp.json()
 
@@ -324,11 +362,10 @@ class APSAgentClient:
         """Post-approval commit, relocated to APS Platform — the real
         counterpart to plan_production. Only ever called after a human
         has already approved on Ledger."""
-        async with httpx.AsyncClient(timeout=30.0, headers=_internal_headers()) as client:
-            resp = await client.post(
-                f"{APS_PLATFORM_URL}/api/commit-production",
-                json={"productionOrderId": production_order_id, "plantId": plant_id, "billingContext": billing_context},
-            )
+        resp = await _request(
+            "POST", f"{APS_PLATFORM_URL}/api/commit-production", timeout=30.0,
+            json={"productionOrderId": production_order_id, "plantId": plant_id, "billingContext": billing_context},
+        )
         resp.raise_for_status()
         return resp.json()
 
@@ -339,8 +376,7 @@ class APSAgentClient:
         Bottleneck identification is this same response's `bottlenecks`
         field — a separately-named capability in the milestone's target
         list, already satisfied here, not a new endpoint."""
-        async with httpx.AsyncClient(timeout=15.0, headers=_internal_headers()) as client:
-            resp = await client.get(f"{APS_PLATFORM_URL}/api/capacity-status", params={"plantId": plant_id})
+        resp = await _request("GET", f"{APS_PLATFORM_URL}/api/capacity-status", timeout=15.0, params={"plantId": plant_id})
         resp.raise_for_status()
         return resp.json()
 
@@ -350,11 +386,10 @@ class APSAgentClient:
         scratch namespace is torn down unconditionally on its side. Never
         touched by reschedule/AFFECTED work — no seed order is threaded
         into a what-if call."""
-        async with httpx.AsyncClient(timeout=60.0, headers=_internal_headers()) as client:
-            resp = await client.post(
-                f"{APS_PLATFORM_URL}/api/simulate-schedule",
-                json={"plantId": plant_id, "productionOrderId": production_order_id, "capacityAdjustments": capacity_adjustments},
-            )
+        resp = await _request(
+            "POST", f"{APS_PLATFORM_URL}/api/simulate-schedule", timeout=60.0,
+            json={"plantId": plant_id, "productionOrderId": production_order_id, "capacityAdjustments": capacity_adjustments},
+        )
         resp.raise_for_status()
         return resp.json()
 
@@ -368,11 +403,10 @@ class APSAgentClient:
         approval card) show real target/affected order ids before
         anything commits, without ever defining "affected" a second,
         possibly-divergent way."""
-        async with httpx.AsyncClient(timeout=15.0, headers=_internal_headers()) as client:
-            resp = await client.get(
-                f"{APS_PLATFORM_URL}/api/reschedule-preview",
-                params={"plantId": plant_id, "productionOrderId": production_order_id, "scope": scope},
-            )
+        resp = await _request(
+            "GET", f"{APS_PLATFORM_URL}/api/reschedule-preview", timeout=15.0,
+            params={"plantId": plant_id, "productionOrderId": production_order_id, "scope": scope},
+        )
         resp.raise_for_status()
         return resp.json()
 
@@ -386,11 +420,10 @@ class APSAgentClient:
         for a conversational request) always decides SINGLE vs AFFECTED
         explicitly before calling this; this is the one authoritative
         implementation both entry points converge on."""
-        async with httpx.AsyncClient(timeout=60.0, headers=_internal_headers()) as client:
-            resp = await client.post(
-                f"{APS_PLATFORM_URL}/api/reschedule",
-                json={"plantId": plant_id, "productionOrderId": production_order_id, "scope": scope, "mode": mode},
-            )
+        resp = await _request(
+            "POST", f"{APS_PLATFORM_URL}/api/reschedule", timeout=60.0,
+            json={"plantId": plant_id, "productionOrderId": production_order_id, "scope": scope, "mode": mode},
+        )
         resp.raise_for_status()
         return resp.json()
 
@@ -447,11 +480,10 @@ async def reschedule_production_order(plant_id: str, production_order_id: str, s
 # get_delay_explanation already use for read-only/non-committing calls —
 # not a new integration pattern.
 async def simulate_reschedule(plant_id: str, production_order_id: str, scope: str = "AFFECTED", mode: str = "BOTTLENECK") -> dict:
-    async with httpx.AsyncClient(timeout=60.0, headers=_internal_headers()) as client:
-        resp = await client.post(
-            f"{SCHEDULING_SERVICE_URL}/scheduling/what-if",
-            json={"plantId": plant_id, "scope": scope, "mode": mode, "productionOrderId": production_order_id, "capacityAdjustments": []},
-        )
+    resp = await _request(
+        "POST", f"{SCHEDULING_SERVICE_URL}/scheduling/what-if", timeout=60.0,
+        json={"plantId": plant_id, "scope": scope, "mode": mode, "productionOrderId": production_order_id, "capacityAdjustments": []},
+    )
     resp.raise_for_status()
     return resp.json()
 
@@ -465,8 +497,7 @@ async def find_production_order_by_sales_order(sales_order_id: str) -> dict | No
     order across the one seeded plant, a small enough set for this to be
     honest and simple rather than adding a new filtered endpoint for one
     caller."""
-    async with httpx.AsyncClient(timeout=15.0, headers=_internal_headers()) as client:
-        resp = await client.get(f"{ORDER_SERVICE_URL}/orders")
+    resp = await _request("GET", f"{ORDER_SERVICE_URL}/orders", timeout=15.0)
     resp.raise_for_status()
     for order in resp.json():
         metadata = order.get("metadata") or {}
@@ -480,8 +511,7 @@ async def list_work_centers(plant_id: str) -> list[dict]:
     directly from machine-service rather than through the APS bridge,
     matching the established pattern that only planning/commit/simulate
     (the actual decision-making calls) go through APS Platform."""
-    async with httpx.AsyncClient(timeout=15.0, headers=_internal_headers()) as client:
-        resp = await client.get(f"{MACHINE_SERVICE_URL}/work-centers", params={"plantId": plant_id})
+    resp = await _request("GET", f"{MACHINE_SERVICE_URL}/work-centers", timeout=15.0, params={"plantId": plant_id})
     resp.raise_for_status()
     return resp.json()
 
@@ -492,8 +522,7 @@ async def check_shortages() -> dict:
     itself has no plantId param; it scans every open PLANNED/RELEASED
     order across the one seeded plant), so this mirrors it exactly rather
     than inventing a filter the real endpoint doesn't support."""
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.post(f"{INVENTORY_SERVICE_URL}/inventory/scan-shortages")
+    resp = await _request("POST", f"{INVENTORY_SERVICE_URL}/inventory/scan-shortages")
     resp.raise_for_status()
     return resp.json()
 
@@ -502,10 +531,9 @@ async def get_quality_inspections(plant_id: str) -> dict:
     """Wraps the real GET /scheduling/operations/quality-inspections
     (Phase 4's own list route) — recent real inspection results for a
     plant, unmodified."""
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.get(
-            f"{SCHEDULING_SERVICE_URL}/scheduling/operations/quality-inspections", params={"plantId": plant_id}
-        )
+    resp = await _request(
+        "GET", f"{SCHEDULING_SERVICE_URL}/scheduling/operations/quality-inspections", params={"plantId": plant_id}
+    )
     resp.raise_for_status()
     return resp.json()
 
@@ -517,8 +545,7 @@ async def get_quality_hold_status(scheduled_operation_id: str) -> dict:
     but doesn't exist; surfaced as None rather than raising, since a
     caller asking about a stale/mistyped id is a legitimate case, not a
     server error."""
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.get(f"{SCHEDULING_SERVICE_URL}/scheduling/operations/{scheduled_operation_id}/quality-hold-status")
+    resp = await _request("GET", f"{SCHEDULING_SERVICE_URL}/scheduling/operations/{scheduled_operation_id}/quality-hold-status")
     if resp.status_code == 404:
         return {"blocked": False, "reason": None, "not_found": True}
     resp.raise_for_status()
@@ -531,8 +558,7 @@ async def get_delay_explanation(production_order_id: str) -> dict:
     ProductionException history, QualityInspection/QC-hold status, and
     deviationMinutes for one order. No LLM on the TS side; the verdict-
     writer agent that consumes this only explains it."""
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.get(f"{SCHEDULING_SERVICE_URL}/scheduling/orders/{production_order_id}/delay-explanation")
+    resp = await _request("GET", f"{SCHEDULING_SERVICE_URL}/scheduling/orders/{production_order_id}/delay-explanation")
     if resp.status_code == 404:
         return {"not_found": True}
     resp.raise_for_status()
@@ -544,10 +570,9 @@ async def trigger_scheduling_run(plant_id: str) -> dict:
     Reschedules the whole plant's open orders, exactly as this endpoint
     already behaves for every other caller; not a special case for this
     feature."""
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.post(
-            f"{SCHEDULING_SERVICE_URL}/scheduling/runs",
-            json={"plantId": plant_id, "scope": "ALL", "mode": "FORWARD"},
-        )
+    resp = await _request(
+        "POST", f"{SCHEDULING_SERVICE_URL}/scheduling/runs",
+        json={"plantId": plant_id, "scope": "ALL", "mode": "FORWARD"},
+    )
     resp.raise_for_status()
     return resp.json()

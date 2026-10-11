@@ -3,7 +3,7 @@ import datetime
 import openpyxl
 
 from app.tools.audit_tools import record_audit_event
-from app.tools.idempotency_tools import get_idempotent_result, record_idempotent_result
+from app.tools.idempotency_tools import get_idempotent_result, idempotency_lock, record_idempotent_result
 
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
@@ -82,6 +82,7 @@ def list_actionable_financial_adjustments() -> list[dict]:
 # it's missing, rather than posting a financial document for an unknown
 # sum. Never invented downstream either: this only ever transcribes what
 # was already extracted.
+@idempotency_lock()
 def create_financial_adjustment(
     adjustment_type: str,
     customer_id: str | None,
@@ -131,7 +132,27 @@ def create_financial_adjustment(
 
 # The human-in-the-loop step — not called by an agent, same principle as
 # approval_tools.resolve_approval_request().
-def resolve_financial_approval(financial_adjustment_id: str, decision: str, approved_by: str = "SYSTEM") -> dict:
+#
+# Independent-audit finding (confirmed before fixing): find_financial_adjustment
+# and the write below used to be two SEPARATE load_workbook calls with no
+# lock between them — two concurrent resolves of the same PENDING_APPROVAL
+# adjustment could both pass the status check before either wrote, a
+# classic TOCTOU race with real monetary impact (unlike the sales-order/
+# reschedule approval paths, which were already protected by
+# app/db.py's atomic claim_approval CAS). @idempotency_lock() now wraps
+# this whole function, so the status read above only ever happens after
+# acquiring exclusive access — the second of two concurrent calls sees the
+# FIRST call's already-applied status change, not a stale PENDING_APPROVAL
+# snapshot. idempotency_key additionally protects a genuine retry (e.g. a
+# double-clicked Approve button) from re-running the decision at all.
+@idempotency_lock()
+def resolve_financial_approval(
+    financial_adjustment_id: str, decision: str, approved_by: str = "SYSTEM", idempotency_key: str | None = None
+) -> dict:
+    cached = get_idempotent_result(idempotency_key, "resolve_financial_approval")
+    if cached is not None:
+        return cached
+
     if decision not in ("APPROVED", "REJECTED"):
         return {"resolved": False, "reason": f"Invalid decision: {decision}"}
 
@@ -159,15 +180,25 @@ def resolve_financial_approval(financial_adjustment_id: str, decision: str, appr
         sheet.cell(row=row_idx, column=approved_at_col, value=datetime.datetime.now().isoformat())
         wb.save(MOCK_ERP_PATH)
         record_audit_event("FinancialAdjustment", financial_adjustment_id, f"FINANCIAL_ADJUSTMENT_{new_status}", {"approved_by": approved_by})
-        return {"resolved": True, "financial_adjustment_id": financial_adjustment_id, "status": new_status}
+        result = {"resolved": True, "financial_adjustment_id": financial_adjustment_id, "status": new_status}
+        record_idempotent_result(idempotency_key, "resolve_financial_approval", result)
+        return result
 
     return {"resolved": False, "reason": f"No financial adjustment found with id {financial_adjustment_id}"}
 
 
 # Terminal. Only an APPROVED adjustment (whether that came from
 # auto-approval under the threshold, or a real human resolving the
-# PENDING_APPROVAL gate) can be posted.
-def post_financial_adjustment(financial_adjustment_id: str) -> dict:
+# PENDING_APPROVAL gate) can be posted. Same race fix as
+# resolve_financial_approval above, for the same reason: two concurrent
+# posts of the same APPROVED adjustment could otherwise both pass the
+# status check before either wrote.
+@idempotency_lock()
+def post_financial_adjustment(financial_adjustment_id: str, idempotency_key: str | None = None) -> dict:
+    cached = get_idempotent_result(idempotency_key, "post_financial_adjustment")
+    if cached is not None:
+        return cached
+
     adjustment = find_financial_adjustment(financial_adjustment_id)
     if adjustment is None:
         return {"posted": False, "reason": f"No financial adjustment found with id {financial_adjustment_id}"}
@@ -189,6 +220,8 @@ def post_financial_adjustment(financial_adjustment_id: str) -> dict:
         sheet.cell(row=row_idx, column=posted_at_col, value=datetime.datetime.now().isoformat())
         wb.save(MOCK_ERP_PATH)
         record_audit_event("FinancialAdjustment", financial_adjustment_id, "FINANCIAL_ADJUSTMENT_POSTED")
-        return {"posted": True, "financial_adjustment_id": financial_adjustment_id, "status": "POSTED"}
+        result = {"posted": True, "financial_adjustment_id": financial_adjustment_id, "status": "POSTED"}
+        record_idempotent_result(idempotency_key, "post_financial_adjustment", result)
+        return result
 
     return {"posted": False, "reason": f"No financial adjustment found with id {financial_adjustment_id}"}

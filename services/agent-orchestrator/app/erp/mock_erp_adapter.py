@@ -79,8 +79,9 @@ class MockERPAdapter(ERPAdapter):
         product_id: str,
         product_name: str,
         quantity: int,
+        idempotency_key: str | None = None,
     ) -> dict:
-        return _reserve_stock(sales_order_id, product_id, product_name, quantity)
+        return _reserve_stock(sales_order_id, product_id, product_name, quantity, idempotency_key=idempotency_key)
 
     def create_production_order(
         self,

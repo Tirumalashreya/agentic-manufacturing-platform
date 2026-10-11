@@ -417,6 +417,17 @@ app.get("/sales-orders/promises", async (req, res) => {
 // STOCK + PRODUCTION = quantity, is just this same check with exactly two
 // lines). Checked BEFORE the transaction opens, so an invalid request never
 // touches the database at all.
+// Independent-audit finding (confirmed before fixing): this route was
+// internally transactional (the OrderLine+FulfillmentPlan+FulfillmentLine
+// creation below is one prisma.$transaction) but had no idempotency-key
+// check at all — unlike the newer POST /sales-orders path, a client
+// retry or double-submit created a second, independent OrderLine/
+// FulfillmentPlan/FulfillmentLine set for the same SalesOrder, with
+// nothing linking or deduping the two. Wrapped in the same withIdempotency
+// helper POST /sales-orders already uses — an Idempotency-Key header is
+// optional (omitting it preserves exactly today's behavior for every
+// existing caller), but when present, a retry with the same key replays
+// the original result instead of creating a second fulfillment plan.
 app.post("/sales-orders/:id/fulfillment", async (req, res) => {
   const { productId, productName, quantity, unitPrice, requestedDate, warehouse, strategy, reasoning, lines } = req.body as {
     productId?: string;
@@ -444,51 +455,54 @@ app.post("/sales-orders/:id/fulfillment", async (req, res) => {
     res.status(404).json({ error: `No SalesOrder found with id ${req.params.id}` });
     return;
   }
-  // Stage 03: now the shared helper also used by the new atomic
-  // POST /sales-orders path — same rule, one place.
-  const validationError = validateFulfillmentLines(lines, quantity);
-  if (validationError) {
-    res.status(validationError.status).json(validationError.body);
-    return;
-  }
 
-  const result = await prisma.$transaction(async (tx) => {
-    const orderLine = await tx.orderLine.create({
-      data: {
-        orderId: req.params.id,
-        productId: productId ?? null,
-        productName,
-        quantity,
-        unitPrice,
-        requestedDate: requestedDate ? new Date(requestedDate) : null,
-        warehouse,
+  await withIdempotency(req, res, "create_fulfillment_for_sales_order", async () => {
+    // Stage 03: now the shared helper also used by the new atomic
+    // POST /sales-orders path — same rule, one place.
+    const validationError = validateFulfillmentLines(lines, quantity);
+    if (validationError) return validationError;
+
+    const result = await prisma.$transaction(async (tx) => {
+      const orderLine = await tx.orderLine.create({
+        data: {
+          orderId: req.params.id,
+          productId: productId ?? null,
+          productName,
+          quantity,
+          unitPrice,
+          requestedDate: requestedDate ? new Date(requestedDate) : null,
+          warehouse,
+        },
+      });
+      const fulfillmentPlan = await tx.fulfillmentPlan.create({
+        data: { orderLineId: orderLine.id, strategy: strategy as never, reasoning },
+      });
+      const fulfillmentLines = await Promise.all(
+        lines.map((line) =>
+          tx.fulfillmentLine.create({
+            data: {
+              fulfillmentPlanId: fulfillmentPlan.id,
+              sourceType: line.sourceType as never,
+              quantity: line.quantity,
+              sourceLocation: line.sourceLocation,
+              destination: line.destination,
+              vendorId: line.vendorId,
+              vendorName: line.vendorName,
+            },
+          })
+        )
+      );
+      return { orderLine, fulfillmentPlan, fulfillmentLines };
+    });
+
+    return {
+      status: 201,
+      body: {
+        orderLineId: result.orderLine.id,
+        fulfillmentPlanId: result.fulfillmentPlan.id,
+        fulfillmentLines: result.fulfillmentLines.map((l) => ({ id: l.id, sourceType: l.sourceType })),
       },
-    });
-    const fulfillmentPlan = await tx.fulfillmentPlan.create({
-      data: { orderLineId: orderLine.id, strategy: strategy as never, reasoning },
-    });
-    const fulfillmentLines = await Promise.all(
-      lines.map((line) =>
-        tx.fulfillmentLine.create({
-          data: {
-            fulfillmentPlanId: fulfillmentPlan.id,
-            sourceType: line.sourceType as never,
-            quantity: line.quantity,
-            sourceLocation: line.sourceLocation,
-            destination: line.destination,
-            vendorId: line.vendorId,
-            vendorName: line.vendorName,
-          },
-        })
-      )
-    );
-    return { orderLine, fulfillmentPlan, fulfillmentLines };
-  });
-
-  res.status(201).json({
-    orderLineId: result.orderLine.id,
-    fulfillmentPlanId: result.fulfillmentPlan.id,
-    fulfillmentLines: result.fulfillmentLines.map((l) => ({ id: l.id, sourceType: l.sourceType })),
+    };
   });
 });
 

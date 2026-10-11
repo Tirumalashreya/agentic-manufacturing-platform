@@ -266,6 +266,70 @@ describe("order-service — order-to-production domain endpoints", () => {
     });
   });
 
+  // Independent-audit fix: this route was internally transactional but
+  // had no idempotency-key check at all — a retry created a second,
+  // independent OrderLine/FulfillmentPlan/FulfillmentLine set for the
+  // same SalesOrder. Own dedicated SalesOrder per block, same pattern as
+  // the HYBRID describe block above, so these don't interfere with other
+  // tests' own OrderLine-count assertions.
+  describe("POST /sales-orders/:id/fulfillment — Idempotency-Key", () => {
+    let idemSalesOrderId: string;
+
+    beforeAll(async () => {
+      const soRes = await req().post("/sales-orders").send({
+        customerId, dueDate: "2026-12-01", value: 1000, priority: 0,
+        externalOrderId: `SO-IDEM-${suffix}`, fulfillmentType: "MTS", status: "APPROVED", currency: "INR",
+      });
+      idemSalesOrderId = soRes.body.id;
+      createdSalesOrderIds.push(idemSalesOrderId);
+    });
+
+    it("retrying with the same Idempotency-Key replays the original result instead of creating a second OrderLine", async () => {
+      const key = `fulfillment-retry-${idemSalesOrderId}`;
+      const body = {
+        productId, productName: "Test Widget", quantity: 20, unitPrice: 900,
+        strategy: "MTS", reasoning: "fully in stock", lines: [{ sourceType: "STOCK", quantity: 20 }],
+      };
+
+      const first = await req().post(`/sales-orders/${idemSalesOrderId}/fulfillment`).set("Idempotency-Key", key).send(body);
+      const retried = await req().post(`/sales-orders/${idemSalesOrderId}/fulfillment`).set("Idempotency-Key", key).send(body);
+
+      expect(first.status).toBe(201);
+      expect(retried.status).toBe(201);
+      expect(retried.body).toEqual(first.body); // same orderLineId — not a second one
+
+      const order = await prisma.salesOrder.findUnique({
+        where: { id: idemSalesOrderId },
+        include: { orderLines: true },
+      });
+      expect(order!.orderLines).toHaveLength(1); // the retry did not create a second OrderLine
+    });
+
+    it("a different Idempotency-Key for the same SalesOrder creates its own separate OrderLine (not conflated with another key's)", async () => {
+      const resA = await req().post(`/sales-orders/${idemSalesOrderId}/fulfillment`).set("Idempotency-Key", `fulfillment-distinct-a-${suffix}`).send({
+        productId, productName: "Test Widget", quantity: 5, unitPrice: 900,
+        strategy: "MTS", reasoning: "distinct a", lines: [{ sourceType: "STOCK", quantity: 5 }],
+      });
+      const resB = await req().post(`/sales-orders/${idemSalesOrderId}/fulfillment`).set("Idempotency-Key", `fulfillment-distinct-b-${suffix}`).send({
+        productId, productName: "Test Widget", quantity: 7, unitPrice: 900,
+        strategy: "MTS", reasoning: "distinct b", lines: [{ sourceType: "STOCK", quantity: 7 }],
+      });
+
+      expect(resA.body.orderLineId).not.toBe(resB.body.orderLineId);
+    });
+
+    it("a caller that sends no Idempotency-Key header is completely unaffected: identical calls each still create their own OrderLine", async () => {
+      const body = {
+        productId, productName: "Test Widget", quantity: 3, unitPrice: 900,
+        strategy: "MTS", reasoning: "no key", lines: [{ sourceType: "STOCK", quantity: 3 }],
+      };
+      const resA = await req().post(`/sales-orders/${idemSalesOrderId}/fulfillment`).send(body);
+      const resB = await req().post(`/sales-orders/${idemSalesOrderId}/fulfillment`).send(body);
+
+      expect(resA.body.orderLineId).not.toBe(resB.body.orderLineId);
+    });
+  });
+
   describe("POST /sales-orders/:id/fulfillment — validation", () => {
     it("404s for a nonexistent order", async () => {
       const res = await req().post("/sales-orders/does-not-exist/fulfillment").send({

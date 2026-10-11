@@ -3,6 +3,7 @@ import contextlib
 import datetime
 import fcntl
 import json
+import threading
 import openpyxl
 
 MOCK_ERP_PATH = "mock_erp.xlsx"
@@ -56,6 +57,23 @@ IDEMPOTENCY_HEADERS = ["idempotency_key", "operation", "result", "created_at"]
 # assumption ever stops holding.
 _LOCK_PATH = MOCK_ERP_PATH + ".idempotency.lock"
 
+# Reentrancy tracking (bug found live while extending this lock to
+# consignment_tools.py): report_consignment_sale is itself
+# @idempotency_lock()-decorated AND calls erp.create_invoice internally,
+# which is also @idempotency_lock()-decorated. fcntl.flock is NOT
+# reentrant — a nested acquisition from the same thread, even via a new
+# open() call on the same path, blocks waiting for the OUTER call's own
+# lock to release, which never happens because the outer call is waiting
+# on the inner one to return first. Confirmed by reproducing the hang
+# (pytest had to be killed after exceeding a 120s timeout) before adding
+# this fix. threading.local() makes the wrapper reentrant per-thread: a
+# nested call from the SAME thread sees the lock already held and passes
+# through without re-flocking (the outer acquisition already covers the
+# whole nested call tree); a DIFFERENT thread or process still has its
+# own independently-False flag and genuinely blocks on the real flock,
+# so cross-thread/cross-process exclusion is unaffected.
+_lock_state = threading.local()
+
 
 def idempotency_lock():
     """Decorator — wraps the ENTIRE decorated function body (the
@@ -64,15 +82,22 @@ def idempotency_lock():
     acquisition happens on every call (contextlib.contextmanager results
     are valid decorators via ContextDecorator, stdlib since 3.2, and
     correctly re-enter a new instance per call — this is not one shared
-    lock object reused unsafely across invocations)."""
+    lock object reused unsafely across invocations). Safe to nest calls
+    to other @idempotency_lock()-decorated functions from within the same
+    thread — see the reentrancy comment above _lock_state."""
 
     @contextlib.contextmanager
     def _cm():
+        if getattr(_lock_state, "held", False):
+            yield
+            return
         with open(_LOCK_PATH, "w") as lock_file:
             fcntl.flock(lock_file, fcntl.LOCK_EX)
+            _lock_state.held = True
             try:
                 yield
             finally:
+                _lock_state.held = False
                 fcntl.flock(lock_file, fcntl.LOCK_UN)
 
     return _cm()

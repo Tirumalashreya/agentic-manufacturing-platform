@@ -167,6 +167,91 @@ def test_resolve_financial_approval_cannot_double_resolve():
     assert second["resolved"] is False
 
 
+# Independent-audit fix: the test above is sequential (resolve, then
+# resolve again) and would pass even with the original, unprotected code
+# — it never exercises the actual race (two concurrent resolves both
+# reading PENDING_APPROVAL before either writes). This test uses real
+# threads against the real resolve_financial_approval, not a sequential
+# call, to prove the @idempotency_lock() fix actually serializes the
+# check-then-write sequence rather than just asserting it does from
+# reading the code.
+def test_resolve_financial_approval_concurrent_calls_produce_exactly_one_winner():
+    import threading
+
+    created = create_financial_adjustment(
+        adjustment_type="CREDIT_MEMO",
+        customer_id="C001",
+        customer_name="ABC Corp",
+        reference=None,
+        amount=FINANCIAL_APPROVAL_THRESHOLD,
+        reason="Concurrency test — large credit.",
+    )
+    adjustment_id = created["financial_adjustment_id"]
+
+    results: list[dict] = []
+
+    def call():
+        results.append(resolve_financial_approval(adjustment_id, "APPROVED", approved_by="concurrent-tester"))
+
+    threads = [threading.Thread(target=call) for _ in range(5)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    resolved = [r for r in results if r["resolved"] is True]
+    # Exactly one of the 5 concurrent calls actually applied the decision
+    # — the race this fix closes is two (or more) of them all seeing
+    # PENDING_APPROVAL and all "succeeding," which would mean more than
+    # one audit event and an ambiguous final state.
+    assert len(resolved) == 1, f"expected exactly one real resolution, got {len(resolved)}: {results}"
+
+    final = find_financial_adjustment(adjustment_id)
+    assert final["status"] == "APPROVED"
+
+
+def test_post_financial_adjustment_concurrent_calls_produce_exactly_one_winner():
+    import threading
+
+    created = create_financial_adjustment(
+        adjustment_type="CREDIT_MEMO", customer_id="C001", customer_name="ABC Corp",
+        reference=None, amount=500, reason="Concurrency test — small credit, auto-approved.",
+    )
+    adjustment_id = created["financial_adjustment_id"]
+    assert created["status"] == "APPROVED"  # below threshold, ready to post immediately
+
+    results: list[dict] = []
+
+    def call():
+        results.append(post_financial_adjustment(adjustment_id))
+
+    threads = [threading.Thread(target=call) for _ in range(5)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    posted = [r for r in results if r["posted"] is True]
+    assert len(posted) == 1, f"expected exactly one real post, got {len(posted)}: {results}"
+
+    final = find_financial_adjustment(adjustment_id)
+    assert final["status"] == "POSTED"
+
+
+def test_resolve_financial_approval_retried_with_the_same_idempotency_key_replays_verbatim():
+    created = create_financial_adjustment(
+        adjustment_type="CREDIT_MEMO", customer_id="C001", customer_name="ABC Corp",
+        reference=None, amount=FINANCIAL_APPROVAL_THRESHOLD, reason="Idempotency-key replay test.",
+    )
+    key = f"resolve-key-{created['financial_adjustment_id']}"
+
+    first = resolve_financial_approval(created["financial_adjustment_id"], "APPROVED", idempotency_key=key)
+    second = resolve_financial_approval(created["financial_adjustment_id"], "APPROVED", idempotency_key=key)
+
+    assert first["resolved"] is True
+    assert second == first  # verbatim replay, not a second "already resolved" failure
+
+
 def test_find_financial_adjustment_unknown_id():
     assert find_financial_adjustment("FA9999") is None
 

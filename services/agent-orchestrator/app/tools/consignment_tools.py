@@ -4,6 +4,7 @@ import openpyxl
 
 from app.erp.mock_erp_adapter import default_erp_adapter as erp
 from app.tools.audit_tools import record_audit_event
+from app.tools.idempotency_tools import get_idempotent_result, idempotency_lock, record_idempotent_result
 
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
@@ -145,7 +146,21 @@ def create_consignment(
 # reuses create_invoice() exactly as the roadmap specified. Cumulative
 # sold+returned can never exceed what was actually sent, same "can't
 # exceed what's real" guard as post_sales_tools' return-quantity check.
-def report_consignment_sale(consignment_id: str, quantity_sold: int) -> dict:
+#
+# Independent-audit finding (confirmed before fixing): find_consignment's
+# oversell check and _set_fields' write were two separate load_workbook
+# calls with no lock — two near-simultaneous "report sale" messages on the
+# same consignment could both pass the oversell check before either write
+# landed, overselling consigned stock and double-invoicing. Also: the
+# create_invoice call below never passed an idempotency_key, so that
+# already-built protection never actually engaged for this channel (the
+# same gap flagged for export_tools.py's ship/invoice calls).
+@idempotency_lock()
+def report_consignment_sale(consignment_id: str, quantity_sold: int, idempotency_key: str | None = None) -> dict:
+    cached = get_idempotent_result(idempotency_key, "report_consignment_sale")
+    if cached is not None:
+        return cached
+
     if quantity_sold is None or quantity_sold <= 0:
         return {"reported": False, "reason": "Cannot report a sale for zero or negative quantity."}
 
@@ -174,6 +189,7 @@ def report_consignment_sale(consignment_id: str, quantity_sold: int) -> dict:
         unit_price=consignment["unit_price"],
         payment_terms_days=30,
         notes=f"Consignment {consignment_id} sell-through report: {quantity_sold} units sold.",
+        idempotency_key=f"{idempotency_key}-invoice" if idempotency_key else None,
     )
 
     new_sold = consignment["quantity_sold"] + quantity_sold
@@ -183,18 +199,26 @@ def report_consignment_sale(consignment_id: str, quantity_sold: int) -> dict:
         "quantity_sold": quantity_sold, "invoice_id": invoice["invoice_id"] if invoice["created"] else None,
     })
 
-    return {
+    result = {
         "reported": True,
         "consignment_id": consignment_id,
         "invoice_id": invoice["invoice_id"] if invoice["created"] else None,
         "quantity_remaining": new_remaining,
     }
+    record_idempotent_result(idempotency_key, "report_consignment_sale", result)
+    return result
 
 
 # Unsold stock physically comes back — credit real Inventory again, same
 # "credit stock back on a real physical event" pattern as
-# resolve_return_inspection()'s APPROVED branch.
-def return_unsold_consignment_stock(consignment_id: str, quantity_returned: int) -> dict:
+# resolve_return_inspection()'s APPROVED branch. Same TOCTOU race as
+# report_consignment_sale above, same fix.
+@idempotency_lock()
+def return_unsold_consignment_stock(consignment_id: str, quantity_returned: int, idempotency_key: str | None = None) -> dict:
+    cached = get_idempotent_result(idempotency_key, "return_unsold_consignment_stock")
+    if cached is not None:
+        return cached
+
     if quantity_returned is None or quantity_returned <= 0:
         return {"returned": False, "reason": "Cannot return zero or negative quantity."}
 
@@ -228,7 +252,9 @@ def return_unsold_consignment_stock(consignment_id: str, quantity_returned: int)
     _set_fields(consignment_id, quantity_returned=new_returned, quantity_remaining=new_remaining)
     record_audit_event("Consignment", consignment_id, "CONSIGNMENT_STOCK_RETURNED", {"quantity_returned": quantity_returned})
 
-    return {"returned": True, "consignment_id": consignment_id, "quantity_remaining": new_remaining}
+    result = {"returned": True, "consignment_id": consignment_id, "quantity_remaining": new_remaining}
+    record_idempotent_result(idempotency_key, "return_unsold_consignment_stock", result)
+    return result
 
 
 # Only closable once every unit sent has been accounted for — sold,
