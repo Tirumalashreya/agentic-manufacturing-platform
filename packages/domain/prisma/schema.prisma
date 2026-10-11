@@ -105,6 +105,8 @@ model Enterprise {
   productionOrders ProductionOrder[]
   inventory        Inventory[]
   idempotencyKeys  IdempotencyKey[]
+  deliveries       Delivery[]
+  invoices         Invoice[]
 }
 
 model Site {
@@ -587,11 +589,96 @@ model SalesOrder {
   customer         Customer          @relation(fields: [customerId], references: [id])
   productionOrders ProductionOrder[]
   orderLines       OrderLine[]
+  deliveries       Delivery[]
+  invoices         Invoice[]
 
   @@unique([enterpriseId, orderNumber])
   @@unique([enterpriseId, externalOrderId])
   @@index([customerId])
   @@index([enterpriseId])
+}
+
+// Independent-audit finding (confirmed before fixing): Delivery and
+// Invoice — the final two steps of order-to-cash — had ZERO Postgres
+// presence anywhere in this schema (confirmed via a full grep of every
+// model name in this file) despite 17 TS microservices and a full
+// commercial domain elsewhere. The entire cash side of the business was
+// Excel-only (app/tools/delivery_tools.py / billing_tools.py), bridged
+// into the real pipeline through exactly one HTTP call.
+//
+// This is a best-effort DUAL-WRITE, same pattern as SalesOrder's own
+// externalOrderId: the Excel row (app/tools/delivery_tools.py /
+// billing_tools.py) remains the immediate, authoritative write — nothing
+// about that changes — and this Postgres row is written afterward,
+// non-blocking on failure, same as _dual_write_order_and_fulfillment
+// already does for SalesOrder. Reads are NOT migrated yet (every existing
+// page/endpoint keeps reading Excel) — that's a deliberate, separate next
+// step once this dual-write has run long enough to validate parity; see
+// the architecture assessment's own migration-priority reasoning for why
+// cutting reads over before that would silently drop any order created
+// before this was deployed.
+model Delivery {
+  id     String @id @default(cuid())
+  // The mock-ERP DeliveryTools row id (e.g. "DEL0001") — always known,
+  // since the Excel write always happens first/independently. Unique
+  // per-enterprise, same reasoning as SalesOrder's own externalOrderId.
+  externalDeliveryId String
+  // The mock-ERP SalesOrders row id (e.g. "SO-1005") this delivery is
+  // against, when one exists (some channels, e.g. consignment/export,
+  // have no real SalesOrder at all). Always set when the Excel row has
+  // one, independent of whether the FK below could be resolved.
+  externalSalesOrderId String?
+  // Resolved server-side at write time (a lookup by externalSalesOrderId
+  // within the caller's enterprise) when a matching real SalesOrder
+  // exists — null if none does yet (an order dual-written before this
+  // delivery, or a channel with no real SalesOrder row). Never required.
+  salesOrderId          String?
+  customerId            String?
+  customerName          String?
+  productId             String?
+  productName           String?
+  quantity              Float
+  status                String
+  requestedDeliveryDate DateTime?
+  confirmedDeliveryDate DateTime?
+  createdAt             DateTime  @default(now())
+
+  enterpriseId String
+
+  enterprise Enterprise  @relation(fields: [enterpriseId], references: [id])
+  salesOrder SalesOrder? @relation(fields: [salesOrderId], references: [id])
+
+  @@unique([enterpriseId, externalDeliveryId])
+  @@index([enterpriseId])
+  @@index([salesOrderId])
+}
+
+model Invoice {
+  id                 String  @id @default(cuid())
+  // Same dual-write shape as Delivery above.
+  externalInvoiceId    String
+  externalSalesOrderId String?
+  externalDeliveryId   String?
+  salesOrderId         String?
+  customerId           String?
+  customerName         String?
+  quantityBilled       Float
+  unitPrice            Float
+  invoiceAmount        Float
+  paymentTermsDays     Int?
+  dueDate              DateTime?
+  status               String
+  notes                String?
+  createdAt            DateTime  @default(now())
+
+  enterpriseId String
+
+  enterprise Enterprise  @relation(fields: [enterpriseId], references: [id])
+  salesOrder SalesOrder? @relation(fields: [salesOrderId], references: [id])
+
+  @@unique([enterpriseId, externalInvoiceId])
+  @@index([enterpriseId])
+  @@index([salesOrderId])
 }
 
 enum ProductionOrderStatus {

@@ -523,6 +523,123 @@ app.get("/sales-orders/:id/fulfillment", async (req, res) => {
   res.json(order);
 });
 
+// Independent-audit finding (confirmed before fixing): Delivery and
+// Invoice — the final two steps of order-to-cash — had zero Postgres
+// presence anywhere in this schema. These two routes are the real write
+// path for the new Delivery/Invoice tables (see schema.prisma's own
+// comment on them for the full dual-write reasoning). Called from
+// app/tools/delivery_tools.py / billing_tools.py as a best-effort mirror
+// AFTER the Excel row is already written — the Excel write is never
+// blocked or rolled back by a failure here, same philosophy as
+// _dual_write_order_and_fulfillment already uses for SalesOrder.
+//
+// externalSalesOrderId is resolved to a real SalesOrder.id server-side,
+// not trusted from the caller — a lookup by (enterpriseId,
+// externalOrderId) within the caller's own enterprise, same pattern
+// every other cross-tenant lookup in this file uses. No match (an order
+// dual-written before this existed, or a channel — consignment, export —
+// with no real SalesOrder row at all) is not an error: the row is still
+// created, just with salesOrderId left null.
+async function resolveSalesOrderId(enterpriseId: string, externalSalesOrderId: string | null | undefined): Promise<string | null> {
+  if (!externalSalesOrderId) return null;
+  const order = await prisma.salesOrder.findFirst({
+    where: { enterpriseId, externalOrderId: externalSalesOrderId },
+    select: { id: true },
+  });
+  return order?.id ?? null;
+}
+
+app.post("/deliveries", async (req, res) => {
+  const {
+    externalDeliveryId, externalSalesOrderId, customerId, customerName,
+    productId, productName, quantity, status, requestedDeliveryDate, confirmedDeliveryDate,
+  } = req.body as {
+    externalDeliveryId: string;
+    externalSalesOrderId?: string | null;
+    customerId?: string | null;
+    customerName?: string | null;
+    productId?: string | null;
+    productName?: string | null;
+    quantity: number;
+    status: string;
+    requestedDeliveryDate?: string | null;
+    confirmedDeliveryDate?: string | null;
+  };
+  if (!externalDeliveryId) {
+    res.status(400).json({ error: "externalDeliveryId is required" });
+    return;
+  }
+  const enterpriseId = req.identity!.enterpriseId;
+
+  await withIdempotency(req, res, "create_delivery", async () => {
+    const salesOrderId = await resolveSalesOrderId(enterpriseId, externalSalesOrderId);
+    const delivery = await prisma.delivery.upsert({
+      where: { enterpriseId_externalDeliveryId: { enterpriseId, externalDeliveryId } },
+      create: {
+        enterpriseId, externalDeliveryId, externalSalesOrderId, salesOrderId,
+        customerId, customerName, productId, productName, quantity, status,
+        requestedDeliveryDate: requestedDeliveryDate ? new Date(requestedDeliveryDate) : null,
+        confirmedDeliveryDate: confirmedDeliveryDate ? new Date(confirmedDeliveryDate) : null,
+      },
+      // A retry of the SAME externalDeliveryId (e.g. the Excel write
+      // succeeded, the Postgres mirror call timed out, and the caller's
+      // own retry logic resends it) converges on the same row rather
+      // than erroring — update is identical to create here since the
+      // mock-ERP row this mirrors is itself immutable after creation.
+      update: {
+        externalSalesOrderId, salesOrderId, customerId, customerName, productId, productName, quantity, status,
+        requestedDeliveryDate: requestedDeliveryDate ? new Date(requestedDeliveryDate) : null,
+        confirmedDeliveryDate: confirmedDeliveryDate ? new Date(confirmedDeliveryDate) : null,
+      },
+    });
+    return { status: 201, body: delivery };
+  });
+});
+
+app.post("/invoices", async (req, res) => {
+  const {
+    externalInvoiceId, externalSalesOrderId, externalDeliveryId, customerId, customerName,
+    quantityBilled, unitPrice, invoiceAmount, paymentTermsDays, dueDate, status, notes,
+  } = req.body as {
+    externalInvoiceId: string;
+    externalSalesOrderId?: string | null;
+    externalDeliveryId?: string | null;
+    customerId?: string | null;
+    customerName?: string | null;
+    quantityBilled: number;
+    unitPrice: number;
+    invoiceAmount: number;
+    paymentTermsDays?: number | null;
+    dueDate?: string | null;
+    status: string;
+    notes?: string | null;
+  };
+  if (!externalInvoiceId) {
+    res.status(400).json({ error: "externalInvoiceId is required" });
+    return;
+  }
+  const enterpriseId = req.identity!.enterpriseId;
+
+  await withIdempotency(req, res, "create_invoice", async () => {
+    const salesOrderId = await resolveSalesOrderId(enterpriseId, externalSalesOrderId);
+    const invoice = await prisma.invoice.upsert({
+      where: { enterpriseId_externalInvoiceId: { enterpriseId, externalInvoiceId } },
+      create: {
+        enterpriseId, externalInvoiceId, externalSalesOrderId, externalDeliveryId, salesOrderId,
+        customerId, customerName, quantityBilled, unitPrice, invoiceAmount,
+        paymentTermsDays, status, notes,
+        dueDate: dueDate ? new Date(dueDate) : null,
+      },
+      update: {
+        externalSalesOrderId, externalDeliveryId, salesOrderId, customerId, customerName,
+        quantityBilled, unitPrice, invoiceAmount, paymentTermsDays, status, notes,
+        dueDate: dueDate ? new Date(dueDate) : null,
+      },
+    });
+    return { status: 201, body: invoice };
+  });
+});
+
 const VALID_FULFILLMENT_LINE_STATUSES = [
   "PENDING", "ALLOCATED", "EXECUTION_CREATED", "IN_PROGRESS", "FULFILLED", "CANCELLED", "FAILED", "ON_HOLD",
 ];

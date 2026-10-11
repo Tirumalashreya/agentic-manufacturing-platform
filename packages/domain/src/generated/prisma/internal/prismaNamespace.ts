@@ -425,6 +425,8 @@ export const ModelName = {
   RoutingOpDependency: 'RoutingOpDependency',
   Customer: 'Customer',
   SalesOrder: 'SalesOrder',
+  Delivery: 'Delivery',
+  Invoice: 'Invoice',
   ProductionOrder: 'ProductionOrder',
   OrderLine: 'OrderLine',
   FulfillmentPlan: 'FulfillmentPlan',
@@ -469,7 +471,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "verificationToken" | "passwordResetToken" | "enterprise" | "site" | "plant" | "productionLine" | "workCenter" | "machine" | "machineCapability" | "skill" | "operator" | "operatorSkill" | "shift" | "workCenterShift" | "operatorShift" | "factoryCalendar" | "factoryCalendarDay" | "holidayCalendar" | "holiday" | "product" | "bOM" | "bOMLine" | "routing" | "routingOperation" | "routingOpDependency" | "customer" | "salesOrder" | "productionOrder" | "orderLine" | "fulfillmentPlan" | "fulfillmentLine" | "productionOrderDependency" | "productionCompletionStep" | "scheduledOperation" | "qualityInspection" | "productionException" | "tool" | "toolUsage" | "inventory" | "vendor" | "vendorProduct" | "purchaseOrder" | "inventoryMovement" | "maintenancePlan" | "maintenanceOrder" | "resourceReservation" | "schedule" | "scheduleRun" | "machineEvent" | "sensorReading" | "idempotencyKey" | "scheduleAuditLog" | "auditLog" | "changeoverMatrix" | "agentPipelineRun" | "agentStageResult"
+    modelProps: "user" | "verificationToken" | "passwordResetToken" | "enterprise" | "site" | "plant" | "productionLine" | "workCenter" | "machine" | "machineCapability" | "skill" | "operator" | "operatorSkill" | "shift" | "workCenterShift" | "operatorShift" | "factoryCalendar" | "factoryCalendarDay" | "holidayCalendar" | "holiday" | "product" | "bOM" | "bOMLine" | "routing" | "routingOperation" | "routingOpDependency" | "customer" | "salesOrder" | "delivery" | "invoice" | "productionOrder" | "orderLine" | "fulfillmentPlan" | "fulfillmentLine" | "productionOrderDependency" | "productionCompletionStep" | "scheduledOperation" | "qualityInspection" | "productionException" | "tool" | "toolUsage" | "inventory" | "vendor" | "vendorProduct" | "purchaseOrder" | "inventoryMovement" | "maintenancePlan" | "maintenanceOrder" | "resourceReservation" | "schedule" | "scheduleRun" | "machineEvent" | "sensorReading" | "idempotencyKey" | "scheduleAuditLog" | "auditLog" | "changeoverMatrix" | "agentPipelineRun" | "agentStageResult"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -2542,6 +2544,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         count: {
           args: Prisma.SalesOrderCountArgs<ExtArgs>
           result: runtime.Types.Utils.Optional<Prisma.SalesOrderCountAggregateOutputType> | number
+        }
+      }
+    }
+    Delivery: {
+      payload: Prisma.$DeliveryPayload<ExtArgs>
+      fields: Prisma.DeliveryFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.DeliveryFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DeliveryPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.DeliveryFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DeliveryPayload>
+        }
+        findFirst: {
+          args: Prisma.DeliveryFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DeliveryPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.DeliveryFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DeliveryPayload>
+        }
+        findMany: {
+          args: Prisma.DeliveryFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DeliveryPayload>[]
+        }
+        create: {
+          args: Prisma.DeliveryCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DeliveryPayload>
+        }
+        createMany: {
+          args: Prisma.DeliveryCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.DeliveryCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DeliveryPayload>[]
+        }
+        delete: {
+          args: Prisma.DeliveryDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DeliveryPayload>
+        }
+        update: {
+          args: Prisma.DeliveryUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DeliveryPayload>
+        }
+        deleteMany: {
+          args: Prisma.DeliveryDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.DeliveryUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.DeliveryUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DeliveryPayload>[]
+        }
+        upsert: {
+          args: Prisma.DeliveryUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DeliveryPayload>
+        }
+        aggregate: {
+          args: Prisma.DeliveryAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateDelivery>
+        }
+        groupBy: {
+          args: Prisma.DeliveryGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.DeliveryGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.DeliveryCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.DeliveryCountAggregateOutputType> | number
+        }
+      }
+    }
+    Invoice: {
+      payload: Prisma.$InvoicePayload<ExtArgs>
+      fields: Prisma.InvoiceFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.InvoiceFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InvoicePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.InvoiceFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InvoicePayload>
+        }
+        findFirst: {
+          args: Prisma.InvoiceFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InvoicePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.InvoiceFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InvoicePayload>
+        }
+        findMany: {
+          args: Prisma.InvoiceFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InvoicePayload>[]
+        }
+        create: {
+          args: Prisma.InvoiceCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InvoicePayload>
+        }
+        createMany: {
+          args: Prisma.InvoiceCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.InvoiceCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InvoicePayload>[]
+        }
+        delete: {
+          args: Prisma.InvoiceDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InvoicePayload>
+        }
+        update: {
+          args: Prisma.InvoiceUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InvoicePayload>
+        }
+        deleteMany: {
+          args: Prisma.InvoiceDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.InvoiceUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.InvoiceUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InvoicePayload>[]
+        }
+        upsert: {
+          args: Prisma.InvoiceUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$InvoicePayload>
+        }
+        aggregate: {
+          args: Prisma.InvoiceAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateInvoice>
+        }
+        groupBy: {
+          args: Prisma.InvoiceGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.InvoiceGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.InvoiceCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.InvoiceCountAggregateOutputType> | number
         }
       }
     }
@@ -5078,6 +5228,48 @@ export const SalesOrderScalarFieldEnum = {
 export type SalesOrderScalarFieldEnum = (typeof SalesOrderScalarFieldEnum)[keyof typeof SalesOrderScalarFieldEnum]
 
 
+export const DeliveryScalarFieldEnum = {
+  id: 'id',
+  externalDeliveryId: 'externalDeliveryId',
+  externalSalesOrderId: 'externalSalesOrderId',
+  salesOrderId: 'salesOrderId',
+  customerId: 'customerId',
+  customerName: 'customerName',
+  productId: 'productId',
+  productName: 'productName',
+  quantity: 'quantity',
+  status: 'status',
+  requestedDeliveryDate: 'requestedDeliveryDate',
+  confirmedDeliveryDate: 'confirmedDeliveryDate',
+  createdAt: 'createdAt',
+  enterpriseId: 'enterpriseId'
+} as const
+
+export type DeliveryScalarFieldEnum = (typeof DeliveryScalarFieldEnum)[keyof typeof DeliveryScalarFieldEnum]
+
+
+export const InvoiceScalarFieldEnum = {
+  id: 'id',
+  externalInvoiceId: 'externalInvoiceId',
+  externalSalesOrderId: 'externalSalesOrderId',
+  externalDeliveryId: 'externalDeliveryId',
+  salesOrderId: 'salesOrderId',
+  customerId: 'customerId',
+  customerName: 'customerName',
+  quantityBilled: 'quantityBilled',
+  unitPrice: 'unitPrice',
+  invoiceAmount: 'invoiceAmount',
+  paymentTermsDays: 'paymentTermsDays',
+  dueDate: 'dueDate',
+  status: 'status',
+  notes: 'notes',
+  createdAt: 'createdAt',
+  enterpriseId: 'enterpriseId'
+} as const
+
+export type InvoiceScalarFieldEnum = (typeof InvoiceScalarFieldEnum)[keyof typeof InvoiceScalarFieldEnum]
+
+
 export const ProductionOrderScalarFieldEnum = {
   id: 'id',
   plantId: 'plantId',
@@ -6168,6 +6360,8 @@ export type GlobalOmitConfig = {
   routingOpDependency?: Prisma.RoutingOpDependencyOmit
   customer?: Prisma.CustomerOmit
   salesOrder?: Prisma.SalesOrderOmit
+  delivery?: Prisma.DeliveryOmit
+  invoice?: Prisma.InvoiceOmit
   productionOrder?: Prisma.ProductionOrderOmit
   orderLine?: Prisma.OrderLineOmit
   fulfillmentPlan?: Prisma.FulfillmentPlanOmit

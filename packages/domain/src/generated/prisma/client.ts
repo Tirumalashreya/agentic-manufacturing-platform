@@ -182,6 +182,16 @@ export type Customer = Prisma.CustomerModel
  */
 export type SalesOrder = Prisma.SalesOrderModel
 /**
+ * Model Delivery
+ * 
+ */
+export type Delivery = Prisma.DeliveryModel
+/**
+ * Model Invoice
+ * 
+ */
+export type Invoice = Prisma.InvoiceModel
+/**
  * Model ProductionOrder
  * 
  */

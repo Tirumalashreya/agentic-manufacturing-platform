@@ -1945,3 +1945,120 @@ describe("order-service — PATCH /fulfillment-lines/:id fulfilledQuantity/short
     }
   });
 });
+
+// Independent-audit fix (pilot-readiness work): Delivery and Invoice
+// previously had zero Postgres presence — these are the new dual-write
+// mirror endpoints Python's delivery_tools.py/billing_tools.py call
+// after the Excel row is already written. Self-contained fixture, same
+// pattern as the fulfilledQuantity describe block above.
+describe("order-service — POST /deliveries and POST /invoices (Delivery/Invoice dual-write)", () => {
+  const suffix = randomUUID().slice(0, 8);
+  let enterpriseId: string;
+  let customerId: string;
+  let salesOrderId: string;
+  const AUTH = { "x-internal-token": process.env.INTERNAL_SERVICE_TOKEN ?? "" };
+
+  function identity(entId: string) {
+    const token = shared.signIdentityAssertion(
+      { sub: "test-user", type: "user", role: "PLANNER", enterpriseId: entId, aud: "aps-internal" },
+      process.env.INTERNAL_SERVICE_TOKEN ?? ""
+    );
+    return { "x-identity-assertion": token };
+  }
+
+  beforeAll(async () => {
+    const enterprise = await prisma.enterprise.create({ data: { name: `test-delinv-${suffix}`, timezone: "UTC", currency: "USD" } });
+    enterpriseId = enterprise.id;
+    const customer = await prisma.customer.create({ data: { name: `Test Customer DelInv ${suffix}`, enterpriseId } });
+    customerId = customer.id;
+    const salesOrder = await prisma.salesOrder.create({
+      data: { customerId, dueDate: new Date(), value: 1000, enterpriseId, externalOrderId: `SO-DELINV-${suffix}` },
+    });
+    salesOrderId = salesOrder.id;
+  });
+
+  afterAll(async () => {
+    await prisma.delivery.deleteMany({ where: { enterpriseId } });
+    await prisma.invoice.deleteMany({ where: { enterpriseId } });
+    await prisma.idempotencyKey.deleteMany({ where: { enterpriseId } });
+    await prisma.salesOrder.deleteMany({ where: { id: salesOrderId } });
+    await prisma.customer.deleteMany({ where: { id: customerId } });
+    await prisma.enterprise.deleteMany({ where: { id: enterpriseId } });
+  });
+
+  it("creates a real Delivery row and resolves the real SalesOrder FK from externalSalesOrderId", async () => {
+    const res = await request(app).post("/deliveries").set(AUTH).set(identity(enterpriseId)).send({
+      externalDeliveryId: `DEL-TEST-${suffix}-1`, externalSalesOrderId: `SO-DELINV-${suffix}`,
+      customerId: "C001", customerName: "ABC Corp", productId: "P011", productName: "Wireless Mouse",
+      quantity: 5, status: "DISPATCHED",
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.externalDeliveryId).toBe(`DEL-TEST-${suffix}-1`);
+    expect(res.body.salesOrderId).toBe(salesOrderId); // resolved server-side, not trusted from the caller
+  });
+
+  it("creates a real Delivery row with salesOrderId null when externalSalesOrderId matches nothing (not an error)", async () => {
+    const res = await request(app).post("/deliveries").set(AUTH).set(identity(enterpriseId)).send({
+      externalDeliveryId: `DEL-TEST-${suffix}-2`, externalSalesOrderId: "SO-DOES-NOT-EXIST",
+      quantity: 3, status: "DISPATCHED",
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.salesOrderId).toBeNull();
+  });
+
+  it("a retry of the same externalDeliveryId (no Idempotency-Key) upserts to the same row, not a duplicate", async () => {
+    const body = { externalDeliveryId: `DEL-TEST-${suffix}-3`, quantity: 10, status: "DISPATCHED" };
+    const first = await request(app).post("/deliveries").set(AUTH).set(identity(enterpriseId)).send(body);
+    const retry = await request(app).post("/deliveries").set(AUTH).set(identity(enterpriseId)).send({ ...body, status: "DELIVERED" });
+
+    expect(first.status).toBe(201);
+    expect(retry.status).toBe(201);
+    expect(retry.body.id).toBe(first.body.id); // same row, upserted — not a second Delivery
+
+    const count = await prisma.delivery.count({ where: { enterpriseId, externalDeliveryId: `DEL-TEST-${suffix}-3` } });
+    expect(count).toBe(1);
+  });
+
+  it("requires externalDeliveryId", async () => {
+    const res = await request(app).post("/deliveries").set(AUTH).set(identity(enterpriseId)).send({ quantity: 1, status: "DISPATCHED" });
+    expect(res.status).toBe(400);
+  });
+
+  it("creates a real Invoice row and resolves the real SalesOrder FK", async () => {
+    const res = await request(app).post("/invoices").set(AUTH).set(identity(enterpriseId)).send({
+      externalInvoiceId: `INV-TEST-${suffix}-1`, externalSalesOrderId: `SO-DELINV-${suffix}`,
+      customerId: "C001", customerName: "ABC Corp",
+      quantityBilled: 5, unitPrice: 800, invoiceAmount: 4000, paymentTermsDays: 30, status: "ISSUED",
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.salesOrderId).toBe(salesOrderId);
+    expect(res.body.invoiceAmount).toBe(4000);
+  });
+
+  it("retrying POST /invoices with the same Idempotency-Key replays the original result", async () => {
+    const key = `invoice-retry-${suffix}`;
+    const body = {
+      externalInvoiceId: `INV-TEST-${suffix}-2`, quantityBilled: 2, unitPrice: 800, invoiceAmount: 1600, status: "ISSUED",
+    };
+    const first = await request(app).post("/invoices").set(AUTH).set(identity(enterpriseId)).set("Idempotency-Key", key).send(body);
+    const retried = await request(app).post("/invoices").set(AUTH).set(identity(enterpriseId)).set("Idempotency-Key", key).send(body);
+
+    expect(first.status).toBe(201);
+    expect(retried.body).toEqual(first.body);
+  });
+
+  it("is tenant-scoped: a different enterprise's identity cannot resolve this enterprise's SalesOrder FK", async () => {
+    const other = await prisma.enterprise.create({ data: { name: `test-delinv-other-${suffix}`, timezone: "UTC", currency: "USD" } });
+    try {
+      const res = await request(app).post("/deliveries").set(AUTH).set(identity(other.id)).send({
+        externalDeliveryId: `DEL-TEST-${suffix}-tenant`, externalSalesOrderId: `SO-DELINV-${suffix}`,
+        quantity: 1, status: "DISPATCHED",
+      });
+      expect(res.status).toBe(201);
+      expect(res.body.salesOrderId).toBeNull(); // the real SalesOrder exists, but in a DIFFERENT enterprise — never linked across tenants
+      await prisma.delivery.deleteMany({ where: { enterpriseId: other.id } });
+    } finally {
+      await prisma.enterprise.deleteMany({ where: { id: other.id } });
+    }
+  });
+});

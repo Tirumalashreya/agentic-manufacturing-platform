@@ -205,6 +205,8 @@ export type EnterpriseWhereInput = {
   productionOrders?: Prisma.ProductionOrderListRelationFilter
   inventory?: Prisma.InventoryListRelationFilter
   idempotencyKeys?: Prisma.IdempotencyKeyListRelationFilter
+  deliveries?: Prisma.DeliveryListRelationFilter
+  invoices?: Prisma.InvoiceListRelationFilter
 }
 
 export type EnterpriseOrderByWithRelationInput = {
@@ -222,6 +224,8 @@ export type EnterpriseOrderByWithRelationInput = {
   productionOrders?: Prisma.ProductionOrderOrderByRelationAggregateInput
   inventory?: Prisma.InventoryOrderByRelationAggregateInput
   idempotencyKeys?: Prisma.IdempotencyKeyOrderByRelationAggregateInput
+  deliveries?: Prisma.DeliveryOrderByRelationAggregateInput
+  invoices?: Prisma.InvoiceOrderByRelationAggregateInput
 }
 
 export type EnterpriseWhereUniqueInput = Prisma.AtLeast<{
@@ -242,6 +246,8 @@ export type EnterpriseWhereUniqueInput = Prisma.AtLeast<{
   productionOrders?: Prisma.ProductionOrderListRelationFilter
   inventory?: Prisma.InventoryListRelationFilter
   idempotencyKeys?: Prisma.IdempotencyKeyListRelationFilter
+  deliveries?: Prisma.DeliveryListRelationFilter
+  invoices?: Prisma.InvoiceListRelationFilter
 }, "id">
 
 export type EnterpriseOrderByWithAggregationInput = {
@@ -285,6 +291,8 @@ export type EnterpriseCreateInput = {
   productionOrders?: Prisma.ProductionOrderCreateNestedManyWithoutEnterpriseInput
   inventory?: Prisma.InventoryCreateNestedManyWithoutEnterpriseInput
   idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
+  deliveries?: Prisma.DeliveryCreateNestedManyWithoutEnterpriseInput
+  invoices?: Prisma.InvoiceCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUncheckedCreateInput = {
@@ -302,6 +310,8 @@ export type EnterpriseUncheckedCreateInput = {
   productionOrders?: Prisma.ProductionOrderUncheckedCreateNestedManyWithoutEnterpriseInput
   inventory?: Prisma.InventoryUncheckedCreateNestedManyWithoutEnterpriseInput
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
+  deliveries?: Prisma.DeliveryUncheckedCreateNestedManyWithoutEnterpriseInput
+  invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUpdateInput = {
@@ -319,6 +329,8 @@ export type EnterpriseUpdateInput = {
   productionOrders?: Prisma.ProductionOrderUpdateManyWithoutEnterpriseNestedInput
   inventory?: Prisma.InventoryUpdateManyWithoutEnterpriseNestedInput
   idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
+  deliveries?: Prisma.DeliveryUpdateManyWithoutEnterpriseNestedInput
+  invoices?: Prisma.InvoiceUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseUncheckedUpdateInput = {
@@ -336,6 +348,8 @@ export type EnterpriseUncheckedUpdateInput = {
   productionOrders?: Prisma.ProductionOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
   inventory?: Prisma.InventoryUncheckedUpdateManyWithoutEnterpriseNestedInput
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
+  deliveries?: Prisma.DeliveryUncheckedUpdateManyWithoutEnterpriseNestedInput
+  invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseCreateManyInput = {
@@ -470,6 +484,34 @@ export type EnterpriseUpdateOneRequiredWithoutSalesOrdersNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.EnterpriseUpdateToOneWithWhereWithoutSalesOrdersInput, Prisma.EnterpriseUpdateWithoutSalesOrdersInput>, Prisma.EnterpriseUncheckedUpdateWithoutSalesOrdersInput>
 }
 
+export type EnterpriseCreateNestedOneWithoutDeliveriesInput = {
+  create?: Prisma.XOR<Prisma.EnterpriseCreateWithoutDeliveriesInput, Prisma.EnterpriseUncheckedCreateWithoutDeliveriesInput>
+  connectOrCreate?: Prisma.EnterpriseCreateOrConnectWithoutDeliveriesInput
+  connect?: Prisma.EnterpriseWhereUniqueInput
+}
+
+export type EnterpriseUpdateOneRequiredWithoutDeliveriesNestedInput = {
+  create?: Prisma.XOR<Prisma.EnterpriseCreateWithoutDeliveriesInput, Prisma.EnterpriseUncheckedCreateWithoutDeliveriesInput>
+  connectOrCreate?: Prisma.EnterpriseCreateOrConnectWithoutDeliveriesInput
+  upsert?: Prisma.EnterpriseUpsertWithoutDeliveriesInput
+  connect?: Prisma.EnterpriseWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.EnterpriseUpdateToOneWithWhereWithoutDeliveriesInput, Prisma.EnterpriseUpdateWithoutDeliveriesInput>, Prisma.EnterpriseUncheckedUpdateWithoutDeliveriesInput>
+}
+
+export type EnterpriseCreateNestedOneWithoutInvoicesInput = {
+  create?: Prisma.XOR<Prisma.EnterpriseCreateWithoutInvoicesInput, Prisma.EnterpriseUncheckedCreateWithoutInvoicesInput>
+  connectOrCreate?: Prisma.EnterpriseCreateOrConnectWithoutInvoicesInput
+  connect?: Prisma.EnterpriseWhereUniqueInput
+}
+
+export type EnterpriseUpdateOneRequiredWithoutInvoicesNestedInput = {
+  create?: Prisma.XOR<Prisma.EnterpriseCreateWithoutInvoicesInput, Prisma.EnterpriseUncheckedCreateWithoutInvoicesInput>
+  connectOrCreate?: Prisma.EnterpriseCreateOrConnectWithoutInvoicesInput
+  upsert?: Prisma.EnterpriseUpsertWithoutInvoicesInput
+  connect?: Prisma.EnterpriseWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.EnterpriseUpdateToOneWithWhereWithoutInvoicesInput, Prisma.EnterpriseUpdateWithoutInvoicesInput>, Prisma.EnterpriseUncheckedUpdateWithoutInvoicesInput>
+}
+
 export type EnterpriseCreateNestedOneWithoutProductionOrdersInput = {
   create?: Prisma.XOR<Prisma.EnterpriseCreateWithoutProductionOrdersInput, Prisma.EnterpriseUncheckedCreateWithoutProductionOrdersInput>
   connectOrCreate?: Prisma.EnterpriseCreateOrConnectWithoutProductionOrdersInput
@@ -526,6 +568,8 @@ export type EnterpriseCreateWithoutUsersInput = {
   productionOrders?: Prisma.ProductionOrderCreateNestedManyWithoutEnterpriseInput
   inventory?: Prisma.InventoryCreateNestedManyWithoutEnterpriseInput
   idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
+  deliveries?: Prisma.DeliveryCreateNestedManyWithoutEnterpriseInput
+  invoices?: Prisma.InvoiceCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUncheckedCreateWithoutUsersInput = {
@@ -542,6 +586,8 @@ export type EnterpriseUncheckedCreateWithoutUsersInput = {
   productionOrders?: Prisma.ProductionOrderUncheckedCreateNestedManyWithoutEnterpriseInput
   inventory?: Prisma.InventoryUncheckedCreateNestedManyWithoutEnterpriseInput
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
+  deliveries?: Prisma.DeliveryUncheckedCreateNestedManyWithoutEnterpriseInput
+  invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseCreateOrConnectWithoutUsersInput = {
@@ -574,6 +620,8 @@ export type EnterpriseUpdateWithoutUsersInput = {
   productionOrders?: Prisma.ProductionOrderUpdateManyWithoutEnterpriseNestedInput
   inventory?: Prisma.InventoryUpdateManyWithoutEnterpriseNestedInput
   idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
+  deliveries?: Prisma.DeliveryUpdateManyWithoutEnterpriseNestedInput
+  invoices?: Prisma.InvoiceUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseUncheckedUpdateWithoutUsersInput = {
@@ -590,6 +638,8 @@ export type EnterpriseUncheckedUpdateWithoutUsersInput = {
   productionOrders?: Prisma.ProductionOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
   inventory?: Prisma.InventoryUncheckedUpdateManyWithoutEnterpriseNestedInput
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
+  deliveries?: Prisma.DeliveryUncheckedUpdateManyWithoutEnterpriseNestedInput
+  invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseCreateWithoutSitesInput = {
@@ -606,6 +656,8 @@ export type EnterpriseCreateWithoutSitesInput = {
   productionOrders?: Prisma.ProductionOrderCreateNestedManyWithoutEnterpriseInput
   inventory?: Prisma.InventoryCreateNestedManyWithoutEnterpriseInput
   idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
+  deliveries?: Prisma.DeliveryCreateNestedManyWithoutEnterpriseInput
+  invoices?: Prisma.InvoiceCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUncheckedCreateWithoutSitesInput = {
@@ -622,6 +674,8 @@ export type EnterpriseUncheckedCreateWithoutSitesInput = {
   productionOrders?: Prisma.ProductionOrderUncheckedCreateNestedManyWithoutEnterpriseInput
   inventory?: Prisma.InventoryUncheckedCreateNestedManyWithoutEnterpriseInput
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
+  deliveries?: Prisma.DeliveryUncheckedCreateNestedManyWithoutEnterpriseInput
+  invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseCreateOrConnectWithoutSitesInput = {
@@ -654,6 +708,8 @@ export type EnterpriseUpdateWithoutSitesInput = {
   productionOrders?: Prisma.ProductionOrderUpdateManyWithoutEnterpriseNestedInput
   inventory?: Prisma.InventoryUpdateManyWithoutEnterpriseNestedInput
   idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
+  deliveries?: Prisma.DeliveryUpdateManyWithoutEnterpriseNestedInput
+  invoices?: Prisma.InvoiceUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseUncheckedUpdateWithoutSitesInput = {
@@ -670,6 +726,8 @@ export type EnterpriseUncheckedUpdateWithoutSitesInput = {
   productionOrders?: Prisma.ProductionOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
   inventory?: Prisma.InventoryUncheckedUpdateManyWithoutEnterpriseNestedInput
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
+  deliveries?: Prisma.DeliveryUncheckedUpdateManyWithoutEnterpriseNestedInput
+  invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseCreateWithoutCustomersInput = {
@@ -686,6 +744,8 @@ export type EnterpriseCreateWithoutCustomersInput = {
   productionOrders?: Prisma.ProductionOrderCreateNestedManyWithoutEnterpriseInput
   inventory?: Prisma.InventoryCreateNestedManyWithoutEnterpriseInput
   idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
+  deliveries?: Prisma.DeliveryCreateNestedManyWithoutEnterpriseInput
+  invoices?: Prisma.InvoiceCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUncheckedCreateWithoutCustomersInput = {
@@ -702,6 +762,8 @@ export type EnterpriseUncheckedCreateWithoutCustomersInput = {
   productionOrders?: Prisma.ProductionOrderUncheckedCreateNestedManyWithoutEnterpriseInput
   inventory?: Prisma.InventoryUncheckedCreateNestedManyWithoutEnterpriseInput
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
+  deliveries?: Prisma.DeliveryUncheckedCreateNestedManyWithoutEnterpriseInput
+  invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseCreateOrConnectWithoutCustomersInput = {
@@ -734,6 +796,8 @@ export type EnterpriseUpdateWithoutCustomersInput = {
   productionOrders?: Prisma.ProductionOrderUpdateManyWithoutEnterpriseNestedInput
   inventory?: Prisma.InventoryUpdateManyWithoutEnterpriseNestedInput
   idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
+  deliveries?: Prisma.DeliveryUpdateManyWithoutEnterpriseNestedInput
+  invoices?: Prisma.InvoiceUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseUncheckedUpdateWithoutCustomersInput = {
@@ -750,6 +814,8 @@ export type EnterpriseUncheckedUpdateWithoutCustomersInput = {
   productionOrders?: Prisma.ProductionOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
   inventory?: Prisma.InventoryUncheckedUpdateManyWithoutEnterpriseNestedInput
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
+  deliveries?: Prisma.DeliveryUncheckedUpdateManyWithoutEnterpriseNestedInput
+  invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseCreateWithoutSalesOrdersInput = {
@@ -766,6 +832,8 @@ export type EnterpriseCreateWithoutSalesOrdersInput = {
   productionOrders?: Prisma.ProductionOrderCreateNestedManyWithoutEnterpriseInput
   inventory?: Prisma.InventoryCreateNestedManyWithoutEnterpriseInput
   idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
+  deliveries?: Prisma.DeliveryCreateNestedManyWithoutEnterpriseInput
+  invoices?: Prisma.InvoiceCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUncheckedCreateWithoutSalesOrdersInput = {
@@ -782,6 +850,8 @@ export type EnterpriseUncheckedCreateWithoutSalesOrdersInput = {
   productionOrders?: Prisma.ProductionOrderUncheckedCreateNestedManyWithoutEnterpriseInput
   inventory?: Prisma.InventoryUncheckedCreateNestedManyWithoutEnterpriseInput
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
+  deliveries?: Prisma.DeliveryUncheckedCreateNestedManyWithoutEnterpriseInput
+  invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseCreateOrConnectWithoutSalesOrdersInput = {
@@ -814,6 +884,8 @@ export type EnterpriseUpdateWithoutSalesOrdersInput = {
   productionOrders?: Prisma.ProductionOrderUpdateManyWithoutEnterpriseNestedInput
   inventory?: Prisma.InventoryUpdateManyWithoutEnterpriseNestedInput
   idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
+  deliveries?: Prisma.DeliveryUpdateManyWithoutEnterpriseNestedInput
+  invoices?: Prisma.InvoiceUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseUncheckedUpdateWithoutSalesOrdersInput = {
@@ -830,6 +902,184 @@ export type EnterpriseUncheckedUpdateWithoutSalesOrdersInput = {
   productionOrders?: Prisma.ProductionOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
   inventory?: Prisma.InventoryUncheckedUpdateManyWithoutEnterpriseNestedInput
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
+  deliveries?: Prisma.DeliveryUncheckedUpdateManyWithoutEnterpriseNestedInput
+  invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutEnterpriseNestedInput
+}
+
+export type EnterpriseCreateWithoutDeliveriesInput = {
+  id?: string
+  name: string
+  timezone: string
+  currency: string
+  tier?: $Enums.SubscriptionTier
+  trialEndsAt?: Date | string | null
+  createdAt?: Date | string
+  sites?: Prisma.SiteCreateNestedManyWithoutEnterpriseInput
+  users?: Prisma.UserCreateNestedManyWithoutEnterpriseInput
+  customers?: Prisma.CustomerCreateNestedManyWithoutEnterpriseInput
+  salesOrders?: Prisma.SalesOrderCreateNestedManyWithoutEnterpriseInput
+  productionOrders?: Prisma.ProductionOrderCreateNestedManyWithoutEnterpriseInput
+  inventory?: Prisma.InventoryCreateNestedManyWithoutEnterpriseInput
+  idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
+  invoices?: Prisma.InvoiceCreateNestedManyWithoutEnterpriseInput
+}
+
+export type EnterpriseUncheckedCreateWithoutDeliveriesInput = {
+  id?: string
+  name: string
+  timezone: string
+  currency: string
+  tier?: $Enums.SubscriptionTier
+  trialEndsAt?: Date | string | null
+  createdAt?: Date | string
+  sites?: Prisma.SiteUncheckedCreateNestedManyWithoutEnterpriseInput
+  users?: Prisma.UserUncheckedCreateNestedManyWithoutEnterpriseInput
+  customers?: Prisma.CustomerUncheckedCreateNestedManyWithoutEnterpriseInput
+  salesOrders?: Prisma.SalesOrderUncheckedCreateNestedManyWithoutEnterpriseInput
+  productionOrders?: Prisma.ProductionOrderUncheckedCreateNestedManyWithoutEnterpriseInput
+  inventory?: Prisma.InventoryUncheckedCreateNestedManyWithoutEnterpriseInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
+  invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutEnterpriseInput
+}
+
+export type EnterpriseCreateOrConnectWithoutDeliveriesInput = {
+  where: Prisma.EnterpriseWhereUniqueInput
+  create: Prisma.XOR<Prisma.EnterpriseCreateWithoutDeliveriesInput, Prisma.EnterpriseUncheckedCreateWithoutDeliveriesInput>
+}
+
+export type EnterpriseUpsertWithoutDeliveriesInput = {
+  update: Prisma.XOR<Prisma.EnterpriseUpdateWithoutDeliveriesInput, Prisma.EnterpriseUncheckedUpdateWithoutDeliveriesInput>
+  create: Prisma.XOR<Prisma.EnterpriseCreateWithoutDeliveriesInput, Prisma.EnterpriseUncheckedCreateWithoutDeliveriesInput>
+  where?: Prisma.EnterpriseWhereInput
+}
+
+export type EnterpriseUpdateToOneWithWhereWithoutDeliveriesInput = {
+  where?: Prisma.EnterpriseWhereInput
+  data: Prisma.XOR<Prisma.EnterpriseUpdateWithoutDeliveriesInput, Prisma.EnterpriseUncheckedUpdateWithoutDeliveriesInput>
+}
+
+export type EnterpriseUpdateWithoutDeliveriesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  tier?: Prisma.EnumSubscriptionTierFieldUpdateOperationsInput | $Enums.SubscriptionTier
+  trialEndsAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sites?: Prisma.SiteUpdateManyWithoutEnterpriseNestedInput
+  users?: Prisma.UserUpdateManyWithoutEnterpriseNestedInput
+  customers?: Prisma.CustomerUpdateManyWithoutEnterpriseNestedInput
+  salesOrders?: Prisma.SalesOrderUpdateManyWithoutEnterpriseNestedInput
+  productionOrders?: Prisma.ProductionOrderUpdateManyWithoutEnterpriseNestedInput
+  inventory?: Prisma.InventoryUpdateManyWithoutEnterpriseNestedInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
+  invoices?: Prisma.InvoiceUpdateManyWithoutEnterpriseNestedInput
+}
+
+export type EnterpriseUncheckedUpdateWithoutDeliveriesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  tier?: Prisma.EnumSubscriptionTierFieldUpdateOperationsInput | $Enums.SubscriptionTier
+  trialEndsAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sites?: Prisma.SiteUncheckedUpdateManyWithoutEnterpriseNestedInput
+  users?: Prisma.UserUncheckedUpdateManyWithoutEnterpriseNestedInput
+  customers?: Prisma.CustomerUncheckedUpdateManyWithoutEnterpriseNestedInput
+  salesOrders?: Prisma.SalesOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
+  productionOrders?: Prisma.ProductionOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
+  inventory?: Prisma.InventoryUncheckedUpdateManyWithoutEnterpriseNestedInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
+  invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutEnterpriseNestedInput
+}
+
+export type EnterpriseCreateWithoutInvoicesInput = {
+  id?: string
+  name: string
+  timezone: string
+  currency: string
+  tier?: $Enums.SubscriptionTier
+  trialEndsAt?: Date | string | null
+  createdAt?: Date | string
+  sites?: Prisma.SiteCreateNestedManyWithoutEnterpriseInput
+  users?: Prisma.UserCreateNestedManyWithoutEnterpriseInput
+  customers?: Prisma.CustomerCreateNestedManyWithoutEnterpriseInput
+  salesOrders?: Prisma.SalesOrderCreateNestedManyWithoutEnterpriseInput
+  productionOrders?: Prisma.ProductionOrderCreateNestedManyWithoutEnterpriseInput
+  inventory?: Prisma.InventoryCreateNestedManyWithoutEnterpriseInput
+  idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
+  deliveries?: Prisma.DeliveryCreateNestedManyWithoutEnterpriseInput
+}
+
+export type EnterpriseUncheckedCreateWithoutInvoicesInput = {
+  id?: string
+  name: string
+  timezone: string
+  currency: string
+  tier?: $Enums.SubscriptionTier
+  trialEndsAt?: Date | string | null
+  createdAt?: Date | string
+  sites?: Prisma.SiteUncheckedCreateNestedManyWithoutEnterpriseInput
+  users?: Prisma.UserUncheckedCreateNestedManyWithoutEnterpriseInput
+  customers?: Prisma.CustomerUncheckedCreateNestedManyWithoutEnterpriseInput
+  salesOrders?: Prisma.SalesOrderUncheckedCreateNestedManyWithoutEnterpriseInput
+  productionOrders?: Prisma.ProductionOrderUncheckedCreateNestedManyWithoutEnterpriseInput
+  inventory?: Prisma.InventoryUncheckedCreateNestedManyWithoutEnterpriseInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
+  deliveries?: Prisma.DeliveryUncheckedCreateNestedManyWithoutEnterpriseInput
+}
+
+export type EnterpriseCreateOrConnectWithoutInvoicesInput = {
+  where: Prisma.EnterpriseWhereUniqueInput
+  create: Prisma.XOR<Prisma.EnterpriseCreateWithoutInvoicesInput, Prisma.EnterpriseUncheckedCreateWithoutInvoicesInput>
+}
+
+export type EnterpriseUpsertWithoutInvoicesInput = {
+  update: Prisma.XOR<Prisma.EnterpriseUpdateWithoutInvoicesInput, Prisma.EnterpriseUncheckedUpdateWithoutInvoicesInput>
+  create: Prisma.XOR<Prisma.EnterpriseCreateWithoutInvoicesInput, Prisma.EnterpriseUncheckedCreateWithoutInvoicesInput>
+  where?: Prisma.EnterpriseWhereInput
+}
+
+export type EnterpriseUpdateToOneWithWhereWithoutInvoicesInput = {
+  where?: Prisma.EnterpriseWhereInput
+  data: Prisma.XOR<Prisma.EnterpriseUpdateWithoutInvoicesInput, Prisma.EnterpriseUncheckedUpdateWithoutInvoicesInput>
+}
+
+export type EnterpriseUpdateWithoutInvoicesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  tier?: Prisma.EnumSubscriptionTierFieldUpdateOperationsInput | $Enums.SubscriptionTier
+  trialEndsAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sites?: Prisma.SiteUpdateManyWithoutEnterpriseNestedInput
+  users?: Prisma.UserUpdateManyWithoutEnterpriseNestedInput
+  customers?: Prisma.CustomerUpdateManyWithoutEnterpriseNestedInput
+  salesOrders?: Prisma.SalesOrderUpdateManyWithoutEnterpriseNestedInput
+  productionOrders?: Prisma.ProductionOrderUpdateManyWithoutEnterpriseNestedInput
+  inventory?: Prisma.InventoryUpdateManyWithoutEnterpriseNestedInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
+  deliveries?: Prisma.DeliveryUpdateManyWithoutEnterpriseNestedInput
+}
+
+export type EnterpriseUncheckedUpdateWithoutInvoicesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  tier?: Prisma.EnumSubscriptionTierFieldUpdateOperationsInput | $Enums.SubscriptionTier
+  trialEndsAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sites?: Prisma.SiteUncheckedUpdateManyWithoutEnterpriseNestedInput
+  users?: Prisma.UserUncheckedUpdateManyWithoutEnterpriseNestedInput
+  customers?: Prisma.CustomerUncheckedUpdateManyWithoutEnterpriseNestedInput
+  salesOrders?: Prisma.SalesOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
+  productionOrders?: Prisma.ProductionOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
+  inventory?: Prisma.InventoryUncheckedUpdateManyWithoutEnterpriseNestedInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
+  deliveries?: Prisma.DeliveryUncheckedUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseCreateWithoutProductionOrdersInput = {
@@ -846,6 +1096,8 @@ export type EnterpriseCreateWithoutProductionOrdersInput = {
   salesOrders?: Prisma.SalesOrderCreateNestedManyWithoutEnterpriseInput
   inventory?: Prisma.InventoryCreateNestedManyWithoutEnterpriseInput
   idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
+  deliveries?: Prisma.DeliveryCreateNestedManyWithoutEnterpriseInput
+  invoices?: Prisma.InvoiceCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUncheckedCreateWithoutProductionOrdersInput = {
@@ -862,6 +1114,8 @@ export type EnterpriseUncheckedCreateWithoutProductionOrdersInput = {
   salesOrders?: Prisma.SalesOrderUncheckedCreateNestedManyWithoutEnterpriseInput
   inventory?: Prisma.InventoryUncheckedCreateNestedManyWithoutEnterpriseInput
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
+  deliveries?: Prisma.DeliveryUncheckedCreateNestedManyWithoutEnterpriseInput
+  invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseCreateOrConnectWithoutProductionOrdersInput = {
@@ -894,6 +1148,8 @@ export type EnterpriseUpdateWithoutProductionOrdersInput = {
   salesOrders?: Prisma.SalesOrderUpdateManyWithoutEnterpriseNestedInput
   inventory?: Prisma.InventoryUpdateManyWithoutEnterpriseNestedInput
   idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
+  deliveries?: Prisma.DeliveryUpdateManyWithoutEnterpriseNestedInput
+  invoices?: Prisma.InvoiceUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseUncheckedUpdateWithoutProductionOrdersInput = {
@@ -910,6 +1166,8 @@ export type EnterpriseUncheckedUpdateWithoutProductionOrdersInput = {
   salesOrders?: Prisma.SalesOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
   inventory?: Prisma.InventoryUncheckedUpdateManyWithoutEnterpriseNestedInput
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
+  deliveries?: Prisma.DeliveryUncheckedUpdateManyWithoutEnterpriseNestedInput
+  invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseCreateWithoutInventoryInput = {
@@ -926,6 +1184,8 @@ export type EnterpriseCreateWithoutInventoryInput = {
   salesOrders?: Prisma.SalesOrderCreateNestedManyWithoutEnterpriseInput
   productionOrders?: Prisma.ProductionOrderCreateNestedManyWithoutEnterpriseInput
   idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
+  deliveries?: Prisma.DeliveryCreateNestedManyWithoutEnterpriseInput
+  invoices?: Prisma.InvoiceCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUncheckedCreateWithoutInventoryInput = {
@@ -942,6 +1202,8 @@ export type EnterpriseUncheckedCreateWithoutInventoryInput = {
   salesOrders?: Prisma.SalesOrderUncheckedCreateNestedManyWithoutEnterpriseInput
   productionOrders?: Prisma.ProductionOrderUncheckedCreateNestedManyWithoutEnterpriseInput
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
+  deliveries?: Prisma.DeliveryUncheckedCreateNestedManyWithoutEnterpriseInput
+  invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseCreateOrConnectWithoutInventoryInput = {
@@ -974,6 +1236,8 @@ export type EnterpriseUpdateWithoutInventoryInput = {
   salesOrders?: Prisma.SalesOrderUpdateManyWithoutEnterpriseNestedInput
   productionOrders?: Prisma.ProductionOrderUpdateManyWithoutEnterpriseNestedInput
   idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
+  deliveries?: Prisma.DeliveryUpdateManyWithoutEnterpriseNestedInput
+  invoices?: Prisma.InvoiceUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseUncheckedUpdateWithoutInventoryInput = {
@@ -990,6 +1254,8 @@ export type EnterpriseUncheckedUpdateWithoutInventoryInput = {
   salesOrders?: Prisma.SalesOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
   productionOrders?: Prisma.ProductionOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
+  deliveries?: Prisma.DeliveryUncheckedUpdateManyWithoutEnterpriseNestedInput
+  invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseCreateWithoutIdempotencyKeysInput = {
@@ -1006,6 +1272,8 @@ export type EnterpriseCreateWithoutIdempotencyKeysInput = {
   salesOrders?: Prisma.SalesOrderCreateNestedManyWithoutEnterpriseInput
   productionOrders?: Prisma.ProductionOrderCreateNestedManyWithoutEnterpriseInput
   inventory?: Prisma.InventoryCreateNestedManyWithoutEnterpriseInput
+  deliveries?: Prisma.DeliveryCreateNestedManyWithoutEnterpriseInput
+  invoices?: Prisma.InvoiceCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUncheckedCreateWithoutIdempotencyKeysInput = {
@@ -1022,6 +1290,8 @@ export type EnterpriseUncheckedCreateWithoutIdempotencyKeysInput = {
   salesOrders?: Prisma.SalesOrderUncheckedCreateNestedManyWithoutEnterpriseInput
   productionOrders?: Prisma.ProductionOrderUncheckedCreateNestedManyWithoutEnterpriseInput
   inventory?: Prisma.InventoryUncheckedCreateNestedManyWithoutEnterpriseInput
+  deliveries?: Prisma.DeliveryUncheckedCreateNestedManyWithoutEnterpriseInput
+  invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseCreateOrConnectWithoutIdempotencyKeysInput = {
@@ -1054,6 +1324,8 @@ export type EnterpriseUpdateWithoutIdempotencyKeysInput = {
   salesOrders?: Prisma.SalesOrderUpdateManyWithoutEnterpriseNestedInput
   productionOrders?: Prisma.ProductionOrderUpdateManyWithoutEnterpriseNestedInput
   inventory?: Prisma.InventoryUpdateManyWithoutEnterpriseNestedInput
+  deliveries?: Prisma.DeliveryUpdateManyWithoutEnterpriseNestedInput
+  invoices?: Prisma.InvoiceUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseUncheckedUpdateWithoutIdempotencyKeysInput = {
@@ -1070,6 +1342,8 @@ export type EnterpriseUncheckedUpdateWithoutIdempotencyKeysInput = {
   salesOrders?: Prisma.SalesOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
   productionOrders?: Prisma.ProductionOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
   inventory?: Prisma.InventoryUncheckedUpdateManyWithoutEnterpriseNestedInput
+  deliveries?: Prisma.DeliveryUncheckedUpdateManyWithoutEnterpriseNestedInput
+  invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutEnterpriseNestedInput
 }
 
 
@@ -1085,6 +1359,8 @@ export type EnterpriseCountOutputType = {
   productionOrders: number
   inventory: number
   idempotencyKeys: number
+  deliveries: number
+  invoices: number
 }
 
 export type EnterpriseCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1095,6 +1371,8 @@ export type EnterpriseCountOutputTypeSelect<ExtArgs extends runtime.Types.Extens
   productionOrders?: boolean | EnterpriseCountOutputTypeCountProductionOrdersArgs
   inventory?: boolean | EnterpriseCountOutputTypeCountInventoryArgs
   idempotencyKeys?: boolean | EnterpriseCountOutputTypeCountIdempotencyKeysArgs
+  deliveries?: boolean | EnterpriseCountOutputTypeCountDeliveriesArgs
+  invoices?: boolean | EnterpriseCountOutputTypeCountInvoicesArgs
 }
 
 /**
@@ -1156,6 +1434,20 @@ export type EnterpriseCountOutputTypeCountIdempotencyKeysArgs<ExtArgs extends ru
   where?: Prisma.IdempotencyKeyWhereInput
 }
 
+/**
+ * EnterpriseCountOutputType without action
+ */
+export type EnterpriseCountOutputTypeCountDeliveriesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.DeliveryWhereInput
+}
+
+/**
+ * EnterpriseCountOutputType without action
+ */
+export type EnterpriseCountOutputTypeCountInvoicesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.InvoiceWhereInput
+}
+
 
 export type EnterpriseSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1172,6 +1464,8 @@ export type EnterpriseSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   productionOrders?: boolean | Prisma.Enterprise$productionOrdersArgs<ExtArgs>
   inventory?: boolean | Prisma.Enterprise$inventoryArgs<ExtArgs>
   idempotencyKeys?: boolean | Prisma.Enterprise$idempotencyKeysArgs<ExtArgs>
+  deliveries?: boolean | Prisma.Enterprise$deliveriesArgs<ExtArgs>
+  invoices?: boolean | Prisma.Enterprise$invoicesArgs<ExtArgs>
   _count?: boolean | Prisma.EnterpriseCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["enterprise"]>
 
@@ -1214,6 +1508,8 @@ export type EnterpriseInclude<ExtArgs extends runtime.Types.Extensions.InternalA
   productionOrders?: boolean | Prisma.Enterprise$productionOrdersArgs<ExtArgs>
   inventory?: boolean | Prisma.Enterprise$inventoryArgs<ExtArgs>
   idempotencyKeys?: boolean | Prisma.Enterprise$idempotencyKeysArgs<ExtArgs>
+  deliveries?: boolean | Prisma.Enterprise$deliveriesArgs<ExtArgs>
+  invoices?: boolean | Prisma.Enterprise$invoicesArgs<ExtArgs>
   _count?: boolean | Prisma.EnterpriseCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type EnterpriseIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -1229,6 +1525,8 @@ export type $EnterprisePayload<ExtArgs extends runtime.Types.Extensions.Internal
     productionOrders: Prisma.$ProductionOrderPayload<ExtArgs>[]
     inventory: Prisma.$InventoryPayload<ExtArgs>[]
     idempotencyKeys: Prisma.$IdempotencyKeyPayload<ExtArgs>[]
+    deliveries: Prisma.$DeliveryPayload<ExtArgs>[]
+    invoices: Prisma.$InvoicePayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1639,6 +1937,8 @@ export interface Prisma__EnterpriseClient<T, Null = never, ExtArgs extends runti
   productionOrders<T extends Prisma.Enterprise$productionOrdersArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Enterprise$productionOrdersArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$ProductionOrderPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   inventory<T extends Prisma.Enterprise$inventoryArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Enterprise$inventoryArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$InventoryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   idempotencyKeys<T extends Prisma.Enterprise$idempotencyKeysArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Enterprise$idempotencyKeysArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$IdempotencyKeyPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  deliveries<T extends Prisma.Enterprise$deliveriesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Enterprise$deliveriesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$DeliveryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  invoices<T extends Prisma.Enterprise$invoicesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Enterprise$invoicesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$InvoicePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2233,6 +2533,54 @@ export type Enterprise$idempotencyKeysArgs<ExtArgs extends runtime.Types.Extensi
   take?: number
   skip?: number
   distinct?: Prisma.IdempotencyKeyScalarFieldEnum | Prisma.IdempotencyKeyScalarFieldEnum[]
+}
+
+/**
+ * Enterprise.deliveries
+ */
+export type Enterprise$deliveriesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Delivery
+   */
+  select?: Prisma.DeliverySelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Delivery
+   */
+  omit?: Prisma.DeliveryOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.DeliveryInclude<ExtArgs> | null
+  where?: Prisma.DeliveryWhereInput
+  orderBy?: Prisma.DeliveryOrderByWithRelationInput | Prisma.DeliveryOrderByWithRelationInput[]
+  cursor?: Prisma.DeliveryWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.DeliveryScalarFieldEnum | Prisma.DeliveryScalarFieldEnum[]
+}
+
+/**
+ * Enterprise.invoices
+ */
+export type Enterprise$invoicesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the Invoice
+   */
+  select?: Prisma.InvoiceSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the Invoice
+   */
+  omit?: Prisma.InvoiceOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.InvoiceInclude<ExtArgs> | null
+  where?: Prisma.InvoiceWhereInput
+  orderBy?: Prisma.InvoiceOrderByWithRelationInput | Prisma.InvoiceOrderByWithRelationInput[]
+  cursor?: Prisma.InvoiceWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.InvoiceScalarFieldEnum | Prisma.InvoiceScalarFieldEnum[]
 }
 
 /**

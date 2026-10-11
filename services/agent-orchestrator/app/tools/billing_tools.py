@@ -1,10 +1,14 @@
 # app/tools/billing_tools.py
 import datetime
+import logging
 import openpyxl
 
+from app.integrations.order_domain import dual_write_invoice
 from app.tools.idempotency_tools import get_idempotent_result, idempotency_lock, record_idempotent_result
 
 MOCK_ERP_PATH = "mock_erp.xlsx"
+
+logger = logging.getLogger(__name__)
 
 INVOICE_HEADERS = [
     "invoice_id",
@@ -93,6 +97,28 @@ def create_invoice(
         created_at,
     ])
     wb.save(MOCK_ERP_PATH)
+
+    # Pilot-readiness work: best-effort Postgres mirror — same philosophy
+    # as delivery_tools.create_delivery's own dual-write right above it in
+    # that file. The Excel row is already committed and is never affected
+    # by this failing.
+    try:
+        dual_write_invoice(
+            external_invoice_id=invoice_id,
+            external_sales_order_id=sales_order_id,
+            external_delivery_id=delivery_id,
+            customer_id=customer_id,
+            customer_name=customer_name,
+            quantity_billed=quantity_billed,
+            unit_price=unit_price,
+            invoice_amount=invoice_amount,
+            payment_terms_days=payment_terms_days,
+            due_date=due_date,
+            status=status,
+            notes=notes,
+        )
+    except Exception:
+        logger.warning("Failed to dual-write Invoice %s to Postgres — mock-ERP row is unaffected", invoice_id, exc_info=True)
 
     result = {
         "created": True,

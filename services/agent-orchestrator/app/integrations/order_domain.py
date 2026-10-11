@@ -179,3 +179,90 @@ async def get_promise_inbox(
         resp = await client.get(f"{ORDER_SERVICE_URL}/sales-orders/promises", params=params)
     resp.raise_for_status()
     return resp.json()
+
+
+# Independent-audit finding, pilot-readiness work (confirmed before
+# building this): Delivery and Invoice — the final two steps of
+# order-to-cash — had zero Postgres presence anywhere in this schema,
+# despite 17 TS microservices and a full commercial domain elsewhere.
+# These two functions are the dual-write mirror, same best-effort
+# philosophy as every other function in this module (see module
+# docstring): called from app/tools/delivery_tools.py / billing_tools.py
+# AFTER the real mock-ERP Excel row already exists, and a failure here
+# must never fail or roll back that already-committed Excel write — the
+# caller wraps this in try/except and logs, nothing more.
+#
+# Deliberately SYNC (httpx.Client, not AsyncClient): create_delivery/
+# create_invoice are themselves plain sync functions, called from dozens
+# of sites across both sync and async code (export_tools.py,
+# consignment_tools.py, project_tools.py, graph.py's _deliver_and_bill,
+# ...). Making them async to support an awaited dual-write call would
+# mean converting every one of those call sites — a much larger, separate
+# refactor. A sync httpx.Client call works from anywhere, async or not,
+# with no change required at any existing call site.
+def dual_write_delivery(
+    external_delivery_id: str,
+    external_sales_order_id: str | None,
+    customer_id: str | None,
+    customer_name: str | None,
+    product_id: str | None,
+    product_name: str | None,
+    quantity: float,
+    status: str,
+    requested_delivery_date: str | None,
+    confirmed_delivery_date: str | None,
+) -> dict:
+    with httpx.Client(timeout=_TIMEOUT, headers=_internal_headers()) as client:
+        resp = client.post(
+            f"{ORDER_SERVICE_URL}/deliveries",
+            json={
+                "externalDeliveryId": external_delivery_id,
+                "externalSalesOrderId": external_sales_order_id,
+                "customerId": customer_id,
+                "customerName": customer_name,
+                "productId": product_id,
+                "productName": product_name,
+                "quantity": quantity,
+                "status": status,
+                "requestedDeliveryDate": requested_delivery_date,
+                "confirmedDeliveryDate": confirmed_delivery_date,
+            },
+        )
+    resp.raise_for_status()
+    return resp.json()
+
+
+def dual_write_invoice(
+    external_invoice_id: str,
+    external_sales_order_id: str | None,
+    external_delivery_id: str | None,
+    customer_id: str | None,
+    customer_name: str | None,
+    quantity_billed: float,
+    unit_price: float,
+    invoice_amount: float,
+    payment_terms_days: int | None,
+    due_date: str | None,
+    status: str,
+    notes: str | None,
+) -> dict:
+    with httpx.Client(timeout=_TIMEOUT, headers=_internal_headers()) as client:
+        resp = client.post(
+            f"{ORDER_SERVICE_URL}/invoices",
+            json={
+                "externalInvoiceId": external_invoice_id,
+                "externalSalesOrderId": external_sales_order_id,
+                "externalDeliveryId": external_delivery_id,
+                "customerId": customer_id,
+                "customerName": customer_name,
+                "quantityBilled": quantity_billed,
+                "unitPrice": unit_price,
+                "invoiceAmount": invoice_amount,
+                "paymentTermsDays": payment_terms_days,
+                "dueDate": due_date,
+                "status": status,
+                "notes": notes,
+            },
+        )
+    resp.raise_for_status()
+    return resp.json()

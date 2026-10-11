@@ -79,6 +79,8 @@ export const ModelName = {
   RoutingOpDependency: 'RoutingOpDependency',
   Customer: 'Customer',
   SalesOrder: 'SalesOrder',
+  Delivery: 'Delivery',
+  Invoice: 'Invoice',
   ProductionOrder: 'ProductionOrder',
   OrderLine: 'OrderLine',
   FulfillmentPlan: 'FulfillmentPlan',
@@ -472,6 +474,48 @@ export const SalesOrderScalarFieldEnum = {
 } as const
 
 export type SalesOrderScalarFieldEnum = (typeof SalesOrderScalarFieldEnum)[keyof typeof SalesOrderScalarFieldEnum]
+
+
+export const DeliveryScalarFieldEnum = {
+  id: 'id',
+  externalDeliveryId: 'externalDeliveryId',
+  externalSalesOrderId: 'externalSalesOrderId',
+  salesOrderId: 'salesOrderId',
+  customerId: 'customerId',
+  customerName: 'customerName',
+  productId: 'productId',
+  productName: 'productName',
+  quantity: 'quantity',
+  status: 'status',
+  requestedDeliveryDate: 'requestedDeliveryDate',
+  confirmedDeliveryDate: 'confirmedDeliveryDate',
+  createdAt: 'createdAt',
+  enterpriseId: 'enterpriseId'
+} as const
+
+export type DeliveryScalarFieldEnum = (typeof DeliveryScalarFieldEnum)[keyof typeof DeliveryScalarFieldEnum]
+
+
+export const InvoiceScalarFieldEnum = {
+  id: 'id',
+  externalInvoiceId: 'externalInvoiceId',
+  externalSalesOrderId: 'externalSalesOrderId',
+  externalDeliveryId: 'externalDeliveryId',
+  salesOrderId: 'salesOrderId',
+  customerId: 'customerId',
+  customerName: 'customerName',
+  quantityBilled: 'quantityBilled',
+  unitPrice: 'unitPrice',
+  invoiceAmount: 'invoiceAmount',
+  paymentTermsDays: 'paymentTermsDays',
+  dueDate: 'dueDate',
+  status: 'status',
+  notes: 'notes',
+  createdAt: 'createdAt',
+  enterpriseId: 'enterpriseId'
+} as const
+
+export type InvoiceScalarFieldEnum = (typeof InvoiceScalarFieldEnum)[keyof typeof InvoiceScalarFieldEnum]
 
 
 export const ProductionOrderScalarFieldEnum = {

@@ -1,10 +1,14 @@
 # app/tools/delivery_tools.py
 import datetime
+import logging
 import openpyxl
 
+from app.integrations.order_domain import dual_write_delivery
 from app.tools.idempotency_tools import get_idempotent_result, idempotency_lock, record_idempotent_result
 
 MOCK_ERP_PATH = "mock_erp.xlsx"
+
+logger = logging.getLogger(__name__)
 
 # Real SD behavior (agreed with the user): even a fully in-stock order
 # gets a real delivery schedule — loading + transit time — not an
@@ -128,6 +132,28 @@ def create_delivery(
         created_at,
     ])
     wb.save(MOCK_ERP_PATH)
+
+    # Pilot-readiness work: best-effort Postgres mirror — the Excel row
+    # above is already committed and is never affected by this failing.
+    # See order_domain.dual_write_delivery's own doc comment and
+    # schema.prisma's comment on the Delivery model for the full
+    # dual-write reasoning (same philosophy as SalesOrder's own
+    # externalOrderId dual-write).
+    try:
+        dual_write_delivery(
+            external_delivery_id=delivery_id,
+            external_sales_order_id=sales_order_id,
+            customer_id=customer_id,
+            customer_name=customer_name,
+            product_id=product_id,
+            product_name=product_name,
+            quantity=quantity,
+            status=status,
+            requested_delivery_date=requested_delivery_date,
+            confirmed_delivery_date=confirmed_delivery_date,
+        )
+    except Exception:
+        logger.warning("Failed to dual-write Delivery %s to Postgres — mock-ERP row is unaffected", delivery_id, exc_info=True)
 
     result = {
         "created": True,
