@@ -12,12 +12,28 @@ committed order. Callers wrap these in try/except and treat a failure as
 "the new Postgres fulfillment record wasn't written this time" — not as a
 reason to fail the request. Same "compose already-existing HTTP calls, no
 new business logic" principle as manufacturing_services.py.
+
+Independent-audit fix (cross-service retry handling, pilot-readiness
+work): every call in this module had the same gap manufacturing_services.py
+used to — a real timeout but no retry at all, so a single dropped
+connection or transient 502/503/504 from order-service surfaced as an
+unhandled exception. The async calls now go through manufacturing_
+services._request (the exact same retry policy already proven there:
+retries only a connection-level failure or 502/503/504, never a definite
+4xx/5xx, so a non-idempotent write is never blindly retried). The two
+dual-write functions below are plain sync (see their own doc comment for
+why), so they get a local sync twin of the same policy, _request_sync.
 """
+import time
+
 import httpx
 
 from app.config import ORDER_SERVICE_URL
 
 _TIMEOUT = 15.0
+_RETRY_ATTEMPTS = 3
+_RETRY_BACKOFF_SECONDS = (0.5, 1.5)
+_RETRYABLE_STATUS_CODES = {502, 503, 504}
 
 
 def _internal_headers() -> dict[str, str]:
@@ -25,20 +41,40 @@ def _internal_headers() -> dict[str, str]:
     return _headers()
 
 
+def _request_sync(method: str, url: str, *, timeout: float = _TIMEOUT, **kwargs) -> httpx.Response:
+    last_exc: Exception | None = None
+    for attempt in range(_RETRY_ATTEMPTS):
+        try:
+            with httpx.Client(timeout=timeout, headers=_internal_headers()) as client:
+                resp = client.request(method, url, **kwargs)
+        except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout) as exc:
+            last_exc = exc
+            if attempt < _RETRY_ATTEMPTS - 1:
+                time.sleep(_RETRY_BACKOFF_SECONDS[attempt])
+                continue
+            raise
+        if resp.status_code in _RETRYABLE_STATUS_CODES and attempt < _RETRY_ATTEMPTS - 1:
+            time.sleep(_RETRY_BACKOFF_SECONDS[attempt])
+            continue
+        return resp
+    raise last_exc  # pragma: no cover — loop above always returns or raises
+
+
 async def find_or_create_customer(name: str) -> str:
     """The mock-ERP customer name is the only stable key this side has —
     reuses a real Customer row by exact name match instead of creating a
     duplicate one on every order."""
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.get(f"{ORDER_SERVICE_URL}/customers", params={"name": name})
-        resp.raise_for_status()
-        existing = resp.json()
-        if existing:
-            return existing[0]["id"]
+    from app.integrations.manufacturing_services import _request
 
-        resp = await client.post(f"{ORDER_SERVICE_URL}/customers", json={"name": name})
-        resp.raise_for_status()
-        return resp.json()["id"]
+    resp = await _request("GET", f"{ORDER_SERVICE_URL}/customers", timeout=_TIMEOUT, params={"name": name})
+    resp.raise_for_status()
+    existing = resp.json()
+    if existing:
+        return existing[0]["id"]
+
+    resp = await _request("POST", f"{ORDER_SERVICE_URL}/customers", timeout=_TIMEOUT, json={"name": name})
+    resp.raise_for_status()
+    return resp.json()["id"]
 
 
 async def create_sales_order_with_fulfillment(
@@ -79,34 +115,33 @@ async def create_sales_order_with_fulfillment(
     lines: [{"sourceType": "STOCK"|"PRODUCTION"|"BUY"|"DROP_SHIP"|"TRANSFER", "quantity": float, ...}].
     Returns the created SalesOrder plus {"orderLineId", "fulfillmentPlanId",
     "fulfillmentLines": [{"id", "sourceType"}]}."""
-    headers = _internal_headers()
-    if idempotency_key:
-        headers = {**headers, "Idempotency-Key": idempotency_key}
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=headers) as client:
-        resp = await client.post(
-            f"{ORDER_SERVICE_URL}/sales-orders",
-            json={
-                "customerId": customer_id,
-                "dueDate": due_date,
-                "value": value,
-                "priority": priority,
-                "orderNumber": order_number,
-                "channel": channel,
-                "fulfillmentType": fulfillment_type,
-                "status": "APPROVED",
-                "currency": currency,
-                "createdBy": created_by,
-                "externalOrderId": external_order_id,
-                "productId": product_id,
-                "productName": product_name,
-                "quantity": quantity,
-                "unitPrice": unit_price,
-                "requestedDate": requested_date,
-                "strategy": strategy,
-                "reasoning": reasoning,
-                "lines": lines,
-            },
-        )
+    from app.integrations.manufacturing_services import _request
+
+    extra_headers = {"Idempotency-Key": idempotency_key} if idempotency_key else {}
+    resp = await _request(
+        "POST", f"{ORDER_SERVICE_URL}/sales-orders", timeout=_TIMEOUT, headers=extra_headers,
+        json={
+            "customerId": customer_id,
+            "dueDate": due_date,
+            "value": value,
+            "priority": priority,
+            "orderNumber": order_number,
+            "channel": channel,
+            "fulfillmentType": fulfillment_type,
+            "status": "APPROVED",
+            "currency": currency,
+            "createdBy": created_by,
+            "externalOrderId": external_order_id,
+            "productId": product_id,
+            "productName": product_name,
+            "quantity": quantity,
+            "unitPrice": unit_price,
+            "requestedDate": requested_date,
+            "strategy": strategy,
+            "reasoning": reasoning,
+            "lines": lines,
+        },
+    )
     resp.raise_for_status()
     return resp.json()
 
@@ -130,8 +165,9 @@ async def patch_fulfillment_line(
         body["promisedDate"] = promised_date
     if reason is not None:
         body["reason"] = reason
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.patch(f"{ORDER_SERVICE_URL}/fulfillment-lines/{fulfillment_line_id}", json=body)
+    from app.integrations.manufacturing_services import _request
+
+    resp = await _request("PATCH", f"{ORDER_SERVICE_URL}/fulfillment-lines/{fulfillment_line_id}", timeout=_TIMEOUT, json=body)
     resp.raise_for_status()
 
 
@@ -140,8 +176,9 @@ async def get_fulfillment_by_external_order_id(external_order_id: str) -> dict |
     real Postgres fulfillment record exists for this mock-ERP order
     (either it predates Phase 1, or the dual-write failed at creation
     time — both are honest, reportable states, not errors)."""
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.get(f"{ORDER_SERVICE_URL}/sales-orders", params={"externalOrderId": external_order_id})
+    from app.integrations.manufacturing_services import _request
+
+    resp = await _request("GET", f"{ORDER_SERVICE_URL}/sales-orders", timeout=_TIMEOUT, params={"externalOrderId": external_order_id})
     resp.raise_for_status()
     orders = resp.json()
     return orders[0] if orders else None
@@ -175,8 +212,9 @@ async def get_promise_inbox(
     if pending_approval_only:
         params["pendingApprovalOnly"] = "true"
 
-    async with httpx.AsyncClient(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = await client.get(f"{ORDER_SERVICE_URL}/sales-orders/promises", params=params)
+    from app.integrations.manufacturing_services import _request
+
+    resp = await _request("GET", f"{ORDER_SERVICE_URL}/sales-orders/promises", timeout=_TIMEOUT, params=params)
     resp.raise_for_status()
     return resp.json()
 
@@ -212,22 +250,21 @@ def dual_write_delivery(
     requested_delivery_date: str | None,
     confirmed_delivery_date: str | None,
 ) -> dict:
-    with httpx.Client(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = client.post(
-            f"{ORDER_SERVICE_URL}/deliveries",
-            json={
-                "externalDeliveryId": external_delivery_id,
-                "externalSalesOrderId": external_sales_order_id,
-                "customerId": customer_id,
-                "customerName": customer_name,
-                "productId": product_id,
-                "productName": product_name,
-                "quantity": quantity,
-                "status": status,
-                "requestedDeliveryDate": requested_delivery_date,
-                "confirmedDeliveryDate": confirmed_delivery_date,
-            },
-        )
+    resp = _request_sync(
+        "POST", f"{ORDER_SERVICE_URL}/deliveries",
+        json={
+            "externalDeliveryId": external_delivery_id,
+            "externalSalesOrderId": external_sales_order_id,
+            "customerId": customer_id,
+            "customerName": customer_name,
+            "productId": product_id,
+            "productName": product_name,
+            "quantity": quantity,
+            "status": status,
+            "requestedDeliveryDate": requested_delivery_date,
+            "confirmedDeliveryDate": confirmed_delivery_date,
+        },
+    )
     resp.raise_for_status()
     return resp.json()
 
@@ -246,23 +283,22 @@ def dual_write_invoice(
     status: str,
     notes: str | None,
 ) -> dict:
-    with httpx.Client(timeout=_TIMEOUT, headers=_internal_headers()) as client:
-        resp = client.post(
-            f"{ORDER_SERVICE_URL}/invoices",
-            json={
-                "externalInvoiceId": external_invoice_id,
-                "externalSalesOrderId": external_sales_order_id,
-                "externalDeliveryId": external_delivery_id,
-                "customerId": customer_id,
-                "customerName": customer_name,
-                "quantityBilled": quantity_billed,
-                "unitPrice": unit_price,
-                "invoiceAmount": invoice_amount,
-                "paymentTermsDays": payment_terms_days,
-                "dueDate": due_date,
-                "status": status,
-                "notes": notes,
-            },
-        )
+    resp = _request_sync(
+        "POST", f"{ORDER_SERVICE_URL}/invoices",
+        json={
+            "externalInvoiceId": external_invoice_id,
+            "externalSalesOrderId": external_sales_order_id,
+            "externalDeliveryId": external_delivery_id,
+            "customerId": customer_id,
+            "customerName": customer_name,
+            "quantityBilled": quantity_billed,
+            "unitPrice": unit_price,
+            "invoiceAmount": invoice_amount,
+            "paymentTermsDays": payment_terms_days,
+            "dueDate": due_date,
+            "status": status,
+            "notes": notes,
+        },
+    )
     resp.raise_for_status()
     return resp.json()
