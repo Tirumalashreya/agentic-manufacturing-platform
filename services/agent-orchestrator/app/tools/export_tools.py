@@ -4,6 +4,7 @@ import openpyxl
 
 from app.erp.mock_erp_adapter import default_erp_adapter as erp
 from app.tools.audit_tools import record_audit_event
+from app.tools.idempotency_tools import idempotency_lock
 
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
@@ -114,6 +115,16 @@ def list_open_export_orders() -> list[dict]:
     ]
 
 
+# Independent-audit finding (confirmed before fixing — a concurrent test
+# on allocate_or_produce_export_order surfaced it): a load_workbook() here
+# could race a DIFFERENT concurrent call's own save() to this same file
+# (even for an unrelated export order — openpyxl.save() rewrites the
+# whole workbook), reading a half-written zip and crashing with
+# zipfile.BadZipFile. @idempotency_lock() closes the window the same way
+# as every other fix in this pass; nested calls from functions that also
+# acquire it (e.g. _advance below) are already safe via its reentrancy
+# guard.
+@idempotency_lock()
 def _set_fields(export_order_id: str, **fields) -> bool:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "ExportOrders" not in wb.sheetnames:

@@ -1407,6 +1407,13 @@ async def allocate_or_produce_export_order(export_order_id: str) -> dict:
             product_id=order["product_id"],
             product_name=order["product_name"],
             quantity=order["quantity"],
+            # Independent-audit fix: an operational trigger, retriable by
+            # its caller same as dispatch_trading_order — without this,
+            # a retried allocation call double-reserves (and
+            # double-decrements real Inventory) for the same export
+            # order. export_order_id is a real, already-persisted
+            # business id, same convention as reserve-stock-{...}-MTS.
+            idempotency_key=f"reserve-stock-{export_order_id}-EXPORT",
         )
         if not reservation["reserved"]:
             return {"allocated": False, "reason": reservation["reason"]}

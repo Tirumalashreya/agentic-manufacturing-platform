@@ -1,4 +1,6 @@
 # app/tests/test_export.py
+import asyncio
+
 import pytest
 
 from app.agents.export_agent import export_agent
@@ -15,6 +17,7 @@ from app.tools.export_tools import (
     ship_export_order,
     verify_export_payment,
 )
+from app.tools.inventory_tools import get_stock
 
 
 @pytest.mark.asyncio
@@ -128,6 +131,53 @@ async def test_allocate_from_stock_when_available():
     assert result["allocated"] is True
     assert result["status"] == "ALLOCATED"
     assert find_export_order(order["export_order_id"])["reservation_id"] is not None
+
+
+# Independent-audit fix: allocate_or_produce_export_order is "an
+# operational trigger, not part of the chat graph" (its own doc comment)
+# — retriable by its caller, same as dispatch_trading_order. Two
+# concurrent calls on the same still-PAYMENT_VERIFIED order used to both
+# read the order as not-yet-allocated and both reserve real stock before
+# either wrote ALLOCATED back, double-reserving (and double-decrementing)
+# Inventory for one logical allocation. reserve_stock is now called with
+# a stable idempotency_key derived from export_order_id, so the second
+# concurrent call replays the first's cached reservation instead of
+# taking a second real one.
+#
+# Real OS threads, not asyncio.gather: the stock-sufficient branch this
+# exercises has no await before reserve_stock's own blocking flock I/O,
+# so two gathered coroutines on one event loop would just run back-to-
+# back with no actual overlap — exactly the same reason test_trading.py's
+# own concurrency tests use threading.Thread, each running its own event
+# loop via asyncio.run, to get a genuine race on the real flock.
+def test_allocate_concurrent_same_export_order_reserves_stock_exactly_once():
+    import threading
+
+    before = {row["plant"]: row["stock_qty"] for row in get_stock("P011")}
+    order = _new_export_order(quantity=3)
+    verify_export_payment(order["export_order_id"], "LC-REF-001")
+
+    results: list[dict] = []
+
+    def call():
+        results.append(asyncio.run(allocate_or_produce_export_order(order["export_order_id"])))
+
+    threads = [threading.Thread(target=call) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    succeeded = [r for r in results if r["allocated"]]
+    assert len(succeeded) >= 1, f"expected at least one real allocation, got: {results}"
+
+    # The real proof regardless of exact thread timing (both may win the
+    # race and both report allocated=True via the replayed cache, or the
+    # second may simply lose to the order's own status guard) — real
+    # Inventory must never be decremented more than once for one logical
+    # allocation.
+    after = {row["plant"]: row["stock_qty"] for row in get_stock("P011")}
+    assert sum(before.values()) - sum(after.values()) == 3  # reserved exactly once, not twice
 
 
 async def _advance_to_shipped(export_order_id: str) -> None:

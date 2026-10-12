@@ -3,6 +3,8 @@ import datetime
 import json
 import openpyxl
 
+from app.tools.idempotency_tools import idempotency_lock
+
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
 AUDIT_EVENT_HEADERS = ["event_id", "entity_type", "entity_id", "event_type", "details", "created_at"]
@@ -35,6 +37,19 @@ def _next_event_id(sheet) -> str:
     return f"EVT{max_num + 1:06d}"
 
 
+# Independent-audit finding (confirmed before fixing — a concurrent test
+# on allocate_or_produce_export_order surfaced it, by way of
+# export_tools._advance calling this right after its own now-locked
+# _set_fields): this append-only load/save was never itself under any
+# lock, even though it's called from almost every write path in the
+# codebase (Project, Export, Trading, Service, Consignment, Financial,
+# Post-Sales) — including ones already wrapped in @idempotency_lock()
+# for their OWN write. A concurrent call elsewhere (locked or not) could
+# still interleave with this one's unlocked load_workbook()/save(),
+# reading or writing a torn file and crashing with zipfile.BadZipFile.
+# @idempotency_lock()'s reentrancy guard makes this safe to call from
+# inside an already-locked caller without double-acquiring.
+@idempotency_lock()
 def record_audit_event(
     entity_type: str,
     entity_id: str | None,
