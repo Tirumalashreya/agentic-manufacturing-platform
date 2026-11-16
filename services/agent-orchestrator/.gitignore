@@ -6,3 +6,6 @@ __pycache__/
 .pytest_cache/
 *.test_session_backup
 *.idempotency.lock
+
+# atomic-save temp files left behind by a killed process
+.mock_erp.xlsx.tmp-*

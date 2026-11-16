@@ -207,6 +207,8 @@ export type EnterpriseWhereInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyListRelationFilter
   deliveries?: Prisma.DeliveryListRelationFilter
   invoices?: Prisma.InvoiceListRelationFilter
+  documentSequences?: Prisma.DocumentSequenceListRelationFilter
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationListRelationFilter
 }
 
 export type EnterpriseOrderByWithRelationInput = {
@@ -226,6 +228,8 @@ export type EnterpriseOrderByWithRelationInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyOrderByRelationAggregateInput
   deliveries?: Prisma.DeliveryOrderByRelationAggregateInput
   invoices?: Prisma.InvoiceOrderByRelationAggregateInput
+  documentSequences?: Prisma.DocumentSequenceOrderByRelationAggregateInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationOrderByRelationAggregateInput
 }
 
 export type EnterpriseWhereUniqueInput = Prisma.AtLeast<{
@@ -248,6 +252,8 @@ export type EnterpriseWhereUniqueInput = Prisma.AtLeast<{
   idempotencyKeys?: Prisma.IdempotencyKeyListRelationFilter
   deliveries?: Prisma.DeliveryListRelationFilter
   invoices?: Prisma.InvoiceListRelationFilter
+  documentSequences?: Prisma.DocumentSequenceListRelationFilter
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationListRelationFilter
 }, "id">
 
 export type EnterpriseOrderByWithAggregationInput = {
@@ -293,6 +299,8 @@ export type EnterpriseCreateInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
   deliveries?: Prisma.DeliveryCreateNestedManyWithoutEnterpriseInput
   invoices?: Prisma.InvoiceCreateNestedManyWithoutEnterpriseInput
+  documentSequences?: Prisma.DocumentSequenceCreateNestedManyWithoutEnterpriseInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUncheckedCreateInput = {
@@ -312,6 +320,8 @@ export type EnterpriseUncheckedCreateInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
   deliveries?: Prisma.DeliveryUncheckedCreateNestedManyWithoutEnterpriseInput
   invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutEnterpriseInput
+  documentSequences?: Prisma.DocumentSequenceUncheckedCreateNestedManyWithoutEnterpriseInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUncheckedCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUpdateInput = {
@@ -331,6 +341,8 @@ export type EnterpriseUpdateInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
   deliveries?: Prisma.DeliveryUpdateManyWithoutEnterpriseNestedInput
   invoices?: Prisma.InvoiceUpdateManyWithoutEnterpriseNestedInput
+  documentSequences?: Prisma.DocumentSequenceUpdateManyWithoutEnterpriseNestedInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseUncheckedUpdateInput = {
@@ -350,6 +362,8 @@ export type EnterpriseUncheckedUpdateInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
   deliveries?: Prisma.DeliveryUncheckedUpdateManyWithoutEnterpriseNestedInput
   invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutEnterpriseNestedInput
+  documentSequences?: Prisma.DocumentSequenceUncheckedUpdateManyWithoutEnterpriseNestedInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUncheckedUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseCreateManyInput = {
@@ -554,6 +568,34 @@ export type EnterpriseUpdateOneRequiredWithoutIdempotencyKeysNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.EnterpriseUpdateToOneWithWhereWithoutIdempotencyKeysInput, Prisma.EnterpriseUpdateWithoutIdempotencyKeysInput>, Prisma.EnterpriseUncheckedUpdateWithoutIdempotencyKeysInput>
 }
 
+export type EnterpriseCreateNestedOneWithoutDocumentSequencesInput = {
+  create?: Prisma.XOR<Prisma.EnterpriseCreateWithoutDocumentSequencesInput, Prisma.EnterpriseUncheckedCreateWithoutDocumentSequencesInput>
+  connectOrCreate?: Prisma.EnterpriseCreateOrConnectWithoutDocumentSequencesInput
+  connect?: Prisma.EnterpriseWhereUniqueInput
+}
+
+export type EnterpriseUpdateOneRequiredWithoutDocumentSequencesNestedInput = {
+  create?: Prisma.XOR<Prisma.EnterpriseCreateWithoutDocumentSequencesInput, Prisma.EnterpriseUncheckedCreateWithoutDocumentSequencesInput>
+  connectOrCreate?: Prisma.EnterpriseCreateOrConnectWithoutDocumentSequencesInput
+  upsert?: Prisma.EnterpriseUpsertWithoutDocumentSequencesInput
+  connect?: Prisma.EnterpriseWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.EnterpriseUpdateToOneWithWhereWithoutDocumentSequencesInput, Prisma.EnterpriseUpdateWithoutDocumentSequencesInput>, Prisma.EnterpriseUncheckedUpdateWithoutDocumentSequencesInput>
+}
+
+export type EnterpriseCreateNestedOneWithoutDocumentNumberAllocationsInput = {
+  create?: Prisma.XOR<Prisma.EnterpriseCreateWithoutDocumentNumberAllocationsInput, Prisma.EnterpriseUncheckedCreateWithoutDocumentNumberAllocationsInput>
+  connectOrCreate?: Prisma.EnterpriseCreateOrConnectWithoutDocumentNumberAllocationsInput
+  connect?: Prisma.EnterpriseWhereUniqueInput
+}
+
+export type EnterpriseUpdateOneRequiredWithoutDocumentNumberAllocationsNestedInput = {
+  create?: Prisma.XOR<Prisma.EnterpriseCreateWithoutDocumentNumberAllocationsInput, Prisma.EnterpriseUncheckedCreateWithoutDocumentNumberAllocationsInput>
+  connectOrCreate?: Prisma.EnterpriseCreateOrConnectWithoutDocumentNumberAllocationsInput
+  upsert?: Prisma.EnterpriseUpsertWithoutDocumentNumberAllocationsInput
+  connect?: Prisma.EnterpriseWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.EnterpriseUpdateToOneWithWhereWithoutDocumentNumberAllocationsInput, Prisma.EnterpriseUpdateWithoutDocumentNumberAllocationsInput>, Prisma.EnterpriseUncheckedUpdateWithoutDocumentNumberAllocationsInput>
+}
+
 export type EnterpriseCreateWithoutUsersInput = {
   id?: string
   name: string
@@ -570,6 +612,8 @@ export type EnterpriseCreateWithoutUsersInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
   deliveries?: Prisma.DeliveryCreateNestedManyWithoutEnterpriseInput
   invoices?: Prisma.InvoiceCreateNestedManyWithoutEnterpriseInput
+  documentSequences?: Prisma.DocumentSequenceCreateNestedManyWithoutEnterpriseInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUncheckedCreateWithoutUsersInput = {
@@ -588,6 +632,8 @@ export type EnterpriseUncheckedCreateWithoutUsersInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
   deliveries?: Prisma.DeliveryUncheckedCreateNestedManyWithoutEnterpriseInput
   invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutEnterpriseInput
+  documentSequences?: Prisma.DocumentSequenceUncheckedCreateNestedManyWithoutEnterpriseInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUncheckedCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseCreateOrConnectWithoutUsersInput = {
@@ -622,6 +668,8 @@ export type EnterpriseUpdateWithoutUsersInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
   deliveries?: Prisma.DeliveryUpdateManyWithoutEnterpriseNestedInput
   invoices?: Prisma.InvoiceUpdateManyWithoutEnterpriseNestedInput
+  documentSequences?: Prisma.DocumentSequenceUpdateManyWithoutEnterpriseNestedInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseUncheckedUpdateWithoutUsersInput = {
@@ -640,6 +688,8 @@ export type EnterpriseUncheckedUpdateWithoutUsersInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
   deliveries?: Prisma.DeliveryUncheckedUpdateManyWithoutEnterpriseNestedInput
   invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutEnterpriseNestedInput
+  documentSequences?: Prisma.DocumentSequenceUncheckedUpdateManyWithoutEnterpriseNestedInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUncheckedUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseCreateWithoutSitesInput = {
@@ -658,6 +708,8 @@ export type EnterpriseCreateWithoutSitesInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
   deliveries?: Prisma.DeliveryCreateNestedManyWithoutEnterpriseInput
   invoices?: Prisma.InvoiceCreateNestedManyWithoutEnterpriseInput
+  documentSequences?: Prisma.DocumentSequenceCreateNestedManyWithoutEnterpriseInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUncheckedCreateWithoutSitesInput = {
@@ -676,6 +728,8 @@ export type EnterpriseUncheckedCreateWithoutSitesInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
   deliveries?: Prisma.DeliveryUncheckedCreateNestedManyWithoutEnterpriseInput
   invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutEnterpriseInput
+  documentSequences?: Prisma.DocumentSequenceUncheckedCreateNestedManyWithoutEnterpriseInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUncheckedCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseCreateOrConnectWithoutSitesInput = {
@@ -710,6 +764,8 @@ export type EnterpriseUpdateWithoutSitesInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
   deliveries?: Prisma.DeliveryUpdateManyWithoutEnterpriseNestedInput
   invoices?: Prisma.InvoiceUpdateManyWithoutEnterpriseNestedInput
+  documentSequences?: Prisma.DocumentSequenceUpdateManyWithoutEnterpriseNestedInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseUncheckedUpdateWithoutSitesInput = {
@@ -728,6 +784,8 @@ export type EnterpriseUncheckedUpdateWithoutSitesInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
   deliveries?: Prisma.DeliveryUncheckedUpdateManyWithoutEnterpriseNestedInput
   invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutEnterpriseNestedInput
+  documentSequences?: Prisma.DocumentSequenceUncheckedUpdateManyWithoutEnterpriseNestedInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUncheckedUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseCreateWithoutCustomersInput = {
@@ -746,6 +804,8 @@ export type EnterpriseCreateWithoutCustomersInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
   deliveries?: Prisma.DeliveryCreateNestedManyWithoutEnterpriseInput
   invoices?: Prisma.InvoiceCreateNestedManyWithoutEnterpriseInput
+  documentSequences?: Prisma.DocumentSequenceCreateNestedManyWithoutEnterpriseInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUncheckedCreateWithoutCustomersInput = {
@@ -764,6 +824,8 @@ export type EnterpriseUncheckedCreateWithoutCustomersInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
   deliveries?: Prisma.DeliveryUncheckedCreateNestedManyWithoutEnterpriseInput
   invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutEnterpriseInput
+  documentSequences?: Prisma.DocumentSequenceUncheckedCreateNestedManyWithoutEnterpriseInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUncheckedCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseCreateOrConnectWithoutCustomersInput = {
@@ -798,6 +860,8 @@ export type EnterpriseUpdateWithoutCustomersInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
   deliveries?: Prisma.DeliveryUpdateManyWithoutEnterpriseNestedInput
   invoices?: Prisma.InvoiceUpdateManyWithoutEnterpriseNestedInput
+  documentSequences?: Prisma.DocumentSequenceUpdateManyWithoutEnterpriseNestedInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseUncheckedUpdateWithoutCustomersInput = {
@@ -816,6 +880,8 @@ export type EnterpriseUncheckedUpdateWithoutCustomersInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
   deliveries?: Prisma.DeliveryUncheckedUpdateManyWithoutEnterpriseNestedInput
   invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutEnterpriseNestedInput
+  documentSequences?: Prisma.DocumentSequenceUncheckedUpdateManyWithoutEnterpriseNestedInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUncheckedUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseCreateWithoutSalesOrdersInput = {
@@ -834,6 +900,8 @@ export type EnterpriseCreateWithoutSalesOrdersInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
   deliveries?: Prisma.DeliveryCreateNestedManyWithoutEnterpriseInput
   invoices?: Prisma.InvoiceCreateNestedManyWithoutEnterpriseInput
+  documentSequences?: Prisma.DocumentSequenceCreateNestedManyWithoutEnterpriseInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUncheckedCreateWithoutSalesOrdersInput = {
@@ -852,6 +920,8 @@ export type EnterpriseUncheckedCreateWithoutSalesOrdersInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
   deliveries?: Prisma.DeliveryUncheckedCreateNestedManyWithoutEnterpriseInput
   invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutEnterpriseInput
+  documentSequences?: Prisma.DocumentSequenceUncheckedCreateNestedManyWithoutEnterpriseInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUncheckedCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseCreateOrConnectWithoutSalesOrdersInput = {
@@ -886,6 +956,8 @@ export type EnterpriseUpdateWithoutSalesOrdersInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
   deliveries?: Prisma.DeliveryUpdateManyWithoutEnterpriseNestedInput
   invoices?: Prisma.InvoiceUpdateManyWithoutEnterpriseNestedInput
+  documentSequences?: Prisma.DocumentSequenceUpdateManyWithoutEnterpriseNestedInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseUncheckedUpdateWithoutSalesOrdersInput = {
@@ -904,6 +976,8 @@ export type EnterpriseUncheckedUpdateWithoutSalesOrdersInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
   deliveries?: Prisma.DeliveryUncheckedUpdateManyWithoutEnterpriseNestedInput
   invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutEnterpriseNestedInput
+  documentSequences?: Prisma.DocumentSequenceUncheckedUpdateManyWithoutEnterpriseNestedInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUncheckedUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseCreateWithoutDeliveriesInput = {
@@ -922,6 +996,8 @@ export type EnterpriseCreateWithoutDeliveriesInput = {
   inventory?: Prisma.InventoryCreateNestedManyWithoutEnterpriseInput
   idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
   invoices?: Prisma.InvoiceCreateNestedManyWithoutEnterpriseInput
+  documentSequences?: Prisma.DocumentSequenceCreateNestedManyWithoutEnterpriseInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUncheckedCreateWithoutDeliveriesInput = {
@@ -940,6 +1016,8 @@ export type EnterpriseUncheckedCreateWithoutDeliveriesInput = {
   inventory?: Prisma.InventoryUncheckedCreateNestedManyWithoutEnterpriseInput
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
   invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutEnterpriseInput
+  documentSequences?: Prisma.DocumentSequenceUncheckedCreateNestedManyWithoutEnterpriseInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUncheckedCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseCreateOrConnectWithoutDeliveriesInput = {
@@ -974,6 +1052,8 @@ export type EnterpriseUpdateWithoutDeliveriesInput = {
   inventory?: Prisma.InventoryUpdateManyWithoutEnterpriseNestedInput
   idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
   invoices?: Prisma.InvoiceUpdateManyWithoutEnterpriseNestedInput
+  documentSequences?: Prisma.DocumentSequenceUpdateManyWithoutEnterpriseNestedInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseUncheckedUpdateWithoutDeliveriesInput = {
@@ -992,6 +1072,8 @@ export type EnterpriseUncheckedUpdateWithoutDeliveriesInput = {
   inventory?: Prisma.InventoryUncheckedUpdateManyWithoutEnterpriseNestedInput
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
   invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutEnterpriseNestedInput
+  documentSequences?: Prisma.DocumentSequenceUncheckedUpdateManyWithoutEnterpriseNestedInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUncheckedUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseCreateWithoutInvoicesInput = {
@@ -1010,6 +1092,8 @@ export type EnterpriseCreateWithoutInvoicesInput = {
   inventory?: Prisma.InventoryCreateNestedManyWithoutEnterpriseInput
   idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
   deliveries?: Prisma.DeliveryCreateNestedManyWithoutEnterpriseInput
+  documentSequences?: Prisma.DocumentSequenceCreateNestedManyWithoutEnterpriseInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUncheckedCreateWithoutInvoicesInput = {
@@ -1028,6 +1112,8 @@ export type EnterpriseUncheckedCreateWithoutInvoicesInput = {
   inventory?: Prisma.InventoryUncheckedCreateNestedManyWithoutEnterpriseInput
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
   deliveries?: Prisma.DeliveryUncheckedCreateNestedManyWithoutEnterpriseInput
+  documentSequences?: Prisma.DocumentSequenceUncheckedCreateNestedManyWithoutEnterpriseInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUncheckedCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseCreateOrConnectWithoutInvoicesInput = {
@@ -1062,6 +1148,8 @@ export type EnterpriseUpdateWithoutInvoicesInput = {
   inventory?: Prisma.InventoryUpdateManyWithoutEnterpriseNestedInput
   idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
   deliveries?: Prisma.DeliveryUpdateManyWithoutEnterpriseNestedInput
+  documentSequences?: Prisma.DocumentSequenceUpdateManyWithoutEnterpriseNestedInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseUncheckedUpdateWithoutInvoicesInput = {
@@ -1080,6 +1168,8 @@ export type EnterpriseUncheckedUpdateWithoutInvoicesInput = {
   inventory?: Prisma.InventoryUncheckedUpdateManyWithoutEnterpriseNestedInput
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
   deliveries?: Prisma.DeliveryUncheckedUpdateManyWithoutEnterpriseNestedInput
+  documentSequences?: Prisma.DocumentSequenceUncheckedUpdateManyWithoutEnterpriseNestedInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUncheckedUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseCreateWithoutProductionOrdersInput = {
@@ -1098,6 +1188,8 @@ export type EnterpriseCreateWithoutProductionOrdersInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
   deliveries?: Prisma.DeliveryCreateNestedManyWithoutEnterpriseInput
   invoices?: Prisma.InvoiceCreateNestedManyWithoutEnterpriseInput
+  documentSequences?: Prisma.DocumentSequenceCreateNestedManyWithoutEnterpriseInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUncheckedCreateWithoutProductionOrdersInput = {
@@ -1116,6 +1208,8 @@ export type EnterpriseUncheckedCreateWithoutProductionOrdersInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
   deliveries?: Prisma.DeliveryUncheckedCreateNestedManyWithoutEnterpriseInput
   invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutEnterpriseInput
+  documentSequences?: Prisma.DocumentSequenceUncheckedCreateNestedManyWithoutEnterpriseInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUncheckedCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseCreateOrConnectWithoutProductionOrdersInput = {
@@ -1150,6 +1244,8 @@ export type EnterpriseUpdateWithoutProductionOrdersInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
   deliveries?: Prisma.DeliveryUpdateManyWithoutEnterpriseNestedInput
   invoices?: Prisma.InvoiceUpdateManyWithoutEnterpriseNestedInput
+  documentSequences?: Prisma.DocumentSequenceUpdateManyWithoutEnterpriseNestedInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseUncheckedUpdateWithoutProductionOrdersInput = {
@@ -1168,6 +1264,8 @@ export type EnterpriseUncheckedUpdateWithoutProductionOrdersInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
   deliveries?: Prisma.DeliveryUncheckedUpdateManyWithoutEnterpriseNestedInput
   invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutEnterpriseNestedInput
+  documentSequences?: Prisma.DocumentSequenceUncheckedUpdateManyWithoutEnterpriseNestedInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUncheckedUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseCreateWithoutInventoryInput = {
@@ -1186,6 +1284,8 @@ export type EnterpriseCreateWithoutInventoryInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
   deliveries?: Prisma.DeliveryCreateNestedManyWithoutEnterpriseInput
   invoices?: Prisma.InvoiceCreateNestedManyWithoutEnterpriseInput
+  documentSequences?: Prisma.DocumentSequenceCreateNestedManyWithoutEnterpriseInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUncheckedCreateWithoutInventoryInput = {
@@ -1204,6 +1304,8 @@ export type EnterpriseUncheckedCreateWithoutInventoryInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
   deliveries?: Prisma.DeliveryUncheckedCreateNestedManyWithoutEnterpriseInput
   invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutEnterpriseInput
+  documentSequences?: Prisma.DocumentSequenceUncheckedCreateNestedManyWithoutEnterpriseInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUncheckedCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseCreateOrConnectWithoutInventoryInput = {
@@ -1238,6 +1340,8 @@ export type EnterpriseUpdateWithoutInventoryInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
   deliveries?: Prisma.DeliveryUpdateManyWithoutEnterpriseNestedInput
   invoices?: Prisma.InvoiceUpdateManyWithoutEnterpriseNestedInput
+  documentSequences?: Prisma.DocumentSequenceUpdateManyWithoutEnterpriseNestedInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseUncheckedUpdateWithoutInventoryInput = {
@@ -1256,6 +1360,8 @@ export type EnterpriseUncheckedUpdateWithoutInventoryInput = {
   idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
   deliveries?: Prisma.DeliveryUncheckedUpdateManyWithoutEnterpriseNestedInput
   invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutEnterpriseNestedInput
+  documentSequences?: Prisma.DocumentSequenceUncheckedUpdateManyWithoutEnterpriseNestedInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUncheckedUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseCreateWithoutIdempotencyKeysInput = {
@@ -1274,6 +1380,8 @@ export type EnterpriseCreateWithoutIdempotencyKeysInput = {
   inventory?: Prisma.InventoryCreateNestedManyWithoutEnterpriseInput
   deliveries?: Prisma.DeliveryCreateNestedManyWithoutEnterpriseInput
   invoices?: Prisma.InvoiceCreateNestedManyWithoutEnterpriseInput
+  documentSequences?: Prisma.DocumentSequenceCreateNestedManyWithoutEnterpriseInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseUncheckedCreateWithoutIdempotencyKeysInput = {
@@ -1292,6 +1400,8 @@ export type EnterpriseUncheckedCreateWithoutIdempotencyKeysInput = {
   inventory?: Prisma.InventoryUncheckedCreateNestedManyWithoutEnterpriseInput
   deliveries?: Prisma.DeliveryUncheckedCreateNestedManyWithoutEnterpriseInput
   invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutEnterpriseInput
+  documentSequences?: Prisma.DocumentSequenceUncheckedCreateNestedManyWithoutEnterpriseInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUncheckedCreateNestedManyWithoutEnterpriseInput
 }
 
 export type EnterpriseCreateOrConnectWithoutIdempotencyKeysInput = {
@@ -1326,6 +1436,8 @@ export type EnterpriseUpdateWithoutIdempotencyKeysInput = {
   inventory?: Prisma.InventoryUpdateManyWithoutEnterpriseNestedInput
   deliveries?: Prisma.DeliveryUpdateManyWithoutEnterpriseNestedInput
   invoices?: Prisma.InvoiceUpdateManyWithoutEnterpriseNestedInput
+  documentSequences?: Prisma.DocumentSequenceUpdateManyWithoutEnterpriseNestedInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUpdateManyWithoutEnterpriseNestedInput
 }
 
 export type EnterpriseUncheckedUpdateWithoutIdempotencyKeysInput = {
@@ -1344,6 +1456,200 @@ export type EnterpriseUncheckedUpdateWithoutIdempotencyKeysInput = {
   inventory?: Prisma.InventoryUncheckedUpdateManyWithoutEnterpriseNestedInput
   deliveries?: Prisma.DeliveryUncheckedUpdateManyWithoutEnterpriseNestedInput
   invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutEnterpriseNestedInput
+  documentSequences?: Prisma.DocumentSequenceUncheckedUpdateManyWithoutEnterpriseNestedInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUncheckedUpdateManyWithoutEnterpriseNestedInput
+}
+
+export type EnterpriseCreateWithoutDocumentSequencesInput = {
+  id?: string
+  name: string
+  timezone: string
+  currency: string
+  tier?: $Enums.SubscriptionTier
+  trialEndsAt?: Date | string | null
+  createdAt?: Date | string
+  sites?: Prisma.SiteCreateNestedManyWithoutEnterpriseInput
+  users?: Prisma.UserCreateNestedManyWithoutEnterpriseInput
+  customers?: Prisma.CustomerCreateNestedManyWithoutEnterpriseInput
+  salesOrders?: Prisma.SalesOrderCreateNestedManyWithoutEnterpriseInput
+  productionOrders?: Prisma.ProductionOrderCreateNestedManyWithoutEnterpriseInput
+  inventory?: Prisma.InventoryCreateNestedManyWithoutEnterpriseInput
+  idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
+  deliveries?: Prisma.DeliveryCreateNestedManyWithoutEnterpriseInput
+  invoices?: Prisma.InvoiceCreateNestedManyWithoutEnterpriseInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationCreateNestedManyWithoutEnterpriseInput
+}
+
+export type EnterpriseUncheckedCreateWithoutDocumentSequencesInput = {
+  id?: string
+  name: string
+  timezone: string
+  currency: string
+  tier?: $Enums.SubscriptionTier
+  trialEndsAt?: Date | string | null
+  createdAt?: Date | string
+  sites?: Prisma.SiteUncheckedCreateNestedManyWithoutEnterpriseInput
+  users?: Prisma.UserUncheckedCreateNestedManyWithoutEnterpriseInput
+  customers?: Prisma.CustomerUncheckedCreateNestedManyWithoutEnterpriseInput
+  salesOrders?: Prisma.SalesOrderUncheckedCreateNestedManyWithoutEnterpriseInput
+  productionOrders?: Prisma.ProductionOrderUncheckedCreateNestedManyWithoutEnterpriseInput
+  inventory?: Prisma.InventoryUncheckedCreateNestedManyWithoutEnterpriseInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
+  deliveries?: Prisma.DeliveryUncheckedCreateNestedManyWithoutEnterpriseInput
+  invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutEnterpriseInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUncheckedCreateNestedManyWithoutEnterpriseInput
+}
+
+export type EnterpriseCreateOrConnectWithoutDocumentSequencesInput = {
+  where: Prisma.EnterpriseWhereUniqueInput
+  create: Prisma.XOR<Prisma.EnterpriseCreateWithoutDocumentSequencesInput, Prisma.EnterpriseUncheckedCreateWithoutDocumentSequencesInput>
+}
+
+export type EnterpriseUpsertWithoutDocumentSequencesInput = {
+  update: Prisma.XOR<Prisma.EnterpriseUpdateWithoutDocumentSequencesInput, Prisma.EnterpriseUncheckedUpdateWithoutDocumentSequencesInput>
+  create: Prisma.XOR<Prisma.EnterpriseCreateWithoutDocumentSequencesInput, Prisma.EnterpriseUncheckedCreateWithoutDocumentSequencesInput>
+  where?: Prisma.EnterpriseWhereInput
+}
+
+export type EnterpriseUpdateToOneWithWhereWithoutDocumentSequencesInput = {
+  where?: Prisma.EnterpriseWhereInput
+  data: Prisma.XOR<Prisma.EnterpriseUpdateWithoutDocumentSequencesInput, Prisma.EnterpriseUncheckedUpdateWithoutDocumentSequencesInput>
+}
+
+export type EnterpriseUpdateWithoutDocumentSequencesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  tier?: Prisma.EnumSubscriptionTierFieldUpdateOperationsInput | $Enums.SubscriptionTier
+  trialEndsAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sites?: Prisma.SiteUpdateManyWithoutEnterpriseNestedInput
+  users?: Prisma.UserUpdateManyWithoutEnterpriseNestedInput
+  customers?: Prisma.CustomerUpdateManyWithoutEnterpriseNestedInput
+  salesOrders?: Prisma.SalesOrderUpdateManyWithoutEnterpriseNestedInput
+  productionOrders?: Prisma.ProductionOrderUpdateManyWithoutEnterpriseNestedInput
+  inventory?: Prisma.InventoryUpdateManyWithoutEnterpriseNestedInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
+  deliveries?: Prisma.DeliveryUpdateManyWithoutEnterpriseNestedInput
+  invoices?: Prisma.InvoiceUpdateManyWithoutEnterpriseNestedInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUpdateManyWithoutEnterpriseNestedInput
+}
+
+export type EnterpriseUncheckedUpdateWithoutDocumentSequencesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  tier?: Prisma.EnumSubscriptionTierFieldUpdateOperationsInput | $Enums.SubscriptionTier
+  trialEndsAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sites?: Prisma.SiteUncheckedUpdateManyWithoutEnterpriseNestedInput
+  users?: Prisma.UserUncheckedUpdateManyWithoutEnterpriseNestedInput
+  customers?: Prisma.CustomerUncheckedUpdateManyWithoutEnterpriseNestedInput
+  salesOrders?: Prisma.SalesOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
+  productionOrders?: Prisma.ProductionOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
+  inventory?: Prisma.InventoryUncheckedUpdateManyWithoutEnterpriseNestedInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
+  deliveries?: Prisma.DeliveryUncheckedUpdateManyWithoutEnterpriseNestedInput
+  invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutEnterpriseNestedInput
+  documentNumberAllocations?: Prisma.DocumentNumberAllocationUncheckedUpdateManyWithoutEnterpriseNestedInput
+}
+
+export type EnterpriseCreateWithoutDocumentNumberAllocationsInput = {
+  id?: string
+  name: string
+  timezone: string
+  currency: string
+  tier?: $Enums.SubscriptionTier
+  trialEndsAt?: Date | string | null
+  createdAt?: Date | string
+  sites?: Prisma.SiteCreateNestedManyWithoutEnterpriseInput
+  users?: Prisma.UserCreateNestedManyWithoutEnterpriseInput
+  customers?: Prisma.CustomerCreateNestedManyWithoutEnterpriseInput
+  salesOrders?: Prisma.SalesOrderCreateNestedManyWithoutEnterpriseInput
+  productionOrders?: Prisma.ProductionOrderCreateNestedManyWithoutEnterpriseInput
+  inventory?: Prisma.InventoryCreateNestedManyWithoutEnterpriseInput
+  idempotencyKeys?: Prisma.IdempotencyKeyCreateNestedManyWithoutEnterpriseInput
+  deliveries?: Prisma.DeliveryCreateNestedManyWithoutEnterpriseInput
+  invoices?: Prisma.InvoiceCreateNestedManyWithoutEnterpriseInput
+  documentSequences?: Prisma.DocumentSequenceCreateNestedManyWithoutEnterpriseInput
+}
+
+export type EnterpriseUncheckedCreateWithoutDocumentNumberAllocationsInput = {
+  id?: string
+  name: string
+  timezone: string
+  currency: string
+  tier?: $Enums.SubscriptionTier
+  trialEndsAt?: Date | string | null
+  createdAt?: Date | string
+  sites?: Prisma.SiteUncheckedCreateNestedManyWithoutEnterpriseInput
+  users?: Prisma.UserUncheckedCreateNestedManyWithoutEnterpriseInput
+  customers?: Prisma.CustomerUncheckedCreateNestedManyWithoutEnterpriseInput
+  salesOrders?: Prisma.SalesOrderUncheckedCreateNestedManyWithoutEnterpriseInput
+  productionOrders?: Prisma.ProductionOrderUncheckedCreateNestedManyWithoutEnterpriseInput
+  inventory?: Prisma.InventoryUncheckedCreateNestedManyWithoutEnterpriseInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUncheckedCreateNestedManyWithoutEnterpriseInput
+  deliveries?: Prisma.DeliveryUncheckedCreateNestedManyWithoutEnterpriseInput
+  invoices?: Prisma.InvoiceUncheckedCreateNestedManyWithoutEnterpriseInput
+  documentSequences?: Prisma.DocumentSequenceUncheckedCreateNestedManyWithoutEnterpriseInput
+}
+
+export type EnterpriseCreateOrConnectWithoutDocumentNumberAllocationsInput = {
+  where: Prisma.EnterpriseWhereUniqueInput
+  create: Prisma.XOR<Prisma.EnterpriseCreateWithoutDocumentNumberAllocationsInput, Prisma.EnterpriseUncheckedCreateWithoutDocumentNumberAllocationsInput>
+}
+
+export type EnterpriseUpsertWithoutDocumentNumberAllocationsInput = {
+  update: Prisma.XOR<Prisma.EnterpriseUpdateWithoutDocumentNumberAllocationsInput, Prisma.EnterpriseUncheckedUpdateWithoutDocumentNumberAllocationsInput>
+  create: Prisma.XOR<Prisma.EnterpriseCreateWithoutDocumentNumberAllocationsInput, Prisma.EnterpriseUncheckedCreateWithoutDocumentNumberAllocationsInput>
+  where?: Prisma.EnterpriseWhereInput
+}
+
+export type EnterpriseUpdateToOneWithWhereWithoutDocumentNumberAllocationsInput = {
+  where?: Prisma.EnterpriseWhereInput
+  data: Prisma.XOR<Prisma.EnterpriseUpdateWithoutDocumentNumberAllocationsInput, Prisma.EnterpriseUncheckedUpdateWithoutDocumentNumberAllocationsInput>
+}
+
+export type EnterpriseUpdateWithoutDocumentNumberAllocationsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  tier?: Prisma.EnumSubscriptionTierFieldUpdateOperationsInput | $Enums.SubscriptionTier
+  trialEndsAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sites?: Prisma.SiteUpdateManyWithoutEnterpriseNestedInput
+  users?: Prisma.UserUpdateManyWithoutEnterpriseNestedInput
+  customers?: Prisma.CustomerUpdateManyWithoutEnterpriseNestedInput
+  salesOrders?: Prisma.SalesOrderUpdateManyWithoutEnterpriseNestedInput
+  productionOrders?: Prisma.ProductionOrderUpdateManyWithoutEnterpriseNestedInput
+  inventory?: Prisma.InventoryUpdateManyWithoutEnterpriseNestedInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUpdateManyWithoutEnterpriseNestedInput
+  deliveries?: Prisma.DeliveryUpdateManyWithoutEnterpriseNestedInput
+  invoices?: Prisma.InvoiceUpdateManyWithoutEnterpriseNestedInput
+  documentSequences?: Prisma.DocumentSequenceUpdateManyWithoutEnterpriseNestedInput
+}
+
+export type EnterpriseUncheckedUpdateWithoutDocumentNumberAllocationsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  timezone?: Prisma.StringFieldUpdateOperationsInput | string
+  currency?: Prisma.StringFieldUpdateOperationsInput | string
+  tier?: Prisma.EnumSubscriptionTierFieldUpdateOperationsInput | $Enums.SubscriptionTier
+  trialEndsAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  sites?: Prisma.SiteUncheckedUpdateManyWithoutEnterpriseNestedInput
+  users?: Prisma.UserUncheckedUpdateManyWithoutEnterpriseNestedInput
+  customers?: Prisma.CustomerUncheckedUpdateManyWithoutEnterpriseNestedInput
+  salesOrders?: Prisma.SalesOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
+  productionOrders?: Prisma.ProductionOrderUncheckedUpdateManyWithoutEnterpriseNestedInput
+  inventory?: Prisma.InventoryUncheckedUpdateManyWithoutEnterpriseNestedInput
+  idempotencyKeys?: Prisma.IdempotencyKeyUncheckedUpdateManyWithoutEnterpriseNestedInput
+  deliveries?: Prisma.DeliveryUncheckedUpdateManyWithoutEnterpriseNestedInput
+  invoices?: Prisma.InvoiceUncheckedUpdateManyWithoutEnterpriseNestedInput
+  documentSequences?: Prisma.DocumentSequenceUncheckedUpdateManyWithoutEnterpriseNestedInput
 }
 
 
@@ -1361,6 +1667,8 @@ export type EnterpriseCountOutputType = {
   idempotencyKeys: number
   deliveries: number
   invoices: number
+  documentSequences: number
+  documentNumberAllocations: number
 }
 
 export type EnterpriseCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1373,6 +1681,8 @@ export type EnterpriseCountOutputTypeSelect<ExtArgs extends runtime.Types.Extens
   idempotencyKeys?: boolean | EnterpriseCountOutputTypeCountIdempotencyKeysArgs
   deliveries?: boolean | EnterpriseCountOutputTypeCountDeliveriesArgs
   invoices?: boolean | EnterpriseCountOutputTypeCountInvoicesArgs
+  documentSequences?: boolean | EnterpriseCountOutputTypeCountDocumentSequencesArgs
+  documentNumberAllocations?: boolean | EnterpriseCountOutputTypeCountDocumentNumberAllocationsArgs
 }
 
 /**
@@ -1448,6 +1758,20 @@ export type EnterpriseCountOutputTypeCountInvoicesArgs<ExtArgs extends runtime.T
   where?: Prisma.InvoiceWhereInput
 }
 
+/**
+ * EnterpriseCountOutputType without action
+ */
+export type EnterpriseCountOutputTypeCountDocumentSequencesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.DocumentSequenceWhereInput
+}
+
+/**
+ * EnterpriseCountOutputType without action
+ */
+export type EnterpriseCountOutputTypeCountDocumentNumberAllocationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.DocumentNumberAllocationWhereInput
+}
+
 
 export type EnterpriseSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -1466,6 +1790,8 @@ export type EnterpriseSelect<ExtArgs extends runtime.Types.Extensions.InternalAr
   idempotencyKeys?: boolean | Prisma.Enterprise$idempotencyKeysArgs<ExtArgs>
   deliveries?: boolean | Prisma.Enterprise$deliveriesArgs<ExtArgs>
   invoices?: boolean | Prisma.Enterprise$invoicesArgs<ExtArgs>
+  documentSequences?: boolean | Prisma.Enterprise$documentSequencesArgs<ExtArgs>
+  documentNumberAllocations?: boolean | Prisma.Enterprise$documentNumberAllocationsArgs<ExtArgs>
   _count?: boolean | Prisma.EnterpriseCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["enterprise"]>
 
@@ -1510,6 +1836,8 @@ export type EnterpriseInclude<ExtArgs extends runtime.Types.Extensions.InternalA
   idempotencyKeys?: boolean | Prisma.Enterprise$idempotencyKeysArgs<ExtArgs>
   deliveries?: boolean | Prisma.Enterprise$deliveriesArgs<ExtArgs>
   invoices?: boolean | Prisma.Enterprise$invoicesArgs<ExtArgs>
+  documentSequences?: boolean | Prisma.Enterprise$documentSequencesArgs<ExtArgs>
+  documentNumberAllocations?: boolean | Prisma.Enterprise$documentNumberAllocationsArgs<ExtArgs>
   _count?: boolean | Prisma.EnterpriseCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type EnterpriseIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -1527,6 +1855,8 @@ export type $EnterprisePayload<ExtArgs extends runtime.Types.Extensions.Internal
     idempotencyKeys: Prisma.$IdempotencyKeyPayload<ExtArgs>[]
     deliveries: Prisma.$DeliveryPayload<ExtArgs>[]
     invoices: Prisma.$InvoicePayload<ExtArgs>[]
+    documentSequences: Prisma.$DocumentSequencePayload<ExtArgs>[]
+    documentNumberAllocations: Prisma.$DocumentNumberAllocationPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1939,6 +2269,8 @@ export interface Prisma__EnterpriseClient<T, Null = never, ExtArgs extends runti
   idempotencyKeys<T extends Prisma.Enterprise$idempotencyKeysArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Enterprise$idempotencyKeysArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$IdempotencyKeyPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   deliveries<T extends Prisma.Enterprise$deliveriesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Enterprise$deliveriesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$DeliveryPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   invoices<T extends Prisma.Enterprise$invoicesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Enterprise$invoicesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$InvoicePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  documentSequences<T extends Prisma.Enterprise$documentSequencesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Enterprise$documentSequencesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$DocumentSequencePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  documentNumberAllocations<T extends Prisma.Enterprise$documentNumberAllocationsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Enterprise$documentNumberAllocationsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$DocumentNumberAllocationPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -2581,6 +2913,54 @@ export type Enterprise$invoicesArgs<ExtArgs extends runtime.Types.Extensions.Int
   take?: number
   skip?: number
   distinct?: Prisma.InvoiceScalarFieldEnum | Prisma.InvoiceScalarFieldEnum[]
+}
+
+/**
+ * Enterprise.documentSequences
+ */
+export type Enterprise$documentSequencesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the DocumentSequence
+   */
+  select?: Prisma.DocumentSequenceSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the DocumentSequence
+   */
+  omit?: Prisma.DocumentSequenceOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.DocumentSequenceInclude<ExtArgs> | null
+  where?: Prisma.DocumentSequenceWhereInput
+  orderBy?: Prisma.DocumentSequenceOrderByWithRelationInput | Prisma.DocumentSequenceOrderByWithRelationInput[]
+  cursor?: Prisma.DocumentSequenceWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.DocumentSequenceScalarFieldEnum | Prisma.DocumentSequenceScalarFieldEnum[]
+}
+
+/**
+ * Enterprise.documentNumberAllocations
+ */
+export type Enterprise$documentNumberAllocationsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the DocumentNumberAllocation
+   */
+  select?: Prisma.DocumentNumberAllocationSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the DocumentNumberAllocation
+   */
+  omit?: Prisma.DocumentNumberAllocationOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.DocumentNumberAllocationInclude<ExtArgs> | null
+  where?: Prisma.DocumentNumberAllocationWhereInput
+  orderBy?: Prisma.DocumentNumberAllocationOrderByWithRelationInput | Prisma.DocumentNumberAllocationOrderByWithRelationInput[]
+  cursor?: Prisma.DocumentNumberAllocationWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.DocumentNumberAllocationScalarFieldEnum | Prisma.DocumentNumberAllocationScalarFieldEnum[]
 }
 
 /**

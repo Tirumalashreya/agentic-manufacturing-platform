@@ -455,6 +455,58 @@ def test_process_post_sales_action_rejects_cumulative_over_return():
     assert third["created"] is True
 
 
+# Reliability-pass fix: process_post_sales_action accepted idempotency_key
+# and called get_idempotent_result/record_idempotent_result with no lock
+# around that check-then-write sequence — and separately,
+# _previously_returned_quantity's cumulative check and this function's
+# own append were two unsynchronized reads/writes of the same running
+# total. Two concurrent RETURN requests (no shared key — these are two
+# genuinely distinct requests, not a retry) against an order that can
+# only satisfy ONE of them must not both succeed and together exceed the
+# order quantity.
+def test_process_post_sales_action_concurrent_returns_never_exceed_order_quantity():
+    import threading
+
+    order = create_sales_order(
+        customer_id="C001",
+        customer_name="ABC Corp",
+        customer_active=True,
+        product_id="P011",
+        product_name="Wireless Mouse",
+        quantity=5,
+        unit_price=800.0,
+        requested_deadline=None,
+    )
+
+    results: list[dict] = []
+
+    def call():
+        results.append(process_post_sales_action(
+            action="RETURN",
+            referenced_order_id=order["sales_order_id"],
+            customer_id="C001",
+            customer_name="ABC Corp",
+            product_id="P011",
+            product_name="Wireless Mouse",
+            quantity=3,
+            unit_price=800.0,
+            reason="Concurrent return attempt.",
+        ))
+
+    threads = [threading.Thread(target=call) for _ in range(2)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    succeeded = [r for r in results if r["created"]]
+    # Both requesting 3 units against a 5-unit order: at most one can
+    # legitimately succeed (3 OK, a second 3 would make 6 > 5). The real
+    # proof isn't the count alone — it's that the guard was evaluated
+    # against the TRUE current total each time, never a stale one.
+    assert len(succeeded) == 1, f"expected exactly one of two 3-unit returns to succeed against a 5-unit order, got: {results}"
+
+
 def test_process_credit_memo_does_not_touch_inventory():
     before = _inventory_qty("P011", "PLANT01")
 

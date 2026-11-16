@@ -1,5 +1,6 @@
 # app/main.py
 import logging
+import os
 from uuid import uuid4
 
 from dotenv import load_dotenv
@@ -17,6 +18,7 @@ from app.routers.disruptions import router as disruptions_router
 from app.routers.masterdata import router as masterdata_router
 from app.routers.pipeline import router as pipeline_router
 from app.routers.production import router as production_router
+from app.routers.reconciliation import router as reconciliation_router
 from app.routers.sales_orders import router as sales_orders_router
 from app.routers.workflows import router as workflows_router
 from app.security import require_service_token
@@ -26,11 +28,32 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="agent-orchestrator")
 
-ALLOWED_ORIGIN = "http://localhost:3000"
+# Origin policy (Phase 2 review). No browser calls this service directly:
+# Ledger's browser code only calls its own same-origin /api/orchestrator
+# proxy, which forwards server-to-server with the internal token (both Next
+# apps read every backend URL from server-only env vars). CORS here is
+# therefore a leftover defence-in-depth allowance, not a requirement. Origins
+# come from CORS_ALLOWED_ORIGINS (comma-separated, exact origins); unset keeps
+# the previous dev default; set it to an empty string to allow none. A
+# wildcard is refused at startup — this service must never be browser-open.
+DEFAULT_CORS_ORIGIN = "http://localhost:3000"
+
+
+def parse_cors_origins(raw: str | None) -> list[str]:
+    if raw is None:
+        return [DEFAULT_CORS_ORIGIN]
+    origins = [o.strip().rstrip("/") for o in raw.split(",") if o.strip()]
+    for origin in origins:
+        if "*" in origin or not origin.startswith(("http://", "https://")):
+            raise ValueError(f"CORS_ALLOWED_ORIGINS entry {origin!r} is not an exact http(s) origin; wildcards are not allowed")
+    return origins
+
+
+ALLOWED_ORIGINS = parse_cors_origins(os.getenv("CORS_ALLOWED_ORIGINS"))
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[ALLOWED_ORIGIN],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -52,6 +75,7 @@ app.include_router(masterdata_router, dependencies=[Depends(require_service_toke
 app.include_router(production_router, dependencies=[Depends(require_service_token)])
 app.include_router(sales_orders_router, dependencies=[Depends(require_service_token)])
 app.include_router(disruptions_router, dependencies=[Depends(require_service_token)])
+app.include_router(reconciliation_router, dependencies=[Depends(require_service_token)])
 
 
 # Handlers for the bare Exception class run inside Starlette's
@@ -62,6 +86,11 @@ app.include_router(disruptions_router, dependencies=[Depends(require_service_tok
 # actually an ordinary 500 (e.g. a missing GROQ_API_KEY). Adding the header
 # by hand here is the fix, not a workaround — no code before this point on
 # the response path is positioned to add it.
+def _cors_headers_for(request: Request) -> dict[str, str]:
+    origin = request.headers.get("origin")
+    return {"Access-Control-Allow-Origin": origin} if origin and origin in ALLOWED_ORIGINS else {}
+
+
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
     # Phase 17 (Production Readiness & Observability) — real gap found:
@@ -81,7 +110,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content={"detail": f"An unexpected error occurred. Reference: {trace_id}"},
-        headers={"Access-Control-Allow-Origin": ALLOWED_ORIGIN, "x-trace-id": trace_id},
+        headers={**_cors_headers_for(request), "x-trace-id": trace_id},
     )
 
 

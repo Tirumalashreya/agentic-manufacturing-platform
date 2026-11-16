@@ -3,6 +3,7 @@ import datetime
 import openpyxl
 
 from app.tools.idempotency_tools import get_idempotent_result, idempotency_lock, record_idempotent_result
+from app.tools.idempotency_tools import save_workbook
 
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
@@ -60,6 +61,7 @@ def _next_production_order_id(sheet) -> str:
 # MTO/CTO/HYBRID(production leg) all call this. The Configuration Agent
 # doesn't exist yet, so a CTO order is recorded honestly as "requires
 # configuration" rather than pretending the request was captured.
+@idempotency_lock()
 def create_production_order(
     sales_order_id: str,
     product_id: str,
@@ -96,7 +98,7 @@ def create_production_order(
         status,
         created_at,
     ])
-    wb.save(MOCK_ERP_PATH)
+    save_workbook(wb)
 
     return {
         "created": True,
@@ -203,7 +205,7 @@ def reserve_stock(
             alloc["quantity"],
             created_at,
         ])
-    wb.save(MOCK_ERP_PATH)
+    save_workbook(wb)
 
     result = {
         "reserved": True,

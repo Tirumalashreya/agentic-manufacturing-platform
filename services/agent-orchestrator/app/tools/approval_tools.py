@@ -2,6 +2,8 @@
 import datetime
 import openpyxl
 
+from app.tools.idempotency_tools import idempotency_lock, save_workbook
+
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
 APPROVAL_HEADERS = [
@@ -53,6 +55,7 @@ def _find_approval_row(sheet, approval_id: str):
 
 # A discount that failed the pricing policy check doesn't just get
 # dropped — it becomes a real pending record a human can act on later.
+@idempotency_lock()
 def create_approval_request(
     quotation_id: str,
     original_price: float,
@@ -79,7 +82,7 @@ def create_approval_request(
         None,
         None,
     ])
-    wb.save(MOCK_ERP_PATH)
+    save_workbook(wb)
 
     return {
         "created": True,
@@ -99,6 +102,7 @@ def get_approval_request(approval_id: str) -> dict | None:
 
 # The human-in-the-loop step. Not called by an agent — this is the
 # deterministic action a person takes, separate from any LLM reasoning.
+@idempotency_lock()
 def resolve_approval_request(
     approval_id: str,
     decision: str,
@@ -124,7 +128,7 @@ def resolve_approval_request(
     sheet.cell(row=row_idx, column=_STATUS_COL, value=decision)
     sheet.cell(row=row_idx, column=_RESOLVED_AT_COL, value=resolved_at)
     sheet.cell(row=row_idx, column=_RESOLVED_BY_COL, value=resolved_by)
-    wb.save(MOCK_ERP_PATH)
+    save_workbook(wb)
 
     return {
         "resolved": True,

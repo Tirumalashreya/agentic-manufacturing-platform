@@ -2,6 +2,8 @@
 import datetime
 import openpyxl
 
+from app.tools.idempotency_tools import idempotency_lock, save_workbook
+
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
 SUBSCRIPTION_HEADERS = [
@@ -84,6 +86,7 @@ def _renewal_days(billing_frequency: str) -> int:
 # Only ever appends a NEW row — RENEWAL/CANCEL act on an existing
 # subscription instead (renew_subscription / cancel_subscription), they
 # never call this.
+@idempotency_lock()
 def create_subscription(
     customer_id: str | None,
     customer_name: str | None,
@@ -116,7 +119,7 @@ def create_subscription(
         status,
         created_at,
     ])
-    wb.save(MOCK_ERP_PATH)
+    save_workbook(wb)
 
     return {
         "created": True,
@@ -149,6 +152,7 @@ def find_active_subscription(customer_id: str | None, plan_id: str) -> dict | No
 # Extends the existing subscription's renewal_date from its current
 # renewal_date (not from today) — renewing early doesn't lose the
 # remaining paid-for period. Does not touch price/plan.
+@idempotency_lock()
 def renew_subscription(subscription_id: str) -> dict:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "Subscriptions" not in wb.sheetnames:
@@ -171,12 +175,13 @@ def renew_subscription(subscription_id: str) -> dict:
         new_renewal_date = (current_renewal_date + datetime.timedelta(days=_renewal_days(billing_frequency))).isoformat()
 
         sheet.cell(row=row_idx, column=renewal_date_col, value=new_renewal_date)
-        wb.save(MOCK_ERP_PATH)
+        save_workbook(wb)
         return {"renewed": True, "subscription_id": subscription_id, "renewal_date": new_renewal_date, "status": "ACTIVE"}
 
     return {"renewed": False, "reason": f"No subscription found with id {subscription_id}"}
 
 
+@idempotency_lock()
 def cancel_subscription(subscription_id: str) -> dict:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "Subscriptions" not in wb.sheetnames:
@@ -193,7 +198,7 @@ def cancel_subscription(subscription_id: str) -> dict:
             return {"cancelled": False, "reason": f"{subscription_id} is not ACTIVE (status: {current_status})."}
 
         sheet.cell(row=row_idx, column=status_col, value="CANCELLED")
-        wb.save(MOCK_ERP_PATH)
+        save_workbook(wb)
         return {"cancelled": True, "subscription_id": subscription_id, "status": "CANCELLED"}
 
     return {"cancelled": False, "reason": f"No subscription found with id {subscription_id}"}

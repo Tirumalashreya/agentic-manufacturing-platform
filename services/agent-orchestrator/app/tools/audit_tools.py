@@ -3,7 +3,8 @@ import datetime
 import json
 import openpyxl
 
-from app.tools.idempotency_tools import idempotency_lock
+from app.tools.idempotency_tools import idempotency_lock, read_lock
+from app.tools.idempotency_tools import save_workbook
 
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
@@ -69,9 +70,10 @@ def record_audit_event(
         json.dumps(details or {}),
         datetime.datetime.now().isoformat(),
     ])
-    wb.save(MOCK_ERP_PATH)
+    save_workbook(wb)
 
 
+@read_lock()
 def get_audit_trail(entity_type: str, entity_id: str) -> list[dict]:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "AuditEvents" not in wb.sheetnames:
@@ -96,6 +98,7 @@ def get_audit_trail(entity_type: str, entity_id: str) -> list[dict]:
 # is scoped to one already-known entity, which a global feed doesn't have.
 # Newest first, based on insertion order (this sheet is only ever
 # appended to), same "most recent activity" framing as any real audit log.
+@read_lock()
 def list_recent_audit_events(limit: int = 100) -> list[dict]:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "AuditEvents" not in wb.sheetnames:

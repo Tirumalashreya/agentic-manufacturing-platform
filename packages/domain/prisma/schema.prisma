@@ -107,6 +107,8 @@ model Enterprise {
   idempotencyKeys  IdempotencyKey[]
   deliveries       Delivery[]
   invoices         Invoice[]
+  documentSequences DocumentSequence[]
+  documentNumberAllocations DocumentNumberAllocation[]
 }
 
 model Site {
@@ -511,6 +513,12 @@ model Customer {
   // what an external system actually keys on. Nullable because internal
   // (non-ERP-sourced) Customers never have one.
   externalCustomerId String?
+  // Phase 2: credit limit and active flag live here so PostgreSQL can be the
+  // authoritative first writer for customers (they were Excel-only before).
+  // Nullable/defaulted so every existing row and every existing writer keeps
+  // working untouched.
+  creditLimit Float?
+  active      Boolean @default(true)
 
   enterprise  Enterprise   @relation(fields: [enterpriseId], references: [id])
   salesOrders SalesOrder[]
@@ -1186,6 +1194,12 @@ model PurchaseOrder {
   // guessed. MVP is full-receipt only, so this single timestamp is enough
   // (no partial-quantity tracking this round).
   receivedAt   DateTime?
+  // Phase 2: optional caller-supplied request key. A UNIQUE column (not a
+  // lookup-then-insert) so a retried creation of the same logical purchase
+  // order can never produce a second row. PurchaseOrder is not tenant-scoped
+  // today (see inventory-service's Stage 02 note), so the key is globally
+  // unique; callers derive it from globally unique ids (production order id).
+  idempotencyKey String? @unique
 
   vendor    Vendor              @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   movements InventoryMovement[]
@@ -1584,4 +1598,39 @@ model AgentStageResult {
   run AgentPipelineRun @relation(fields: [runId], references: [id], onDelete: Cascade)
 
   @@index([runId])
+}
+
+// Phase 2 (Database Authority): Postgres-owned human-readable document ids
+// (DEL0001, INV0001...). Replaces "scan the Excel sheet for the max id under
+// the workbook lock" as the id source when the orchestrator runs with
+// POSTGRES_ID_AUTHORITY on. lastValue only ever moves up (see the
+// /sequences/:kind/next route); the caller's floor lets it start above the
+// highest id Excel has already issued.
+model DocumentSequence {
+  id           String @id @default(cuid())
+  kind         String
+  lastValue    Int
+  enterpriseId String
+
+  enterprise Enterprise @relation(fields: [enterpriseId], references: [id])
+
+  @@unique([enterpriseId, kind])
+}
+
+// Phase 2: remembers which number a given idempotency key was handed, so a
+// retry of the same logical request (after a crash between "Postgres issued
+// the number" and "Excel recorded it") receives the SAME number instead of
+// burning a new one. Rows are tiny and only written when the caller supplies
+// a key.
+model DocumentNumberAllocation {
+  id             String   @id @default(cuid())
+  kind           String
+  idempotencyKey String
+  value          Int
+  createdAt      DateTime @default(now())
+  enterpriseId   String
+
+  enterprise Enterprise @relation(fields: [enterpriseId], references: [id])
+
+  @@unique([enterpriseId, kind, idempotencyKey])
 }

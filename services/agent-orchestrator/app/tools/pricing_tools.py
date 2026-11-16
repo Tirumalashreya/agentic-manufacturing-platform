@@ -1,6 +1,8 @@
 # app/tools/pricing_tools.py
 import openpyxl
 
+from app.tools.idempotency_tools import idempotency_lock, save_workbook
+
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
 # Policy DATA lives in the DiscountPolicy sheet, not here — this is only
@@ -30,13 +32,30 @@ _DEFAULT_DISCOUNT_POLICY_ROWS = [
 ]
 
 
+@idempotency_lock()
+def _seed_discount_policy() -> None:
+    """The one place this sheet is created. Re-checks on a FRESH load under
+    the exclusive lock, so two concurrent first calls seed it exactly once and
+    neither overwrites the other's workbook."""
+    fresh = openpyxl.load_workbook(MOCK_ERP_PATH)
+    if "DiscountPolicy" in fresh.sheetnames:
+        return
+    sheet = fresh.create_sheet("DiscountPolicy")
+    sheet.append(DISCOUNT_POLICY_HEADERS)
+    for row in _DEFAULT_DISCOUNT_POLICY_ROWS:
+        sheet.append(row)
+    save_workbook(fresh)
+
+
 def _discount_policy_sheet(wb):
     if "DiscountPolicy" not in wb.sheetnames:
+        _seed_discount_policy()
+        # The caller's in-memory workbook predates the seed; mirror it there
+        # (unsaved) so the caller can read the same rows.
         sheet = wb.create_sheet("DiscountPolicy")
         sheet.append(DISCOUNT_POLICY_HEADERS)
         for row in _DEFAULT_DISCOUNT_POLICY_ROWS:
             sheet.append(row)
-        wb.save(MOCK_ERP_PATH)
         return sheet
     return wb["DiscountPolicy"]
 

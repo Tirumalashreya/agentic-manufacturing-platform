@@ -3,7 +3,8 @@ import datetime
 import openpyxl
 
 from app.tools.audit_tools import record_audit_event
-from app.tools.idempotency_tools import get_idempotent_result, idempotency_lock, record_idempotent_result
+from app.tools.idempotency_tools import get_idempotent_result, idempotency_lock, read_lock, record_idempotent_result, stage_idempotent_result
+from app.tools.idempotency_tools import save_workbook
 
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
@@ -51,6 +52,11 @@ def _next_id(sheet) -> str:
     return f"FA{max_num + 1:04d}"
 
 
+# Called both standalone and from WITHIN resolve_financial_approval/
+# post_financial_adjustment below, which already hold the exclusive
+# lock — read_lock()'s reentrancy guard passes through safely in that
+# case (exclusive already excludes everyone) rather than re-flocking.
+@read_lock()
 def find_financial_adjustment(financial_adjustment_id: str) -> dict | None:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "FinancialAdjustments" not in wb.sheetnames:
@@ -65,6 +71,7 @@ def find_financial_adjustment(financial_adjustment_id: str) -> dict | None:
 # PENDING_APPROVAL needs a decision; APPROVED needs posting — REJECTED and
 # POSTED are terminal, so those two statuses are exactly "still needs a
 # human to do something", the same set the Approvals UI acts on.
+@read_lock()
 def list_actionable_financial_adjustments() -> list[dict]:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "FinancialAdjustments" not in wb.sheetnames:
@@ -115,18 +122,17 @@ def create_financial_adjustment(
         reference, amount, reason, approval_required, None, None,
         status, created_at, None,
     ])
-    wb.save(MOCK_ERP_PATH)
-    record_audit_event("FinancialAdjustment", financial_adjustment_id, "FINANCIAL_ADJUSTMENT_CREATED", {
-        "adjustment_type": adjustment_type, "amount": amount,
-    })
-
     result = {
         "created": True,
         "financial_adjustment_id": financial_adjustment_id,
         "approval_required": approval_required,
         "status": status,
     }
-    record_idempotent_result(idempotency_key, "create_financial_adjustment", result)
+    stage_idempotent_result(wb, idempotency_key, "create_financial_adjustment", result)
+    save_workbook(wb)
+    record_audit_event("FinancialAdjustment", financial_adjustment_id, "FINANCIAL_ADJUSTMENT_CREATED", {
+        "adjustment_type": adjustment_type, "amount": amount,
+    })
     return result
 
 
@@ -178,10 +184,10 @@ def resolve_financial_approval(
         sheet.cell(row=row_idx, column=status_col, value=new_status)
         sheet.cell(row=row_idx, column=approved_by_col, value=approved_by)
         sheet.cell(row=row_idx, column=approved_at_col, value=datetime.datetime.now().isoformat())
-        wb.save(MOCK_ERP_PATH)
-        record_audit_event("FinancialAdjustment", financial_adjustment_id, f"FINANCIAL_ADJUSTMENT_{new_status}", {"approved_by": approved_by})
         result = {"resolved": True, "financial_adjustment_id": financial_adjustment_id, "status": new_status}
-        record_idempotent_result(idempotency_key, "resolve_financial_approval", result)
+        stage_idempotent_result(wb, idempotency_key, "resolve_financial_approval", result)
+        save_workbook(wb)  # status change + idempotency record in ONE save
+        record_audit_event("FinancialAdjustment", financial_adjustment_id, f"FINANCIAL_ADJUSTMENT_{new_status}", {"approved_by": approved_by})
         return result
 
     return {"resolved": False, "reason": f"No financial adjustment found with id {financial_adjustment_id}"}
@@ -218,10 +224,10 @@ def post_financial_adjustment(financial_adjustment_id: str, idempotency_key: str
             continue
         sheet.cell(row=row_idx, column=status_col, value="POSTED")
         sheet.cell(row=row_idx, column=posted_at_col, value=datetime.datetime.now().isoformat())
-        wb.save(MOCK_ERP_PATH)
-        record_audit_event("FinancialAdjustment", financial_adjustment_id, "FINANCIAL_ADJUSTMENT_POSTED")
         result = {"posted": True, "financial_adjustment_id": financial_adjustment_id, "status": "POSTED"}
-        record_idempotent_result(idempotency_key, "post_financial_adjustment", result)
+        stage_idempotent_result(wb, idempotency_key, "post_financial_adjustment", result)
+        save_workbook(wb)  # status change + idempotency record in ONE save
+        record_audit_event("FinancialAdjustment", financial_adjustment_id, "FINANCIAL_ADJUSTMENT_POSTED")
         return result
 
     return {"posted": False, "reason": f"No financial adjustment found with id {financial_adjustment_id}"}

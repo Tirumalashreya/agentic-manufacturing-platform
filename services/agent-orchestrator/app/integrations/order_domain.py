@@ -24,6 +24,7 @@ retries only a connection-level failure or 502/503/504, never a definite
 dual-write functions below are plain sync (see their own doc comment for
 why), so they get a local sync twin of the same policy, _request_sync.
 """
+import os
 import time
 
 import httpx
@@ -66,13 +67,9 @@ async def find_or_create_customer(name: str) -> str:
     duplicate one on every order."""
     from app.integrations.manufacturing_services import _request
 
-    resp = await _request("GET", f"{ORDER_SERVICE_URL}/customers", timeout=_TIMEOUT, params={"name": name})
-    resp.raise_for_status()
-    existing = resp.json()
-    if existing:
-        return existing[0]["id"]
-
-    resp = await _request("POST", f"{ORDER_SERVICE_URL}/customers", timeout=_TIMEOUT, json={"name": name})
+    # One atomic server-side call (Phase 2): the former GET-then-POST let two
+    # concurrent orders for the same new customer both create one.
+    resp = await _request("POST", f"{ORDER_SERVICE_URL}/customers/find-or-create", timeout=_TIMEOUT, json={"name": name})
     resp.raise_for_status()
     return resp.json()["id"]
 
@@ -249,9 +246,11 @@ def dual_write_delivery(
     status: str,
     requested_delivery_date: str | None,
     confirmed_delivery_date: str | None,
+    idempotency_key: str | None = None,
 ) -> dict:
     resp = _request_sync(
         "POST", f"{ORDER_SERVICE_URL}/deliveries",
+        headers={"Idempotency-Key": idempotency_key} if idempotency_key else None,
         json={
             "externalDeliveryId": external_delivery_id,
             "externalSalesOrderId": external_sales_order_id,
@@ -282,9 +281,11 @@ def dual_write_invoice(
     due_date: str | None,
     status: str,
     notes: str | None,
+    idempotency_key: str | None = None,
 ) -> dict:
     resp = _request_sync(
         "POST", f"{ORDER_SERVICE_URL}/invoices",
+        headers={"Idempotency-Key": idempotency_key} if idempotency_key else None,
         json={
             "externalInvoiceId": external_invoice_id,
             "externalSalesOrderId": external_sales_order_id,
@@ -302,3 +303,164 @@ def dual_write_invoice(
     )
     resp.raise_for_status()
     return resp.json()
+
+
+def sync_invoice_status_paid(external_invoice_id: str) -> dict:
+    """Phase 2: mirrors the Excel ISSUED -> PAID transition into Postgres.
+    order-service applies it as an atomic compare-and-set and treats a
+    repeat as an idempotent 200, so this is safe to retry (the shared
+    _request_sync policy already retries only connection failures/502-504)."""
+    resp = _request_sync(
+        "PATCH", f"{ORDER_SERVICE_URL}/invoices/{external_invoice_id}/status",
+        json={"status": "PAID"},
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
+def _walk_pages(path: str, key: str, page_size: int = 500) -> dict[str, dict]:
+    """Every row of a keyset-paged order-service listing, keyed by `key`."""
+    out: dict[str, dict] = {}
+    after: str | None = None
+    while True:
+        params: dict[str, str] = {"limit": str(page_size)}
+        if after:
+            params["after"] = after
+        resp = _request_sync("GET", f"{ORDER_SERVICE_URL}{path}", params=params)
+        resp.raise_for_status()
+        body = resp.json()
+        for item in body["items"]:
+            out[item[key]] = item
+        after = body.get("nextAfter")
+        if not after:
+            return out
+
+
+def list_postgres_deliveries_and_invoices(page_size: int = 500) -> tuple[dict[str, dict], dict[str, dict]]:
+    """Phase 2 reconciliation read side: every Delivery and Invoice row the
+    caller's enterprise has in Postgres, keyed by external id, walked with
+    order-service's keyset pagination (GET /deliveries, GET /invoices)."""
+    return (
+        _walk_pages("/deliveries", "externalDeliveryId", page_size),
+        _walk_pages("/invoices", "externalInvoiceId", page_size),
+    )
+
+
+def list_postgres_customers(page_size: int = 500) -> dict[str, dict]:
+    """Keyed by Postgres id (customers without an external id are still
+    returned; the reconciler matches them by name)."""
+    return _walk_pages("/customers/page", "id", page_size)
+
+
+def list_postgres_sales_orders(page_size: int = 500) -> dict[str, dict]:
+    """Keyed by Postgres id; rows with no externalOrderId are kept too."""
+    return _walk_pages("/sales-orders/page", "id", page_size)
+
+
+def postgres_sales_order_authority_enabled() -> bool:
+    """Phase 2 flag: PostgreSQL mints the SalesOrder id and creates the order
+    before the Excel row. Off by default."""
+    return os.getenv("POSTGRES_SALES_ORDER_AUTHORITY", "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def postgres_customer_authority_enabled() -> bool:
+    """Phase 2 flag: PostgreSQL mints the customer id and creates the customer
+    before the Excel Customer Master row. Off by default."""
+    return os.getenv("POSTGRES_CUSTOMER_AUTHORITY", "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def find_or_create_customer_sync(
+    name: str, external_customer_id: str | None = None, credit_limit: float | None = None, active: bool | None = None
+) -> dict:
+    """Sync twin of find_or_create_customer that can also carry the external
+    id / credit terms. Atomic server-side; adopts the id onto a legacy row."""
+    body: dict = {"name": name}
+    if external_customer_id is not None:
+        body["externalCustomerId"] = external_customer_id
+    if credit_limit is not None:
+        body["creditLimit"] = credit_limit
+    if active is not None:
+        body["active"] = active
+    resp = _request_sync("POST", f"{ORDER_SERVICE_URL}/customers/find-or-create", json=body)
+    resp.raise_for_status()
+    return resp.json()
+
+
+def get_sales_order_by_external_id_sync(external_order_id: str) -> dict | None:
+    resp = _request_sync("GET", f"{ORDER_SERVICE_URL}/sales-orders", params={"externalOrderId": external_order_id})
+    resp.raise_for_status()
+    rows = resp.json()
+    return rows[0] if rows else None
+
+
+def create_sales_order_record_sync(
+    customer_pg_id: str, due_date: str, value: float, external_order_id: str, priority: int = 0, idempotency_key: str | None = None
+) -> dict:
+    """Create the bare PostgreSQL SalesOrder (no fulfillment lines yet; those
+    attach later through the fulfillment endpoint). A 409 means the order for
+    this external id already exists (a retry): return the existing row if it
+    is the same order, otherwise raise — never overwrite."""
+    resp = _request_sync(
+        "POST", f"{ORDER_SERVICE_URL}/sales-orders",
+        json={
+            "customerId": customer_pg_id, "dueDate": due_date, "value": value, "priority": priority,
+            "orderNumber": external_order_id, "channel": "domestic_sales", "status": "APPROVED",
+            "currency": "INR", "createdBy": "agent-orchestrator", "externalOrderId": external_order_id,
+        },
+    )
+    if resp.status_code == 409:
+        existing = get_sales_order_by_external_id_sync(external_order_id)
+        if existing and existing.get("customerId") == customer_pg_id and abs(float(existing.get("value") or 0) - value) < 0.005:
+            return existing
+        raise RuntimeError(f"Sales order {external_order_id} already exists in PostgreSQL with different content")
+    resp.raise_for_status()
+    return resp.json()
+
+
+async def create_fulfillment_for_sales_order(
+    sales_order_pg_id: str, body: dict, idempotency_key: str | None = None
+) -> dict:
+    """Attach OrderLine + FulfillmentPlan + FulfillmentLine(s) to an order that
+    already exists in PostgreSQL (the PG-first path)."""
+    from app.integrations.manufacturing_services import _request
+
+    resp = await _request(
+        "POST", f"{ORDER_SERVICE_URL}/sales-orders/{sales_order_pg_id}/fulfillment", timeout=_TIMEOUT,
+        headers={"Idempotency-Key": idempotency_key} if idempotency_key else None, json=body,
+    )
+    resp.raise_for_status()
+    return resp.json()
+
+
+def postgres_id_authority_enabled() -> bool:
+    """Phase 2 feature flag for Delivery. Off (default): Delivery ids come
+    from scanning the Excel sheet and Excel is written first, exactly as
+    before. On: Postgres mints the id AND is the first writer of the row;
+    Excel is a projection of it."""
+    return os.getenv("POSTGRES_ID_AUTHORITY", "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def postgres_invoice_id_authority_enabled() -> bool:
+    """Phase 2 feature flag for invoices, independent of the delivery flag.
+    Off by default: invoice ids keep coming from the Excel sheet."""
+    return os.getenv("POSTGRES_INVOICE_ID_AUTHORITY", "").strip().lower() in ("1", "true", "yes", "on")
+
+
+def allocate_document_number(kind: str, floor: int = 0, idempotency_key: str | None = None) -> int:
+    """Next value of a Postgres-owned document sequence (kind: DELIVERY,
+    INVOICE, SALES_ORDER or CUSTOMER). `floor` is the highest number already
+    issued elsewhere (the Excel sheet's max); order-service additionally floors
+    on its own rows, so the sequence never reissues a number any store already
+    carries.
+
+    With an idempotency_key the number is remembered server-side: a retry of
+    the same logical request — including after a process crash between
+    "Postgres issued it" and "Excel recorded it" — gets the SAME number.
+
+    Raises on any failure: the caller must fail closed rather than invent an id."""
+    body: dict = {"floor": int(floor)}
+    if idempotency_key:
+        body["idempotencyKey"] = idempotency_key
+    resp = _request_sync("POST", f"{ORDER_SERVICE_URL}/sequences/{kind}/next", json=body)
+    resp.raise_for_status()
+    return int(resp.json()["value"])

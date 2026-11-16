@@ -792,6 +792,26 @@ async def _dual_write_order_and_fulfillment(state: SalesState, context: dict, ru
         # exact call for the same approval converges on the same
         # SalesOrder instead of creating a second one.
         idempotency_key = f"approval-run-{run_id}" if run_id else None
+        existing_pg_order = None
+        if order_domain.postgres_sales_order_authority_enabled():
+            # PostgreSQL is the first writer of the order (created when the
+            # Excel order was): attach the plan to that row. An order that
+            # predates the flag has no PG row and takes the atomic create below.
+            existing_pg_order = await order_domain.get_fulfillment_by_external_order_id(state["sales_order_id"])
+        if existing_pg_order is not None:
+            attached = await order_domain.create_fulfillment_for_sales_order(
+                existing_pg_order["id"],
+                {
+                    "productId": None, "productName": state["product_name"], "quantity": quantity,
+                    "unitPrice": state.get("price") or 0, "requestedDate": context.get("requested_deadline"),
+                    "strategy": strategy, "reasoning": state.get("fulfillment_reasoning"), "lines": lines,
+                },
+                idempotency_key=idempotency_key,
+            )
+            return {
+                "real_sales_order_id": existing_pg_order["id"],
+                "fulfillment_line_ids": {l["sourceType"]: l["id"] for l in attached["fulfillmentLines"]},
+            }
         result = await order_domain.create_sales_order_with_fulfillment(
             customer_id=customer_id,
             due_date=due_date,
@@ -1817,6 +1837,7 @@ async def _procure_shortages(assessment: dict, production_order_id: str, target_
             quantity=shortage["shortage"],
             unit_cost=vendor["unit_cost"],
             lead_time_days=vendor["lead_time_days"],
+            idempotency_key=f"po-{production_order_id}-{choice.component_id}-{vendor['vendor_id']}",
         )
         if po["created"]:
             notes.append(
@@ -2110,7 +2131,12 @@ async def _execute_production_plan(state: SalesState, production_plan: dict | No
     # itself" — see _plan_production_via_manufacturing_services.
     purchase_orders = []
     for line in production_plan.get("procurement_plan", []):
-        po = await mfg.create_purchase_order(line["vendor_id"], line["component_id"], line["quantity"], line["expected_date"])
+        po = await mfg.create_purchase_order(
+            line["vendor_id"], line["component_id"], line["quantity"], line["expected_date"],
+            # Stable per (production order, component, vendor): a retried
+            # approval step replays the first PO instead of creating another.
+            idempotency_key=f"po-{commit['production_order_id']}-{line['component_id']}-{line['vendor_id']}",
+        )
         purchase_orders.append({**line, "purchase_order_id": po["id"]})
     procurement_text = (
         " Procurement: " + "; ".join(

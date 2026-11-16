@@ -3,7 +3,8 @@ import datetime
 import openpyxl
 
 from app.tools.audit_tools import record_audit_event
-from app.tools.idempotency_tools import get_idempotent_result, idempotency_lock, record_idempotent_result
+from app.tools.idempotency_tools import get_idempotent_result, idempotency_lock, read_lock, record_idempotent_result
+from app.tools.idempotency_tools import save_workbook
 
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
@@ -106,6 +107,7 @@ def _next_trading_order_id(sheet) -> str:
     return f"TO{max_num + 1:04d}"
 
 
+@idempotency_lock()
 def create_trading_order(
     sales_order_id: str,
     product_id: str,
@@ -148,7 +150,7 @@ def create_trading_order(
         created_at,
         drop_ship,
     ])
-    wb.save(MOCK_ERP_PATH)
+    save_workbook(wb)
     record_audit_event(
         "TradingOrder", trading_order_id, "TRADING_ORDER_CREATED",
         {"total_cost": total_cost, "drop_ship": drop_ship},
@@ -164,6 +166,7 @@ def create_trading_order(
     }
 
 
+@read_lock()
 def find_trading_order(trading_order_id: str) -> dict | None:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "TradingOrders" not in wb.sheetnames:
@@ -181,6 +184,7 @@ def find_trading_order(trading_order_id: str) -> dict | None:
 # needs a human to move it along.
 # Full history for the Trading channel view — includes every terminal
 # state, unlike list_open_trading_orders() which powers Active Workflows.
+@read_lock()
 def list_trading_orders() -> list[dict]:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "TradingOrders" not in wb.sheetnames:
@@ -191,6 +195,7 @@ def list_trading_orders() -> list[dict]:
     return rows
 
 
+@read_lock()
 def list_open_trading_orders() -> list[dict]:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "TradingOrders" not in wb.sheetnames:
@@ -279,7 +284,7 @@ def update_trading_order_status(trading_order_id: str, new_status: str, idempote
                     qty_cell.value = (qty_cell.value or 0) + quantity
                     break
 
-        wb.save(MOCK_ERP_PATH)
+        save_workbook(wb)
         record_audit_event("TradingOrder", trading_order_id, f"TRADING_ORDER_{new_status}")
         result = {"updated": True, "trading_order_id": trading_order_id, "status": new_status}
         record_idempotent_result(idempotency_key, "update_trading_order_status", result)
@@ -292,6 +297,7 @@ def update_trading_order_status(trading_order_id: str, new_status: str, idempote
 # is only ever set by dispatch_trading_order() in graph.py, after delivery
 # has actually been created there — this function doesn't decide that, it
 # just records it once the caller has already made it real.
+@idempotency_lock()
 def mark_trading_order_dispatched(trading_order_id: str) -> dict:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "TradingOrders" not in wb.sheetnames:
@@ -309,7 +315,7 @@ def mark_trading_order_dispatched(trading_order_id: str) -> dict:
                 "reason": f"{trading_order_id} must be WAREHOUSED before it can be dispatched (status: {current_status}).",
             }
         sheet.cell(row=row_idx, column=status_col, value="DISPATCHED")
-        wb.save(MOCK_ERP_PATH)
+        save_workbook(wb)
         record_audit_event("TradingOrder", trading_order_id, "TRADING_ORDER_DISPATCHED")
         return {"updated": True, "trading_order_id": trading_order_id, "status": "DISPATCHED"}
 
@@ -321,6 +327,7 @@ def mark_trading_order_dispatched(trading_order_id: str) -> dict:
 # skips our warehouse entirely. Only ever called by
 # deliver_drop_ship_order() in graph.py, after that function has already
 # created the real delivery/invoice.
+@idempotency_lock()
 def mark_trading_order_delivered(trading_order_id: str) -> dict:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "TradingOrders" not in wb.sheetnames:
@@ -338,7 +345,7 @@ def mark_trading_order_delivered(trading_order_id: str) -> dict:
                 "reason": f"{trading_order_id} must be SHIPPED before it can be marked delivered (status: {current_status}).",
             }
         sheet.cell(row=row_idx, column=status_col, value="DELIVERED")
-        wb.save(MOCK_ERP_PATH)
+        save_workbook(wb)
         record_audit_event("TradingOrder", trading_order_id, "TRADING_ORDER_DELIVERED")
         return {"updated": True, "trading_order_id": trading_order_id, "status": "DELIVERED"}
 

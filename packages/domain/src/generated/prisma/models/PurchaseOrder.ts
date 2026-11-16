@@ -42,6 +42,7 @@ export type PurchaseOrderMinAggregateOutputType = {
   expectedDate: Date | null
   confirmed: boolean | null
   receivedAt: Date | null
+  idempotencyKey: string | null
 }
 
 export type PurchaseOrderMaxAggregateOutputType = {
@@ -52,6 +53,7 @@ export type PurchaseOrderMaxAggregateOutputType = {
   expectedDate: Date | null
   confirmed: boolean | null
   receivedAt: Date | null
+  idempotencyKey: string | null
 }
 
 export type PurchaseOrderCountAggregateOutputType = {
@@ -62,6 +64,7 @@ export type PurchaseOrderCountAggregateOutputType = {
   expectedDate: number
   confirmed: number
   receivedAt: number
+  idempotencyKey: number
   _all: number
 }
 
@@ -82,6 +85,7 @@ export type PurchaseOrderMinAggregateInputType = {
   expectedDate?: true
   confirmed?: true
   receivedAt?: true
+  idempotencyKey?: true
 }
 
 export type PurchaseOrderMaxAggregateInputType = {
@@ -92,6 +96,7 @@ export type PurchaseOrderMaxAggregateInputType = {
   expectedDate?: true
   confirmed?: true
   receivedAt?: true
+  idempotencyKey?: true
 }
 
 export type PurchaseOrderCountAggregateInputType = {
@@ -102,6 +107,7 @@ export type PurchaseOrderCountAggregateInputType = {
   expectedDate?: true
   confirmed?: true
   receivedAt?: true
+  idempotencyKey?: true
   _all?: true
 }
 
@@ -199,6 +205,7 @@ export type PurchaseOrderGroupByOutputType = {
   expectedDate: Date
   confirmed: boolean
   receivedAt: Date | null
+  idempotencyKey: string | null
   _count: PurchaseOrderCountAggregateOutputType | null
   _avg: PurchaseOrderAvgAggregateOutputType | null
   _sum: PurchaseOrderSumAggregateOutputType | null
@@ -232,6 +239,7 @@ export type PurchaseOrderWhereInput = {
   expectedDate?: Prisma.DateTimeFilter<"PurchaseOrder"> | Date | string
   confirmed?: Prisma.BoolFilter<"PurchaseOrder"> | boolean
   receivedAt?: Prisma.DateTimeNullableFilter<"PurchaseOrder"> | Date | string | null
+  idempotencyKey?: Prisma.StringNullableFilter<"PurchaseOrder"> | string | null
   vendor?: Prisma.XOR<Prisma.VendorScalarRelationFilter, Prisma.VendorWhereInput>
   movements?: Prisma.InventoryMovementListRelationFilter
 }
@@ -244,12 +252,14 @@ export type PurchaseOrderOrderByWithRelationInput = {
   expectedDate?: Prisma.SortOrder
   confirmed?: Prisma.SortOrder
   receivedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  idempotencyKey?: Prisma.SortOrderInput | Prisma.SortOrder
   vendor?: Prisma.VendorOrderByWithRelationInput
   movements?: Prisma.InventoryMovementOrderByRelationAggregateInput
 }
 
 export type PurchaseOrderWhereUniqueInput = Prisma.AtLeast<{
   id?: string
+  idempotencyKey?: string
   AND?: Prisma.PurchaseOrderWhereInput | Prisma.PurchaseOrderWhereInput[]
   OR?: Prisma.PurchaseOrderWhereInput[]
   NOT?: Prisma.PurchaseOrderWhereInput | Prisma.PurchaseOrderWhereInput[]
@@ -261,7 +271,7 @@ export type PurchaseOrderWhereUniqueInput = Prisma.AtLeast<{
   receivedAt?: Prisma.DateTimeNullableFilter<"PurchaseOrder"> | Date | string | null
   vendor?: Prisma.XOR<Prisma.VendorScalarRelationFilter, Prisma.VendorWhereInput>
   movements?: Prisma.InventoryMovementListRelationFilter
-}, "id">
+}, "id" | "idempotencyKey">
 
 export type PurchaseOrderOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -271,6 +281,7 @@ export type PurchaseOrderOrderByWithAggregationInput = {
   expectedDate?: Prisma.SortOrder
   confirmed?: Prisma.SortOrder
   receivedAt?: Prisma.SortOrderInput | Prisma.SortOrder
+  idempotencyKey?: Prisma.SortOrderInput | Prisma.SortOrder
   _count?: Prisma.PurchaseOrderCountOrderByAggregateInput
   _avg?: Prisma.PurchaseOrderAvgOrderByAggregateInput
   _max?: Prisma.PurchaseOrderMaxOrderByAggregateInput
@@ -289,6 +300,7 @@ export type PurchaseOrderScalarWhereWithAggregatesInput = {
   expectedDate?: Prisma.DateTimeWithAggregatesFilter<"PurchaseOrder"> | Date | string
   confirmed?: Prisma.BoolWithAggregatesFilter<"PurchaseOrder"> | boolean
   receivedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"PurchaseOrder"> | Date | string | null
+  idempotencyKey?: Prisma.StringNullableWithAggregatesFilter<"PurchaseOrder"> | string | null
 }
 
 export type PurchaseOrderCreateInput = {
@@ -298,6 +310,7 @@ export type PurchaseOrderCreateInput = {
   expectedDate: Date | string
   confirmed?: boolean
   receivedAt?: Date | string | null
+  idempotencyKey?: string | null
   vendor: Prisma.VendorCreateNestedOneWithoutPurchaseOrdersInput
   movements?: Prisma.InventoryMovementCreateNestedManyWithoutPurchaseOrderInput
 }
@@ -310,6 +323,7 @@ export type PurchaseOrderUncheckedCreateInput = {
   expectedDate: Date | string
   confirmed?: boolean
   receivedAt?: Date | string | null
+  idempotencyKey?: string | null
   movements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutPurchaseOrderInput
 }
 
@@ -320,6 +334,7 @@ export type PurchaseOrderUpdateInput = {
   expectedDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   confirmed?: Prisma.BoolFieldUpdateOperationsInput | boolean
   receivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   vendor?: Prisma.VendorUpdateOneRequiredWithoutPurchaseOrdersNestedInput
   movements?: Prisma.InventoryMovementUpdateManyWithoutPurchaseOrderNestedInput
 }
@@ -332,6 +347,7 @@ export type PurchaseOrderUncheckedUpdateInput = {
   expectedDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   confirmed?: Prisma.BoolFieldUpdateOperationsInput | boolean
   receivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   movements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutPurchaseOrderNestedInput
 }
 
@@ -343,6 +359,7 @@ export type PurchaseOrderCreateManyInput = {
   expectedDate: Date | string
   confirmed?: boolean
   receivedAt?: Date | string | null
+  idempotencyKey?: string | null
 }
 
 export type PurchaseOrderUpdateManyMutationInput = {
@@ -352,6 +369,7 @@ export type PurchaseOrderUpdateManyMutationInput = {
   expectedDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   confirmed?: Prisma.BoolFieldUpdateOperationsInput | boolean
   receivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type PurchaseOrderUncheckedUpdateManyInput = {
@@ -362,6 +380,7 @@ export type PurchaseOrderUncheckedUpdateManyInput = {
   expectedDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   confirmed?: Prisma.BoolFieldUpdateOperationsInput | boolean
   receivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type PurchaseOrderListRelationFilter = {
@@ -382,6 +401,7 @@ export type PurchaseOrderCountOrderByAggregateInput = {
   expectedDate?: Prisma.SortOrder
   confirmed?: Prisma.SortOrder
   receivedAt?: Prisma.SortOrder
+  idempotencyKey?: Prisma.SortOrder
 }
 
 export type PurchaseOrderAvgOrderByAggregateInput = {
@@ -396,6 +416,7 @@ export type PurchaseOrderMaxOrderByAggregateInput = {
   expectedDate?: Prisma.SortOrder
   confirmed?: Prisma.SortOrder
   receivedAt?: Prisma.SortOrder
+  idempotencyKey?: Prisma.SortOrder
 }
 
 export type PurchaseOrderMinOrderByAggregateInput = {
@@ -406,6 +427,7 @@ export type PurchaseOrderMinOrderByAggregateInput = {
   expectedDate?: Prisma.SortOrder
   confirmed?: Prisma.SortOrder
   receivedAt?: Prisma.SortOrder
+  idempotencyKey?: Prisma.SortOrder
 }
 
 export type PurchaseOrderSumOrderByAggregateInput = {
@@ -482,6 +504,7 @@ export type PurchaseOrderCreateWithoutVendorInput = {
   expectedDate: Date | string
   confirmed?: boolean
   receivedAt?: Date | string | null
+  idempotencyKey?: string | null
   movements?: Prisma.InventoryMovementCreateNestedManyWithoutPurchaseOrderInput
 }
 
@@ -492,6 +515,7 @@ export type PurchaseOrderUncheckedCreateWithoutVendorInput = {
   expectedDate: Date | string
   confirmed?: boolean
   receivedAt?: Date | string | null
+  idempotencyKey?: string | null
   movements?: Prisma.InventoryMovementUncheckedCreateNestedManyWithoutPurchaseOrderInput
 }
 
@@ -532,6 +556,7 @@ export type PurchaseOrderScalarWhereInput = {
   expectedDate?: Prisma.DateTimeFilter<"PurchaseOrder"> | Date | string
   confirmed?: Prisma.BoolFilter<"PurchaseOrder"> | boolean
   receivedAt?: Prisma.DateTimeNullableFilter<"PurchaseOrder"> | Date | string | null
+  idempotencyKey?: Prisma.StringNullableFilter<"PurchaseOrder"> | string | null
 }
 
 export type PurchaseOrderCreateWithoutMovementsInput = {
@@ -541,6 +566,7 @@ export type PurchaseOrderCreateWithoutMovementsInput = {
   expectedDate: Date | string
   confirmed?: boolean
   receivedAt?: Date | string | null
+  idempotencyKey?: string | null
   vendor: Prisma.VendorCreateNestedOneWithoutPurchaseOrdersInput
 }
 
@@ -552,6 +578,7 @@ export type PurchaseOrderUncheckedCreateWithoutMovementsInput = {
   expectedDate: Date | string
   confirmed?: boolean
   receivedAt?: Date | string | null
+  idempotencyKey?: string | null
 }
 
 export type PurchaseOrderCreateOrConnectWithoutMovementsInput = {
@@ -577,6 +604,7 @@ export type PurchaseOrderUpdateWithoutMovementsInput = {
   expectedDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   confirmed?: Prisma.BoolFieldUpdateOperationsInput | boolean
   receivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   vendor?: Prisma.VendorUpdateOneRequiredWithoutPurchaseOrdersNestedInput
 }
 
@@ -588,6 +616,7 @@ export type PurchaseOrderUncheckedUpdateWithoutMovementsInput = {
   expectedDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   confirmed?: Prisma.BoolFieldUpdateOperationsInput | boolean
   receivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type PurchaseOrderCreateManyVendorInput = {
@@ -597,6 +626,7 @@ export type PurchaseOrderCreateManyVendorInput = {
   expectedDate: Date | string
   confirmed?: boolean
   receivedAt?: Date | string | null
+  idempotencyKey?: string | null
 }
 
 export type PurchaseOrderUpdateWithoutVendorInput = {
@@ -606,6 +636,7 @@ export type PurchaseOrderUpdateWithoutVendorInput = {
   expectedDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   confirmed?: Prisma.BoolFieldUpdateOperationsInput | boolean
   receivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   movements?: Prisma.InventoryMovementUpdateManyWithoutPurchaseOrderNestedInput
 }
 
@@ -616,6 +647,7 @@ export type PurchaseOrderUncheckedUpdateWithoutVendorInput = {
   expectedDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   confirmed?: Prisma.BoolFieldUpdateOperationsInput | boolean
   receivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   movements?: Prisma.InventoryMovementUncheckedUpdateManyWithoutPurchaseOrderNestedInput
 }
 
@@ -626,6 +658,7 @@ export type PurchaseOrderUncheckedUpdateManyWithoutVendorInput = {
   expectedDate?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   confirmed?: Prisma.BoolFieldUpdateOperationsInput | boolean
   receivedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  idempotencyKey?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 
@@ -667,6 +700,7 @@ export type PurchaseOrderSelect<ExtArgs extends runtime.Types.Extensions.Interna
   expectedDate?: boolean
   confirmed?: boolean
   receivedAt?: boolean
+  idempotencyKey?: boolean
   vendor?: boolean | Prisma.VendorDefaultArgs<ExtArgs>
   movements?: boolean | Prisma.PurchaseOrder$movementsArgs<ExtArgs>
   _count?: boolean | Prisma.PurchaseOrderCountOutputTypeDefaultArgs<ExtArgs>
@@ -680,6 +714,7 @@ export type PurchaseOrderSelectCreateManyAndReturn<ExtArgs extends runtime.Types
   expectedDate?: boolean
   confirmed?: boolean
   receivedAt?: boolean
+  idempotencyKey?: boolean
   vendor?: boolean | Prisma.VendorDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["purchaseOrder"]>
 
@@ -691,6 +726,7 @@ export type PurchaseOrderSelectUpdateManyAndReturn<ExtArgs extends runtime.Types
   expectedDate?: boolean
   confirmed?: boolean
   receivedAt?: boolean
+  idempotencyKey?: boolean
   vendor?: boolean | Prisma.VendorDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["purchaseOrder"]>
 
@@ -702,9 +738,10 @@ export type PurchaseOrderSelectScalar = {
   expectedDate?: boolean
   confirmed?: boolean
   receivedAt?: boolean
+  idempotencyKey?: boolean
 }
 
-export type PurchaseOrderOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "vendorId" | "productSku" | "quantity" | "expectedDate" | "confirmed" | "receivedAt", ExtArgs["result"]["purchaseOrder"]>
+export type PurchaseOrderOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "vendorId" | "productSku" | "quantity" | "expectedDate" | "confirmed" | "receivedAt" | "idempotencyKey", ExtArgs["result"]["purchaseOrder"]>
 export type PurchaseOrderInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   vendor?: boolean | Prisma.VendorDefaultArgs<ExtArgs>
   movements?: boolean | Prisma.PurchaseOrder$movementsArgs<ExtArgs>
@@ -731,6 +768,7 @@ export type $PurchaseOrderPayload<ExtArgs extends runtime.Types.Extensions.Inter
     expectedDate: Date
     confirmed: boolean
     receivedAt: Date | null
+    idempotencyKey: string | null
   }, ExtArgs["result"]["purchaseOrder"]>
   composites: {}
 }
@@ -1163,6 +1201,7 @@ export interface PurchaseOrderFieldRefs {
   readonly expectedDate: Prisma.FieldRef<"PurchaseOrder", 'DateTime'>
   readonly confirmed: Prisma.FieldRef<"PurchaseOrder", 'Boolean'>
   readonly receivedAt: Prisma.FieldRef<"PurchaseOrder", 'DateTime'>
+  readonly idempotencyKey: Prisma.FieldRef<"PurchaseOrder", 'String'>
 }
     
 

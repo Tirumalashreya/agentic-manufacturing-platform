@@ -4,7 +4,8 @@ import openpyxl
 
 from app.erp.mock_erp_adapter import default_erp_adapter as erp
 from app.tools.audit_tools import record_audit_event
-from app.tools.idempotency_tools import idempotency_lock
+from app.tools.idempotency_tools import idempotency_lock, read_lock
+from app.tools.idempotency_tools import save_workbook
 
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
@@ -80,6 +81,7 @@ def _next_export_order_id(sheet) -> str:
     return f"EXP{max_num + 1:04d}"
 
 
+@read_lock()
 def find_export_order(export_order_id: str) -> dict | None:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "ExportOrders" not in wb.sheetnames:
@@ -93,6 +95,7 @@ def find_export_order(export_order_id: str) -> dict | None:
 
 # Full history for the Export Sales channel view — includes CLOSED orders,
 # unlike list_open_export_orders() which powers the Active Workflows queue.
+@read_lock()
 def list_export_orders() -> list[dict]:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "ExportOrders" not in wb.sheetnames:
@@ -103,6 +106,7 @@ def list_export_orders() -> list[dict]:
     return rows
 
 
+@read_lock()
 def list_open_export_orders() -> list[dict]:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "ExportOrders" not in wb.sheetnames:
@@ -135,7 +139,7 @@ def _set_fields(export_order_id: str, **fields) -> bool:
             continue
         for name, value in fields.items():
             sheet.cell(row=row_idx, column=EXPORT_ORDER_HEADERS.index(name) + 1, value=value)
-        wb.save(MOCK_ERP_PATH)
+        save_workbook(wb)
         return True
     return False
 
@@ -162,6 +166,7 @@ def _advance(export_order_id: str, new_status: str, error_label: str, **fields) 
 # create_invoice() exactly as the roadmap specified (no dedicated
 # ExportBillingAgent). destination_country is required (rejected if
 # missing, never invented by the agent); incoterm is optional.
+@idempotency_lock()
 def create_export_order(
     customer_id: str | None,
     customer_name: str | None,
@@ -192,7 +197,7 @@ def create_export_order(
         None, None, None, None, None, None, None, None, None, None,
         "CONFIRMED", created_at, None, None,
     ])
-    wb.save(MOCK_ERP_PATH)
+    save_workbook(wb)
 
     invoice = erp.create_invoice(
         sales_order_id=None,

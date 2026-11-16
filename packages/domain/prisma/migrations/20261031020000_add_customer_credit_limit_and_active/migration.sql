@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Customer" ADD COLUMN "creditLimit" DOUBLE PRECISION,
+ADD COLUMN "active" BOOLEAN NOT NULL DEFAULT true;

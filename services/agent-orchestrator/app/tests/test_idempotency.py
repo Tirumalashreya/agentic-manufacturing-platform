@@ -1,4 +1,6 @@
 # app/tests/test_idempotency.py
+import pytest
+
 from app.tools.idempotency_tools import get_idempotent_result, record_idempotent_result
 from app.tools.sales_tools import create_sales_order
 from app.tools.billing_tools import create_invoice
@@ -75,6 +77,50 @@ def test_create_sales_order_different_keys_both_create():
     second = create_sales_order(**_order_kwargs(), idempotency_key="key-B")
 
     assert first["sales_order_id"] != second["sales_order_id"]
+
+
+# Reliability-pass fix: create_sales_order used to accept idempotency_key
+# and call get_idempotent_result/record_idempotent_result with NO lock at
+# all around that check-then-write sequence — the sequential retry test
+# above never would have caught this, since a sequential call always
+# resolves without any real contention. Real OS threads, same pattern as
+# the other concurrency tests in this series.
+def test_create_sales_order_concurrent_same_key_creates_exactly_one_order():
+    import threading
+
+    key = "concurrent-sales-order-same-key-001"
+    results: list[dict] = []
+
+    def call():
+        results.append(create_sales_order(**_order_kwargs(), idempotency_key=key))
+
+    threads = [threading.Thread(target=call) for _ in range(5)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    order_ids = {r["sales_order_id"] for r in results if r["created"]}
+    assert len(order_ids) == 1, f"expected exactly one real sales_order_id across 5 concurrent calls, got: {order_ids}"
+
+
+# Reliability-pass requirement: an exception inside a locked function
+# must still release the lock, so a later, unrelated operation isn't
+# permanently stuck. idempotency_lock()'s try/finally already guarantees
+# this (verified by code reading); this proves it holds for a REAL
+# exception raised mid-body of one of the three newly-locked functions,
+# not just in the abstract.
+def test_create_sales_order_exception_mid_body_still_releases_the_lock():
+    from unittest.mock import patch
+
+    with patch("app.tools.sales_tools._next_sales_order_id", side_effect=RuntimeError("simulated failure mid-write")):
+        with pytest.raises(RuntimeError):
+            create_sales_order(**_order_kwargs())
+
+    # If the lock were left held, this second, completely unrelated call
+    # would hang forever waiting on it instead of completing normally.
+    result = create_sales_order(**_order_kwargs())
+    assert result["created"] is True
 
 
 def test_create_invoice_retried_with_same_key_does_not_double_bill():

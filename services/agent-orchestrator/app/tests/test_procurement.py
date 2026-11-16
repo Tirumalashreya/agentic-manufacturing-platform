@@ -64,6 +64,35 @@ def test_create_purchase_order_succeeds():
     assert result["purchase_order_id"].startswith("PUR")
 
 
+# Reliability-pass fix: create_purchase_order accepted idempotency_key
+# and called get_idempotent_result/record_idempotent_result with no lock
+# at all around that check-then-write sequence — two concurrent calls
+# with the same key could both miss the cache and both create a real
+# purchase order (double vendor spend). Real OS threads, same pattern as
+# the other concurrency tests in this series.
+def test_create_purchase_order_concurrent_same_key_creates_exactly_one_order():
+    import threading
+
+    key = "concurrent-purchase-order-same-key-001"
+    results: list[dict] = []
+
+    def call():
+        results.append(create_purchase_order(
+            production_order_id="PO0001", component_id="CHASSIS", component_name="Chassis (generic)",
+            vendor_id="V005", vendor_name="RapidChassis Express", quantity=5, unit_cost=4200.0,
+            lead_time_days=4, idempotency_key=key,
+        ))
+
+    threads = [threading.Thread(target=call) for _ in range(5)]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    po_ids = {r["purchase_order_id"] for r in results if r["created"]}
+    assert len(po_ids) == 1, f"expected exactly one real purchase_order_id across 5 concurrent calls, got: {po_ids}"
+
+
 def test_create_purchase_order_rejects_bad_quantity():
     result = create_purchase_order(
         production_order_id="PO0001",

@@ -219,9 +219,12 @@ async def get_vendors() -> list[dict]:
     return resp.json()
 
 
-async def create_purchase_order(vendor_id: str, product_sku: str, quantity: int, expected_date: str) -> dict:
+async def create_purchase_order(
+    vendor_id: str, product_sku: str, quantity: int, expected_date: str, idempotency_key: str | None = None
+) -> dict:
     resp = await _request(
         "POST", f"{INVENTORY_SERVICE_URL}/purchase-orders",
+        headers={"Idempotency-Key": idempotency_key} if idempotency_key else None,
         json={"vendorId": vendor_id, "productSku": product_sku, "quantity": quantity, "expectedDate": expected_date, "confirmed": True},
     )
     resp.raise_for_status()

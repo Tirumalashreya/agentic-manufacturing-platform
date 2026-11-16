@@ -2,6 +2,8 @@
 import datetime
 import openpyxl
 
+from app.tools.idempotency_tools import idempotency_lock, save_workbook
+
 from app.erp.mock_erp_adapter import default_erp_adapter as erp
 from app.tools.audit_tools import record_audit_event
 
@@ -131,6 +133,7 @@ def list_open_service_orders() -> list[dict]:
 # estimated_hours only matters for an HOURLY-rated service_type; if the
 # customer didn't state an estimate, estimated_amount stays None rather
 # than guessing a number of hours.
+@idempotency_lock()
 def create_service_order(
     customer_id: str | None,
     customer_name: str | None,
@@ -183,7 +186,7 @@ def create_service_order(
         None,
         None,
     ])
-    wb.save(MOCK_ERP_PATH)
+    save_workbook(wb)
     record_audit_event("ServiceOrder", service_order_id, "SERVICE_ORDER_CREATED", {"service_type": service_type})
 
     return {
@@ -199,6 +202,7 @@ def create_service_order(
 # The explicit, person-triggered progression step. Only a real transition
 # in _VALID_STATUS_TRANSITIONS is allowed — no skipping stages, no
 # resurrecting a terminal order.
+@idempotency_lock()
 def update_service_order_status(service_order_id: str, new_status: str) -> dict:
     if new_status not in {"SCHEDULED", "IN_PROGRESS", "COMPLETED", "CANCELLED"}:
         return {"updated": False, "reason": f"Invalid status: {new_status}"}
@@ -225,7 +229,7 @@ def update_service_order_status(service_order_id: str, new_status: str) -> dict:
             }
 
         sheet.cell(row=row_idx, column=status_col, value=new_status)
-        wb.save(MOCK_ERP_PATH)
+        save_workbook(wb)
         record_audit_event("ServiceOrder", service_order_id, f"SERVICE_ORDER_{new_status}")
         return {"updated": True, "service_order_id": service_order_id, "status": new_status}
 
@@ -240,6 +244,7 @@ def update_service_order_status(service_order_id: str, new_status: str) -> dict:
 # No rate on file at all still completes the engagement (the work still
 # happened) but leaves billing for manual handling, same honest fallback
 # create_service_order already uses when a rate can't be found.
+@idempotency_lock()
 def complete_service_order(
     service_order_id: str,
     actual_hours: int | None = None,
@@ -310,7 +315,7 @@ def complete_service_order(
         sheet.cell(row=row_idx, column=col["signed_off_by"], value=signed_off_by)
         sheet.cell(row=row_idx, column=col["completed_at"], value=completed_at)
         sheet.cell(row=row_idx, column=col["invoice_id"], value=invoice_id)
-        wb.save(MOCK_ERP_PATH)
+        save_workbook(wb)
         record_audit_event("ServiceOrder", service_order_id, "SERVICE_ORDER_COMPLETED", {
             "billable_amount": billable_amount, "invoice_id": invoice_id,
         })

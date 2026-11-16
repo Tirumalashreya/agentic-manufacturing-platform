@@ -85,16 +85,19 @@ def test_mutation_rejects_insufficient_role():
 
 @pytest.mark.parametrize("role", ["PLANNER", "ADMIN", "OWNER"])
 def test_mutation_succeeds_for_planner_or_above(role):
-    """Requirement 3: authorized requests succeed — REJECTED is the safe,
-    no-real-side-effect branch of this endpoint (see approvals.py), so this
-    proves real authorization without touching any real business record."""
+    """Requirement 3: an authorized caller gets past the auth gate and into
+    business logic. The endpoint now requires a real run_id bound to a
+    PENDING approval (atomic claim), so a never-existed run_id is the
+    no-side-effect way to prove authorization passed: the response is the
+    business-layer 404 'No approval found', not a 401/403 auth rejection
+    and not a 422 schema error."""
     res = client.post(
         "/approvals/sales-order/resolve",
-        json={"context": {}, "decision": "REJECTED"},
+        json={"run_id": f"security-test-nonexistent-{role}", "decision": "REJECTED"},
         headers={"x-internal-token": TOKEN, "x-forwarded-user": "u1", "x-forwarded-role": role},
     )
-    assert res.status_code == 200
-    assert res.json()["status"] == "REJECTED"
+    assert res.status_code == 404
+    assert "No approval found" in res.json()["detail"]
 
 
 def test_unknown_role_is_rejected_not_silently_trusted():

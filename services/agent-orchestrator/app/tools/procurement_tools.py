@@ -2,7 +2,8 @@
 import datetime
 import openpyxl
 
-from app.tools.idempotency_tools import get_idempotent_result, record_idempotent_result
+from app.tools.idempotency_tools import get_idempotent_result, idempotency_lock, read_lock, record_idempotent_result, stage_idempotent_result
+from app.tools.idempotency_tools import save_workbook
 
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
@@ -26,6 +27,7 @@ PURCHASE_ORDER_HEADERS = [
 # Returns has_bom=False for any product with no BOM row at all (most
 # products), so callers can skip procurement honestly rather than
 # pretending a shortage check happened when there's nothing to check.
+@read_lock()
 def check_material_availability(product_id: str, quantity: int) -> dict:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "BOM" not in wb.sheetnames:
@@ -60,6 +62,7 @@ def check_material_availability(product_id: str, quantity: int) -> dict:
     return {"has_bom": True, "components": components}
 
 
+@read_lock()
 def get_vendors_for_component(component_id: str) -> list[dict]:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     sheet = wb["Vendors"]
@@ -96,6 +99,11 @@ def _next_purchase_order_id(sheet) -> str:
     return f"PUR{max_num + 1:04d}"
 
 
+# Independent-audit fix (confirmed before fixing — still no lock as of
+# this reliability pass): same gap as sales_tools.create_sales_order,
+# same fix. No HTTP/network calls anywhere in this function, so the
+# whole body can safely sit under the lock.
+@idempotency_lock()
 def create_purchase_order(
     production_order_id: str,
     component_id: str,
@@ -141,8 +149,6 @@ def create_purchase_order(
         status,
         created_at,
     ])
-    wb.save(MOCK_ERP_PATH)
-
     result = {
         "created": True,
         "purchase_order_id": purchase_order_id,
@@ -150,5 +156,6 @@ def create_purchase_order(
         "expected_arrival": expected_arrival,
         "status": status,
     }
-    record_idempotent_result(idempotency_key, "create_purchase_order", result)
+    stage_idempotent_result(wb, idempotency_key, "create_purchase_order", result)
+    save_workbook(wb)
     return result

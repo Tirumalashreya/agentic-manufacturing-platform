@@ -2,6 +2,8 @@
 import datetime
 import openpyxl
 
+from app.tools.idempotency_tools import idempotency_lock, save_workbook
+
 from app.erp.mock_erp_adapter import default_erp_adapter as erp
 from app.tools.audit_tools import record_audit_event
 
@@ -100,6 +102,7 @@ def _next_id(sheet, prefix: str) -> str:
 # be None (the agent never invents one); milestone amounts stay None in
 # that case, same honest "no rate on file yet" fallback create_service_order
 # already uses, until a real value is available to bill against.
+@idempotency_lock()
 def create_project(
     customer_id: str | None,
     customer_name: str | None,
@@ -166,7 +169,7 @@ def create_project(
         ])
         milestones.append({"milestone_id": milestone_id, "milestone_name": name, "amount": amount})
 
-    wb.save(MOCK_ERP_PATH)
+    save_workbook(wb)
     record_audit_event("Project", project_id, "PROJECT_CREATED", {
         "project_type": project_type, "contract_value": contract_value,
     })
@@ -235,6 +238,7 @@ def list_open_milestones() -> list[dict]:
 # separate from create_project() because material assessment/production
 # creation happens in graph.py (reusing the exact same helpers MTO/CTO
 # already use), not duplicated here.
+@idempotency_lock()
 def attach_production_order(project_id: str, production_order_id: str) -> None:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     sheet = wb["Projects"]
@@ -242,7 +246,7 @@ def attach_production_order(project_id: str, production_order_id: str) -> None:
     for row_idx, row in enumerate(sheet.iter_rows(min_row=2), start=2):
         if row[0].value == project_id:
             sheet.cell(row=row_idx, column=col, value=production_order_id)
-            wb.save(MOCK_ERP_PATH)
+            save_workbook(wb)
             return
 
 
@@ -250,6 +254,7 @@ def attach_production_order(project_id: str, production_order_id: str) -> None:
 # not reachable here — see bill_milestone(), which also moves money, same
 # split as update_service_order_status()/complete_service_order() and
 # update_trading_order_status()/dispatch_trading_order().
+@idempotency_lock()
 def advance_milestone_status(milestone_id: str, new_status: str, signed_off_by: str | None = None) -> dict:
     if new_status not in {"IN_PROGRESS", "DELIVERED", "SIGNED_OFF"}:
         return {"updated": False, "reason": f"Invalid status: {new_status}"}
@@ -281,7 +286,7 @@ def advance_milestone_status(milestone_id: str, new_status: str, signed_off_by: 
         if new_status == "SIGNED_OFF":
             sheet.cell(row=row_idx, column=signed_off_by_col, value=signed_off_by or "SYSTEM")
             sheet.cell(row=row_idx, column=signed_off_at_col, value=datetime.datetime.now().isoformat())
-        wb.save(MOCK_ERP_PATH)
+        save_workbook(wb)
         record_audit_event("ProjectMilestone", milestone_id, f"MILESTONE_{new_status}", {"signed_off_by": signed_off_by})
         return {"updated": True, "milestone_id": milestone_id, "status": new_status}
 
@@ -295,6 +300,7 @@ def advance_milestone_status(milestone_id: str, new_status: str, signed_off_by: 
 # never stated) still moves to BILLED — the work happened — but produces
 # no invoice, same honest "no rate on file" fallback as
 # complete_service_order().
+@idempotency_lock()
 def bill_milestone(milestone_id: str) -> dict:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "ProjectMilestones" not in wb.sheetnames:
@@ -357,7 +363,7 @@ def bill_milestone(milestone_id: str) -> dict:
                     projects_sheet.cell(row=p_row_idx, column=held_col, value=round(current_held + retained_amount, 2))
                     break
 
-        wb.save(MOCK_ERP_PATH)
+        save_workbook(wb)
         record_audit_event("ProjectMilestone", milestone_id, "MILESTONE_BILLED", {
             "invoice_id": invoice_id, "billed_amount": billed_amount, "retained_amount": retained_amount,
         })
@@ -377,6 +383,7 @@ def bill_milestone(milestone_id: str) -> dict:
 # invoice, matching the "held back until the very end" semantics
 # real construction/EPC contracts use, rather than trickling it out
 # per-milestone.
+@idempotency_lock()
 def close_project(project_id: str) -> dict:
     project = find_project(project_id)
     if project is None:
@@ -423,7 +430,7 @@ def close_project(project_id: str) -> dict:
         sheet.cell(row=row_idx, column=status_col, value="CLOSED")
         sheet.cell(row=row_idx, column=closed_at_col, value=datetime.datetime.now().isoformat())
         sheet.cell(row=row_idx, column=released_col, value=True)
-        wb.save(MOCK_ERP_PATH)
+        save_workbook(wb)
         break
 
     record_audit_event("Project", project_id, "PROJECT_CLOSED", {

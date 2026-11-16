@@ -266,10 +266,32 @@ app.post("/purchase-orders", async (req, res) => {
     expectedDate: string;
     confirmed?: boolean;
   };
-  const po = await prisma.purchaseOrder.create({
-    data: { vendorId, productSku, quantity, expectedDate: new Date(expectedDate), confirmed: confirmed ?? true },
-  });
-  res.status(201).json(po);
+  // Phase 2: optional Idempotency-Key. Protection comes from the UNIQUE
+  // column, so concurrent retries race on the database, not on a read. The
+  // same key with a different request is refused (409), never replayed.
+  const idempotencyKey = req.header("idempotency-key") || undefined;
+  const data = { vendorId, productSku, quantity, expectedDate: new Date(expectedDate), confirmed: confirmed ?? true };
+  if (!idempotencyKey) {
+    res.status(201).json(await prisma.purchaseOrder.create({ data }));
+    return;
+  }
+  try {
+    res.status(201).json(await prisma.purchaseOrder.create({ data: { ...data, idempotencyKey } }));
+  } catch (err) {
+    if ((err as { code?: string }).code !== "P2002") throw err;
+    const existing = await prisma.purchaseOrder.findUnique({ where: { idempotencyKey } });
+    const same =
+      existing &&
+      existing.vendorId === vendorId &&
+      existing.productSku === productSku &&
+      existing.quantity === quantity &&
+      existing.expectedDate.getTime() === data.expectedDate.getTime();
+    if (!same) {
+      res.status(409).json({ error: "This Idempotency-Key was already used for a different purchase order" });
+      return;
+    }
+    res.status(200).json(existing);
+  }
 });
 
 // Real read for the new Materials page — no route previously listed

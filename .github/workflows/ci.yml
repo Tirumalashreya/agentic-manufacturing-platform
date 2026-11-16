@@ -1,0 +1,176 @@
+# Phase 1 (Engineering Foundation). Runs the same checks a developer runs
+# locally — see docs/TESTING.md. Real Postgres, Redis and Kafka (no mocks)
+# because the TS suites' own convention is real infrastructure with
+# per-test isolated Enterprise/Site/Plant fixtures torn down afterwards.
+#
+# NOT yet executed on GitHub's runners (only the commands were verified
+# locally) — treat the first CI run as the verification of the service
+# container wiring below.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DATABASE_URL: postgresql://aps:aps@localhost:5432/aps_platform?schema=public
+  REDIS_URL: redis://localhost:6379
+  KAFKA_BROKER: localhost:9092
+  INTERNAL_SERVICE_TOKEN: ci-only-internal-token-not-a-secret
+  NEXTAUTH_SECRET: ci-only-nextauth-secret-not-a-secret
+
+jobs:
+  typecheck:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run -w @aps/domain prisma:generate
+      - name: tsc --noEmit for every TS workspace that has a tsconfig
+        run: |
+          set -e
+          for d in services/*/ frontend web; do
+            if [ -f "$d/tsconfig.json" ]; then
+              echo "== $d"
+              (cd "$d" && npx tsc --noEmit -p .)
+            fi
+          done
+
+  ts-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: aps_platform
+          POSTGRES_USER: aps
+          POSTGRES_PASSWORD: aps
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U aps -d aps_platform"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      kafka:
+        image: apache/kafka:3.9.0
+        ports: ["9092:9092"]
+        env:
+          KAFKA_NODE_ID: 1
+          KAFKA_PROCESS_ROLES: broker,controller
+          KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+          KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+          KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+          KAFKA_CONTROLLER_QUORUM_VOTERS: 1@localhost:9093
+          KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT
+          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+          KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - name: Generate Prisma client and apply every migration to the empty test database
+        run: |
+          npm run -w @aps/domain prisma:generate
+          cd packages/domain && npx prisma migrate deploy
+      - name: Wait for Kafka
+        run: |
+          for i in $(seq 1 30); do nc -z localhost 9092 && exit 0; sleep 2; done
+          echo "Kafka did not become reachable" && exit 1
+      # One workspace at a time: suites share one database and Redis; each
+      # test isolates its own Enterprise, but running suites concurrently
+      # has not been validated.
+      - name: Run each TS workspace's vitest suite sequentially
+        run: |
+          set -e
+          for d in packages/domain services/order-service services/scheduling-service \
+                   services/mes-integration services/inventory-service services/machine-service \
+                   services/maintenance-service services/erp-integration frontend; do
+            echo "== $d"
+            (cd "$d" && npx vitest run)
+          done
+
+  architecture-contract:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      - run: npm run test:architecture
+      - run: npm run check:architecture
+
+  # agent-orchestrator: ONE pytest process (never parallel — every test
+  # shares mock_erp.xlsx; see conftest.py and docs/TESTING.md). The 9
+  # deselected tests are the documented, diagnosed baseline failures
+  # (docs/BASELINE.md): they need a live LLM, a running APS web app on
+  # :3000, or the demo workbook's accumulated state, none of which CI has (the two dual-write tests need a live order-service on :4001).
+  # They stay deselected only until each is fixed or isolated, not forever.
+  #
+  # KNOWN GAP (measured, not assumed): with the dummy GROQ_API_KEY below, a
+  # full run failed 54 tests, not 9 — most agent tests call the live Groq API
+  # and fail with AuthenticationError. As written this job will NOT be green.
+  # It needs either a real key supplied as a repository secret
+  # (GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}; paid, rate-limited, and the
+  # baseline shows live calls are occasionally flaky) or an explicit
+  # live-LLM test marker with those tests run on a schedule instead. That is a
+  # decision for the repository owner; the failing tests are deliberately NOT
+  # deselected wholesale here, because that would hide real regressions.
+  python-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: aps_platform
+          POSTGRES_USER: aps
+          POSTGRES_PASSWORD: aps
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U aps -d aps_platform"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      GROQ_API_KEY: ci-dummy-key-no-live-llm-calls-expected
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: services/agent-orchestrator/requirements.txt
+      - run: npm ci
+      - run: npm run -w @aps/domain prisma:generate
+      - name: Apply migrations (orchestrator tests read AgentPipelineRun / approvals tables)
+        run: cd packages/domain && npx prisma migrate deploy
+      - run: pip install -r services/agent-orchestrator/requirements.txt
+      - name: pytest (single process)
+        working-directory: services/agent-orchestrator
+        run: >-
+          python -m pytest app/tests -q -p no:cacheprovider
+          --deselect app/tests/test_credit.py::test_check_credit_includes_existing_orders_from_real_customer
+          --deselect app/tests/test_billing.py::test_create_invoice_dual_writes_a_real_postgres_row
+          --deselect app/tests/test_delivery.py::test_create_delivery_dual_writes_a_real_postgres_row
+          --deselect app/tests/test_entry_router.py::test_unrecognized_product_order_asks_for_clarification_not_financial
+          --deselect app/tests/test_production_planning_agent.py
+          --deselect app/tests/test_understanding_routing.py::test_reference_resolution_runs_between_understanding_and_context

@@ -455,7 +455,9 @@ export const ModelName = {
   AuditLog: 'AuditLog',
   ChangeoverMatrix: 'ChangeoverMatrix',
   AgentPipelineRun: 'AgentPipelineRun',
-  AgentStageResult: 'AgentStageResult'
+  AgentStageResult: 'AgentStageResult',
+  DocumentSequence: 'DocumentSequence',
+  DocumentNumberAllocation: 'DocumentNumberAllocation'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -471,7 +473,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "verificationToken" | "passwordResetToken" | "enterprise" | "site" | "plant" | "productionLine" | "workCenter" | "machine" | "machineCapability" | "skill" | "operator" | "operatorSkill" | "shift" | "workCenterShift" | "operatorShift" | "factoryCalendar" | "factoryCalendarDay" | "holidayCalendar" | "holiday" | "product" | "bOM" | "bOMLine" | "routing" | "routingOperation" | "routingOpDependency" | "customer" | "salesOrder" | "delivery" | "invoice" | "productionOrder" | "orderLine" | "fulfillmentPlan" | "fulfillmentLine" | "productionOrderDependency" | "productionCompletionStep" | "scheduledOperation" | "qualityInspection" | "productionException" | "tool" | "toolUsage" | "inventory" | "vendor" | "vendorProduct" | "purchaseOrder" | "inventoryMovement" | "maintenancePlan" | "maintenanceOrder" | "resourceReservation" | "schedule" | "scheduleRun" | "machineEvent" | "sensorReading" | "idempotencyKey" | "scheduleAuditLog" | "auditLog" | "changeoverMatrix" | "agentPipelineRun" | "agentStageResult"
+    modelProps: "user" | "verificationToken" | "passwordResetToken" | "enterprise" | "site" | "plant" | "productionLine" | "workCenter" | "machine" | "machineCapability" | "skill" | "operator" | "operatorSkill" | "shift" | "workCenterShift" | "operatorShift" | "factoryCalendar" | "factoryCalendarDay" | "holidayCalendar" | "holiday" | "product" | "bOM" | "bOMLine" | "routing" | "routingOperation" | "routingOpDependency" | "customer" | "salesOrder" | "delivery" | "invoice" | "productionOrder" | "orderLine" | "fulfillmentPlan" | "fulfillmentLine" | "productionOrderDependency" | "productionCompletionStep" | "scheduledOperation" | "qualityInspection" | "productionException" | "tool" | "toolUsage" | "inventory" | "vendor" | "vendorProduct" | "purchaseOrder" | "inventoryMovement" | "maintenancePlan" | "maintenanceOrder" | "resourceReservation" | "schedule" | "scheduleRun" | "machineEvent" | "sensorReading" | "idempotencyKey" | "scheduleAuditLog" | "auditLog" | "changeoverMatrix" | "agentPipelineRun" | "agentStageResult" | "documentSequence" | "documentNumberAllocation"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -4841,6 +4843,154 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    DocumentSequence: {
+      payload: Prisma.$DocumentSequencePayload<ExtArgs>
+      fields: Prisma.DocumentSequenceFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.DocumentSequenceFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DocumentSequencePayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.DocumentSequenceFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DocumentSequencePayload>
+        }
+        findFirst: {
+          args: Prisma.DocumentSequenceFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DocumentSequencePayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.DocumentSequenceFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DocumentSequencePayload>
+        }
+        findMany: {
+          args: Prisma.DocumentSequenceFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DocumentSequencePayload>[]
+        }
+        create: {
+          args: Prisma.DocumentSequenceCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DocumentSequencePayload>
+        }
+        createMany: {
+          args: Prisma.DocumentSequenceCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.DocumentSequenceCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DocumentSequencePayload>[]
+        }
+        delete: {
+          args: Prisma.DocumentSequenceDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DocumentSequencePayload>
+        }
+        update: {
+          args: Prisma.DocumentSequenceUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DocumentSequencePayload>
+        }
+        deleteMany: {
+          args: Prisma.DocumentSequenceDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.DocumentSequenceUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.DocumentSequenceUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DocumentSequencePayload>[]
+        }
+        upsert: {
+          args: Prisma.DocumentSequenceUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DocumentSequencePayload>
+        }
+        aggregate: {
+          args: Prisma.DocumentSequenceAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateDocumentSequence>
+        }
+        groupBy: {
+          args: Prisma.DocumentSequenceGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.DocumentSequenceGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.DocumentSequenceCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.DocumentSequenceCountAggregateOutputType> | number
+        }
+      }
+    }
+    DocumentNumberAllocation: {
+      payload: Prisma.$DocumentNumberAllocationPayload<ExtArgs>
+      fields: Prisma.DocumentNumberAllocationFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.DocumentNumberAllocationFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DocumentNumberAllocationPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.DocumentNumberAllocationFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DocumentNumberAllocationPayload>
+        }
+        findFirst: {
+          args: Prisma.DocumentNumberAllocationFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DocumentNumberAllocationPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.DocumentNumberAllocationFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DocumentNumberAllocationPayload>
+        }
+        findMany: {
+          args: Prisma.DocumentNumberAllocationFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DocumentNumberAllocationPayload>[]
+        }
+        create: {
+          args: Prisma.DocumentNumberAllocationCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DocumentNumberAllocationPayload>
+        }
+        createMany: {
+          args: Prisma.DocumentNumberAllocationCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.DocumentNumberAllocationCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DocumentNumberAllocationPayload>[]
+        }
+        delete: {
+          args: Prisma.DocumentNumberAllocationDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DocumentNumberAllocationPayload>
+        }
+        update: {
+          args: Prisma.DocumentNumberAllocationUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DocumentNumberAllocationPayload>
+        }
+        deleteMany: {
+          args: Prisma.DocumentNumberAllocationDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.DocumentNumberAllocationUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.DocumentNumberAllocationUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DocumentNumberAllocationPayload>[]
+        }
+        upsert: {
+          args: Prisma.DocumentNumberAllocationUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$DocumentNumberAllocationPayload>
+        }
+        aggregate: {
+          args: Prisma.DocumentNumberAllocationAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateDocumentNumberAllocation>
+        }
+        groupBy: {
+          args: Prisma.DocumentNumberAllocationGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.DocumentNumberAllocationGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.DocumentNumberAllocationCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.DocumentNumberAllocationCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -5200,7 +5350,9 @@ export const CustomerScalarFieldEnum = {
   slaDays: 'slaDays',
   penaltyPerDay: 'penaltyPerDay',
   enterpriseId: 'enterpriseId',
-  externalCustomerId: 'externalCustomerId'
+  externalCustomerId: 'externalCustomerId',
+  creditLimit: 'creditLimit',
+  active: 'active'
 } as const
 
 export type CustomerScalarFieldEnum = (typeof CustomerScalarFieldEnum)[keyof typeof CustomerScalarFieldEnum]
@@ -5482,7 +5634,8 @@ export const PurchaseOrderScalarFieldEnum = {
   quantity: 'quantity',
   expectedDate: 'expectedDate',
   confirmed: 'confirmed',
-  receivedAt: 'receivedAt'
+  receivedAt: 'receivedAt',
+  idempotencyKey: 'idempotencyKey'
 } as const
 
 export type PurchaseOrderScalarFieldEnum = (typeof PurchaseOrderScalarFieldEnum)[keyof typeof PurchaseOrderScalarFieldEnum]
@@ -5685,6 +5838,28 @@ export const AgentStageResultScalarFieldEnum = {
 } as const
 
 export type AgentStageResultScalarFieldEnum = (typeof AgentStageResultScalarFieldEnum)[keyof typeof AgentStageResultScalarFieldEnum]
+
+
+export const DocumentSequenceScalarFieldEnum = {
+  id: 'id',
+  kind: 'kind',
+  lastValue: 'lastValue',
+  enterpriseId: 'enterpriseId'
+} as const
+
+export type DocumentSequenceScalarFieldEnum = (typeof DocumentSequenceScalarFieldEnum)[keyof typeof DocumentSequenceScalarFieldEnum]
+
+
+export const DocumentNumberAllocationScalarFieldEnum = {
+  id: 'id',
+  kind: 'kind',
+  idempotencyKey: 'idempotencyKey',
+  value: 'value',
+  createdAt: 'createdAt',
+  enterpriseId: 'enterpriseId'
+} as const
+
+export type DocumentNumberAllocationScalarFieldEnum = (typeof DocumentNumberAllocationScalarFieldEnum)[keyof typeof DocumentNumberAllocationScalarFieldEnum]
 
 
 export const SortOrder = {
@@ -6391,6 +6566,8 @@ export type GlobalOmitConfig = {
   changeoverMatrix?: Prisma.ChangeoverMatrixOmit
   agentPipelineRun?: Prisma.AgentPipelineRunOmit
   agentStageResult?: Prisma.AgentStageResultOmit
+  documentSequence?: Prisma.DocumentSequenceOmit
+  documentNumberAllocation?: Prisma.DocumentNumberAllocationOmit
 }
 
 /* Types for Logging */

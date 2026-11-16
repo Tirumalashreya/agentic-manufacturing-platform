@@ -336,3 +336,13 @@ export type AgentPipelineRun = Prisma.AgentPipelineRunModel
  * 
  */
 export type AgentStageResult = Prisma.AgentStageResultModel
+/**
+ * Model DocumentSequence
+ * 
+ */
+export type DocumentSequence = Prisma.DocumentSequenceModel
+/**
+ * Model DocumentNumberAllocation
+ * 
+ */
+export type DocumentNumberAllocation = Prisma.DocumentNumberAllocationModel

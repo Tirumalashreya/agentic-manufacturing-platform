@@ -3,7 +3,8 @@ import datetime
 import openpyxl
 
 from app.tools.audit_tools import record_audit_event
-from app.tools.idempotency_tools import get_idempotent_result, record_idempotent_result
+from app.tools.idempotency_tools import get_idempotent_result, idempotency_lock, read_lock, record_idempotent_result
+from app.tools.idempotency_tools import save_workbook
 # Stage 03F-A: this module used to carry its own independent copy of
 # find_sales_order (same SalesOrders sheet, same lookup, never
 # consolidated with sales_tools.py's) — re-exported here instead, so
@@ -80,6 +81,17 @@ def _previously_returned_quantity(referenced_order_id: str, product_id: str, wb=
     return total
 
 
+# Independent-audit fix (confirmed before fixing — still no lock as of
+# this reliability pass): same gap as sales_tools.create_sales_order,
+# same fix. Also closes a second, business-logic TOCTOU on top of the
+# idempotency-key one: _previously_returned_quantity's cumulative check
+# and this function's own append used to be two unsynchronized reads of
+# the same running total — two concurrent RETURN requests against the
+# same order could each see a total that's still under the order
+# quantity and both pass, together exceeding what was actually sold.
+# find_sales_order/record_audit_event (both called below) do no
+# network I/O, so the whole body can safely sit under the lock.
+@idempotency_lock()
 def process_post_sales_action(
     action: str,
     referenced_order_id: str | None,
@@ -206,7 +218,7 @@ def process_post_sales_action(
         None,
         None,
     ])
-    wb.save(MOCK_ERP_PATH)
+    save_workbook(wb)
     record_audit_event("PostSalesAction", post_sales_id, f"POST_SALES_{action}_CREATED", {
         "referenced_order_id": referenced_order_id, "amount": amount,
     })
@@ -221,6 +233,7 @@ def process_post_sales_action(
     return result
 
 
+@read_lock()
 def get_post_sales_action(post_sales_id: str) -> dict | None:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "PostSalesActions" not in wb.sheetnames:
@@ -238,6 +251,7 @@ def get_post_sales_action(post_sales_id: str) -> dict | None:
 # table the roadmap put all three under, and showing all of them together
 # is more honest than a "Returns" page that silently hides two thirds of
 # what's actually in it.
+@read_lock()
 def list_post_sales_actions() -> list[dict]:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "PostSalesActions" not in wb.sheetnames:
@@ -251,6 +265,7 @@ def list_post_sales_actions() -> list[dict]:
 # CREDIT_MEMO/DEBIT_MEMO post as ISSUED immediately (no physical goods
 # involved) — only a RETURN ever sits at PENDING_INSPECTION waiting on a
 # human, so that's the only state this queue needs.
+@read_lock()
 def list_pending_return_inspections() -> list[dict]:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "PostSalesActions" not in wb.sheetnames:
@@ -267,6 +282,7 @@ def list_pending_return_inspections() -> list[dict]:
 # only APPROVED actually moves stock — a rejected return changes nothing
 # physically, matching real RMA handling (goods that fail inspection don't
 # go back into sellable inventory here).
+@idempotency_lock()
 def resolve_return_inspection(post_sales_id: str, decision: str, inspected_by: str = "SYSTEM") -> dict:
     if decision not in ("APPROVED", "REJECTED"):
         return {"resolved": False, "reason": f"Invalid decision: {decision}"}
@@ -310,7 +326,7 @@ def resolve_return_inspection(post_sales_id: str, decision: str, inspected_by: s
                     qty_cell.value = (qty_cell.value or 0) + quantity
                     break
 
-        wb.save(MOCK_ERP_PATH)
+        save_workbook(wb)
         record_audit_event("PostSalesAction", post_sales_id, f"POST_SALES_RETURN_{decision}", {"inspected_by": inspected_by})
         return {"resolved": True, "post_sales_id": post_sales_id, "status": decision}
 

@@ -1,6 +1,6 @@
 process.env.SERVICE_NAME = "order-service";
 
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
 import { createApp, registerErrorHandler, logger, publishTracked, TOPICS, requireIdentity } from "@aps/shared";
 import { prisma, computePriorityScore, type CustomerTier, type Prisma, type PromiseRiskStatus } from "@aps/domain";
@@ -135,69 +135,128 @@ async function writeSalesOrderAuditLog(req: Request, entityId: string, enterpris
   }
 }
 
+// Phase 2 (crash-safe rewrite). The claim, the business write and the
+// completion record now commit in ONE PostgreSQL transaction. Before, they
+// were three separate statements, so a hard crash after the business write
+// but before the completion update left a claim stuck at statusCode=0
+// forever (a retry saw "in progress" for an operation that had in fact
+// finished). Now there is no intermediate state to strand:
+//   - crash/exception/non-2xx anywhere  -> everything rolls back, including
+//     the claim; a retry runs fresh. Nothing was committed, so nothing can
+//     be duplicated.
+//   - success                          -> business rows, claim and stored
+//     response are all visible together.
+// No timeout-based "expire the claim" logic exists, deliberately: expiring a
+// claim whose business write may have committed is exactly how a duplicate
+// is created.
+//
+// Concurrency: the claim is INSERT ... ON CONFLICT DO NOTHING. If another
+// transaction holds the same key uncommitted, Postgres makes this insert WAIT
+// for it to commit or roll back; then it either replays the committed result
+// (same request body), refuses (409, different body), or — if the other one
+// rolled back — claims the key itself. A concurrent duplicate therefore
+// replays the original response instead of getting a transient "in progress".
+//
+// `run` receives the transaction client and must do every write through it.
+// Side effects that must not happen for a rolled-back request (event
+// publishing) go in `afterCommit`; whatever it returns is merged into the
+// live response body only (never stored for replay).
+type IdempotencyTx = Prisma.TransactionClient;
+type IdempotentOutcome = {
+  status: number;
+  body: unknown;
+  afterCommit?: () => Promise<Record<string, unknown> | void>;
+};
+
+class IdempotencyRollback extends Error {
+  constructor(public readonly outcome: IdempotentOutcome) {
+    super("idempotent operation did not succeed; rolling back its claim");
+  }
+}
+
+const IDEMPOTENCY_TX_OPTIONS = { maxWait: 10_000, timeout: 30_000 } as const;
+
 async function withIdempotency(
   req: Request,
   res: Response,
   operation: string,
-  run: () => Promise<{ status: number; body: unknown }>
+  run: (tx: IdempotencyTx) => Promise<IdempotentOutcome>
 ): Promise<void> {
+  const respond = async (outcome: IdempotentOutcome) => {
+    let body = outcome.body;
+    if (outcome.afterCommit) {
+      const extra = await outcome.afterCommit();
+      if (extra && body && typeof body === "object") body = { ...(body as object), ...extra };
+    }
+    res.status(outcome.status).json(body);
+  };
+
   const key = req.header(IDEMPOTENCY_HEADER);
   if (!key) {
-    const { status, body } = await run();
-    res.status(status).json(body);
+    // No key: no claim, but the multi-row writes inside `run` keep the single
+    // transaction they always had (they used to open their own).
+    await respond(await prisma.$transaction((tx) => run(tx), IDEMPOTENCY_TX_OPTIONS));
     return;
   }
   const enterpriseId = req.identity!.enterpriseId;
   const requestHash = hashRequestBody(req.body);
 
+  type Settled =
+    | { kind: "done"; outcome: IdempotentOutcome }
+    | { kind: "replay"; status: number; body: unknown }
+    | { kind: "mismatch" }
+    | { kind: "unresolved" };
+
+  let settled: Settled;
   try {
-    await prisma.idempotencyKey.create({
-      data: { enterpriseId, key, operation, requestHash, resultJson: {}, statusCode: 0 },
-    });
-  } catch (err) {
-    if ((err as { code?: string }).code === "P2002") {
-      const existing = await prisma.idempotencyKey.findUnique({
+    settled = await prisma.$transaction(async (tx): Promise<Settled> => {
+      const claimed = await tx.$executeRaw`
+        INSERT INTO "IdempotencyKey" ("id", "enterpriseId", "key", "operation", "requestHash", "resultJson", "statusCode")
+        VALUES (${randomUUID()}, ${enterpriseId}, ${key}, ${operation}, ${requestHash}, '{}'::jsonb, 0)
+        ON CONFLICT ("enterpriseId", "key", "operation") DO NOTHING`;
+      if (claimed === 0) {
+        const existing = await tx.idempotencyKey.findUnique({
+          where: { enterpriseId_key_operation: { enterpriseId, key, operation } },
+        });
+        if (!existing) return { kind: "unresolved" }; // claim vanished between statements; caller retries
+        if (existing.requestHash !== requestHash) return { kind: "mismatch" };
+        // statusCode 0 can only be a claim stranded by the PRE-fix code path.
+        if (existing.statusCode === 0) return { kind: "unresolved" };
+        return { kind: "replay", status: existing.statusCode, body: existing.resultJson };
+      }
+      const outcome = await run(tx);
+      if (outcome.status < 200 || outcome.status >= 300) throw new IdempotencyRollback(outcome);
+      await tx.idempotencyKey.update({
         where: { enterpriseId_key_operation: { enterpriseId, key, operation } },
+        data: { resultJson: outcome.body as Prisma.InputJsonValue, statusCode: outcome.status },
       });
-      if (existing && existing.requestHash !== requestHash) {
-        // Same key, different request — never silently replay another
-        // request's result for this one.
-        res.status(409).json({ error: "This Idempotency-Key was already used for a different request" });
-        return;
-      }
-      if (existing && existing.statusCode !== 0) {
-        res.status(existing.statusCode).json(existing.resultJson as object);
-        return;
-      }
-      res.status(409).json({ error: "A request with this Idempotency-Key is already in progress" });
+      return { kind: "done", outcome };
+    }, IDEMPOTENCY_TX_OPTIONS);
+  } catch (err) {
+    if (err instanceof IdempotencyRollback) {
+      // A failed attempt must not be cached as this key's answer: the claim
+      // rolled back with it, so a corrected retry with the same key runs.
+      res.status(err.outcome.status).json(err.outcome.body);
       return;
     }
     throw err;
   }
 
-  // Stage 03C correctness fix: a failed (non-2xx) or throwing attempt
-  // must not be cached as this key's permanent answer — the claim is
-  // released so a genuine retry with the same key (after the caller
-  // fixes whatever was wrong, or once a transient failure passes) gets a
-  // real second attempt instead of being frozen onto the first failure.
-  let outcome: { status: number; body: unknown };
-  try {
-    outcome = await run();
-  } catch (err) {
-    await prisma.idempotencyKey.deleteMany({ where: { enterpriseId, key, operation } });
-    throw err;
+  switch (settled.kind) {
+    case "done":
+      await respond(settled.outcome);
+      return;
+    case "replay":
+      res.status(settled.status).json(settled.body);
+      return;
+    case "mismatch":
+      // Same key, different request — never silently replay another request's result.
+      res.status(409).json({ error: "This Idempotency-Key was already used for a different request" });
+      return;
+    case "unresolved":
+      res.status(409).json({ error: "This Idempotency-Key has an unresolved claim from before crash-safe idempotency; use a new key" });
+      return;
   }
-  if (outcome.status < 200 || outcome.status >= 300) {
-    await prisma.idempotencyKey.deleteMany({ where: { enterpriseId, key, operation } });
-    res.status(outcome.status).json(outcome.body);
-    return;
-  }
-
-  await prisma.idempotencyKey.update({
-    where: { enterpriseId_key_operation: { enterpriseId, key, operation } },
-    data: { resultJson: outcome.body as Prisma.InputJsonValue, statusCode: outcome.status },
-  });
-  res.status(outcome.status).json(outcome.body);
 }
 
 // §11: "Order Service — Production order CRUD, priority scoring, status
@@ -214,6 +273,91 @@ app.post("/customers", async (req, res) => {
     data: { name, tier, slaDays, penaltyPerDay, enterpriseId: req.identity!.enterpriseId },
   });
   res.status(201).json(customer);
+});
+
+// Phase 2: atomic find-or-create by name. The orchestrator used to do GET
+// then POST, so two concurrent orders naming the same new customer both
+// missed and both created one. A transaction-scoped advisory lock keyed on
+// (enterprise, name) makes the lookup and the insert one critical section
+// per name without serializing unrelated names, and without a unique
+// constraint on Customer.name (names are not unique in general: ERP-sourced
+// customers are keyed by externalCustomerId, and two real companies can
+// share a name).
+app.post("/customers/find-or-create", async (req, res) => {
+  const { name, externalCustomerId, creditLimit, active } = req.body ?? {};
+  if (typeof name !== "string" || name.trim().length === 0 || name.length > 200) {
+    res.status(400).json({ error: "name must be a non-empty string up to 200 characters" });
+    return;
+  }
+  if (externalCustomerId !== undefined && (typeof externalCustomerId !== "string" || externalCustomerId.length < 1 || externalCustomerId.length > 100)) {
+    res.status(400).json({ error: "externalCustomerId must be a 1-100 character string" });
+    return;
+  }
+  if (creditLimit !== undefined && creditLimit !== null && (typeof creditLimit !== "number" || !Number.isFinite(creditLimit) || creditLimit < 0)) {
+    res.status(400).json({ error: "creditLimit must be a non-negative number" });
+    return;
+  }
+  if (active !== undefined && typeof active !== "boolean") {
+    res.status(400).json({ error: "active must be a boolean" });
+    return;
+  }
+  const enterpriseId = req.identity!.enterpriseId;
+  const { customer, created } = await prisma.$transaction(async (tx) => {
+    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`customer:${enterpriseId}:${name}`}, 0))`;
+    const existing = await tx.customer.findFirst({ where: { name, enterpriseId }, orderBy: { id: "asc" } });
+    if (existing) {
+      // Adopt the caller's external id / credit terms onto a legacy row that
+      // never had them; never change values that are already set.
+      const adopt: { externalCustomerId?: string; creditLimit?: number } = {};
+      if (externalCustomerId && !existing.externalCustomerId) adopt.externalCustomerId = externalCustomerId;
+      if (typeof creditLimit === "number" && existing.creditLimit === null) adopt.creditLimit = creditLimit;
+      if (Object.keys(adopt).length === 0) return { customer: existing, created: false };
+      return { customer: await tx.customer.update({ where: { id: existing.id }, data: adopt }), created: false };
+    }
+    return {
+      customer: await tx.customer.create({
+        data: { name, enterpriseId, externalCustomerId, creditLimit: creditLimit ?? undefined, active: active ?? true },
+      }),
+      created: true,
+    };
+  });
+  res.status(created ? 201 : 200).json(customer);
+});
+
+// Phase 2: keyset-paged reads for reconciliation (tenant-scoped, id order).
+function pageParams(req: Request): { after?: string; limit: number } {
+  const limitRaw = Number(req.query.limit ?? 500);
+  const limit = Number.isInteger(limitRaw) && limitRaw >= 1 ? Math.min(limitRaw, 1000) : 500;
+  const after = typeof req.query.after === "string" && req.query.after.length > 0 ? req.query.after : undefined;
+  return { after, limit };
+}
+app.get("/customers/page", async (req, res) => {
+  const { after, limit } = pageParams(req);
+  const rows = await prisma.customer.findMany({
+    where: { enterpriseId: req.identity!.enterpriseId, ...(after ? { id: { gt: after } } : {}) },
+    orderBy: { id: "asc" },
+    take: limit + 1,
+    select: { id: true, name: true, externalCustomerId: true, creditLimit: true, active: true },
+  });
+  const hasMore = rows.length > limit;
+  const items = hasMore ? rows.slice(0, limit) : rows;
+  res.json({ items, nextAfter: hasMore ? items[items.length - 1].id : null });
+});
+app.get("/sales-orders/page", async (req, res) => {
+  const { after, limit } = pageParams(req);
+  const rows = await prisma.salesOrder.findMany({
+    where: { enterpriseId: req.identity!.enterpriseId, ...(after ? { id: { gt: after } } : {}) },
+    orderBy: { id: "asc" },
+    take: limit + 1,
+    select: {
+      id: true, externalOrderId: true, value: true, dueDate: true, status: true, createdAt: true,
+      customer: { select: { externalCustomerId: true, name: true } },
+      orderLines: { select: { productId: true, productName: true, quantity: true, unitPrice: true }, orderBy: { id: "asc" }, take: 1 },
+    },
+  });
+  const hasMore = rows.length > limit;
+  const items = hasMore ? rows.slice(0, limit) : rows;
+  res.json({ items, nextAfter: hasMore ? items[items.length - 1].id : null });
 });
 
 // Order-to-production Phase 1: find-by-name lookup so the agent-orchestrator's
@@ -298,11 +442,11 @@ app.post("/sales-orders", async (req, res) => {
     return;
   }
 
-  await withIdempotency(req, res, "create_sales_order_with_fulfillment", async () => {
+  await withIdempotency(req, res, "create_sales_order_with_fulfillment", async (tx) => {
     const validationError = validateFulfillmentLines(lines, quantity ?? 0);
     if (validationError) return validationError;
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await (async () => {
       const salesOrder = await tx.salesOrder.create({ data: salesOrderData });
       const orderLine = await tx.orderLine.create({
         data: {
@@ -334,15 +478,17 @@ app.post("/sales-orders", async (req, res) => {
         )
       );
       return { salesOrder, orderLine, fulfillmentPlan, fulfillmentLines };
-    });
-
-    await writeSalesOrderAuditLog(req, result.salesOrder.id, enterpriseId, {
-      externalOrderId: result.salesOrder.externalOrderId,
-      status: result.salesOrder.status,
-      strategy,
-    });
+    })();
 
     return {
+      // Best-effort audit row, written only after the order really committed.
+      afterCommit: async () => {
+        await writeSalesOrderAuditLog(req, result.salesOrder.id, enterpriseId, {
+          externalOrderId: result.salesOrder.externalOrderId,
+          status: result.salesOrder.status,
+          strategy,
+        });
+      },
       status: 201,
       body: {
         ...result.salesOrder,
@@ -456,13 +602,13 @@ app.post("/sales-orders/:id/fulfillment", async (req, res) => {
     return;
   }
 
-  await withIdempotency(req, res, "create_fulfillment_for_sales_order", async () => {
+  await withIdempotency(req, res, "create_fulfillment_for_sales_order", async (tx) => {
     // Stage 03: now the shared helper also used by the new atomic
     // POST /sales-orders path — same rule, one place.
     const validationError = validateFulfillmentLines(lines, quantity);
     if (validationError) return validationError;
 
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await (async () => {
       const orderLine = await tx.orderLine.create({
         data: {
           orderId: req.params.id,
@@ -492,8 +638,15 @@ app.post("/sales-orders/:id/fulfillment", async (req, res) => {
           })
         )
       );
+      // Phase 2: an order created ahead of its fulfillment plan (PostgreSQL
+      // as first writer) has no fulfillmentType yet; record the plan's
+      // strategy on it. A type that is already set is never overwritten.
+      await tx.salesOrder.updateMany({
+        where: { id: req.params.id, fulfillmentType: null },
+        data: { fulfillmentType: strategy as never },
+      });
       return { orderLine, fulfillmentPlan, fulfillmentLines };
-    });
+    })();
 
     return {
       status: 201,
@@ -540,9 +693,13 @@ app.get("/sales-orders/:id/fulfillment", async (req, res) => {
 // dual-written before this existed, or a channel — consignment, export —
 // with no real SalesOrder row at all) is not an error: the row is still
 // created, just with salesOrderId left null.
-async function resolveSalesOrderId(enterpriseId: string, externalSalesOrderId: string | null | undefined): Promise<string | null> {
+async function resolveSalesOrderId(
+  enterpriseId: string,
+  externalSalesOrderId: string | null | undefined,
+  db: IdempotencyTx = prisma
+): Promise<string | null> {
   if (!externalSalesOrderId) return null;
-  const order = await prisma.salesOrder.findFirst({
+  const order = await db.salesOrder.findFirst({
     where: { enterpriseId, externalOrderId: externalSalesOrderId },
     select: { id: true },
   });
@@ -571,9 +728,9 @@ app.post("/deliveries", async (req, res) => {
   }
   const enterpriseId = req.identity!.enterpriseId;
 
-  await withIdempotency(req, res, "create_delivery", async () => {
-    const salesOrderId = await resolveSalesOrderId(enterpriseId, externalSalesOrderId);
-    const delivery = await prisma.delivery.upsert({
+  await withIdempotency(req, res, "create_delivery", async (tx) => {
+    const salesOrderId = await resolveSalesOrderId(enterpriseId, externalSalesOrderId, tx);
+    const delivery = await tx.delivery.upsert({
       where: { enterpriseId_externalDeliveryId: { enterpriseId, externalDeliveryId } },
       create: {
         enterpriseId, externalDeliveryId, externalSalesOrderId, salesOrderId,
@@ -620,9 +777,9 @@ app.post("/invoices", async (req, res) => {
   }
   const enterpriseId = req.identity!.enterpriseId;
 
-  await withIdempotency(req, res, "create_invoice", async () => {
-    const salesOrderId = await resolveSalesOrderId(enterpriseId, externalSalesOrderId);
-    const invoice = await prisma.invoice.upsert({
+  await withIdempotency(req, res, "create_invoice", async (tx) => {
+    const salesOrderId = await resolveSalesOrderId(enterpriseId, externalSalesOrderId, tx);
+    const invoice = await tx.invoice.upsert({
       where: { enterpriseId_externalInvoiceId: { enterpriseId, externalInvoiceId } },
       create: {
         enterpriseId, externalInvoiceId, externalSalesOrderId, externalDeliveryId, salesOrderId,
@@ -638,6 +795,144 @@ app.post("/invoices", async (req, res) => {
     });
     return { status: 201, body: invoice };
   });
+});
+
+// Phase 2 (Database Authority): Postgres-owned document ids. One atomic
+// upsert-increment per call, so concurrent callers can never receive the
+// same value. `floor` lets the first call start above the highest id the
+// legacy Excel sheet already issued (value = max(lastValue, floor) + 1);
+// the sequence never moves down. Gaps are possible (a caller that fails
+// after allocating) and are fine — ids must be unique, not gapless.
+const SEQUENCE_KINDS: Record<string, { table: string; column: string; prefix: string }> = {
+  DELIVERY: { table: "Delivery", column: "externalDeliveryId", prefix: "DEL" },
+  INVOICE: { table: "Invoice", column: "externalInvoiceId", prefix: "INV" },
+  SALES_ORDER: { table: "SalesOrder", column: "externalOrderId", prefix: "SO" },
+  CUSTOMER: { table: "Customer", column: "externalCustomerId", prefix: "C" },
+};
+app.post("/sequences/:kind/next", async (req, res) => {
+  const kind = String(req.params.kind).toUpperCase();
+  const spec = SEQUENCE_KINDS[kind];
+  if (!spec) {
+    res.status(400).json({ error: `Unknown sequence kind ${req.params.kind}` });
+    return;
+  }
+  const floorRaw = req.body?.floor ?? 0;
+  if (!Number.isInteger(floorRaw) || floorRaw < 0 || floorRaw > 2_000_000_000) {
+    res.status(400).json({ error: "floor must be a non-negative integer" });
+    return;
+  }
+  const key = req.body?.idempotencyKey;
+  if (key !== undefined && (typeof key !== "string" || key.length < 1 || key.length > 200)) {
+    res.status(400).json({ error: "idempotencyKey must be a 1-200 character string" });
+    return;
+  }
+  const enterpriseId = req.identity!.enterpriseId;
+
+  const out = await prisma.$transaction(async (tx) => {
+    if (key) {
+      // Serialize concurrent requests for the SAME (enterprise, kind, key) so
+      // exactly one of them allocates and the rest replay its number.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${enterpriseId}:${kind}:${key}`}, 0))`;
+      const existing = await tx.documentNumberAllocation.findUnique({
+        where: { enterpriseId_kind_idempotencyKey: { enterpriseId, kind, idempotencyKey: key } },
+      });
+      if (existing) return { value: existing.value, replayed: true };
+    }
+    // The sequence must never hand out a number a row already carries: the
+    // caller's floor covers the legacy Excel sheet, this covers rows already
+    // in Postgres (e.g. mirrored earlier, or left by earlier runs). The
+    // table/column names come from the fixed map above, never from input.
+    const pgMax = await tx.$queryRawUnsafe<{ m: number }[]>(
+      `SELECT COALESCE(MAX(CAST(SUBSTRING("${spec.column}" FROM ${spec.prefix.length + 1}) AS INTEGER)), 0) AS m
+         FROM "${spec.table}" WHERE "enterpriseId" = $1 AND "${spec.column}" ~ '^${spec.prefix}[0-9]{1,9}$'`,
+      enterpriseId
+    );
+    const floor = Math.max(floorRaw, Number(pgMax[0]?.m ?? 0));
+    const rows = await tx.$queryRaw<{ lastValue: number }[]>`
+      INSERT INTO "DocumentSequence" ("id", "kind", "lastValue", "enterpriseId")
+      VALUES (${randomUUID()}, ${kind}, ${floor + 1}, ${enterpriseId})
+      ON CONFLICT ("enterpriseId", "kind")
+      DO UPDATE SET "lastValue" = GREATEST("DocumentSequence"."lastValue", ${floor}) + 1
+      RETURNING "lastValue"`;
+    const value = rows[0].lastValue;
+    if (key) {
+      await tx.documentNumberAllocation.create({ data: { enterpriseId, kind, idempotencyKey: key, value } });
+    }
+    return { value, replayed: false };
+  });
+  res.status(200).json({ kind, value: out.value, replayed: out.replayed });
+});
+
+// Phase 2 (Database Authority): read side for reconciliation. Delivery and
+// Invoice were write-only to Postgres (mirror), so nothing could compare
+// the two stores. Enterprise-scoped from the verified identity like every
+// other route here; keyset-paginated on the external id (stable, unique per
+// enterprise) so a reconciler can walk the whole table without offset drift
+// while rows are being written.
+const RECONCILE_PAGE_MAX = 1000;
+function parsePageLimit(raw: unknown): number {
+  const n = Number(raw);
+  if (!Number.isFinite(n) || n <= 0) return 200;
+  return Math.min(Math.floor(n), RECONCILE_PAGE_MAX);
+}
+
+app.get("/deliveries", async (req, res) => {
+  const { after } = req.query as { after?: string };
+  const take = parsePageLimit(req.query.limit);
+  const rows = await prisma.delivery.findMany({
+    where: { enterpriseId: req.identity!.enterpriseId, ...(after ? { externalDeliveryId: { gt: after } } : {}) },
+    orderBy: { externalDeliveryId: "asc" },
+    take: take + 1,
+  });
+  const hasMore = rows.length > take;
+  const items = hasMore ? rows.slice(0, take) : rows;
+  res.json({ items, nextAfter: hasMore ? items[items.length - 1].externalDeliveryId : null });
+});
+
+app.get("/invoices", async (req, res) => {
+  const { after } = req.query as { after?: string };
+  const take = parsePageLimit(req.query.limit);
+  const rows = await prisma.invoice.findMany({
+    where: { enterpriseId: req.identity!.enterpriseId, ...(after ? { externalInvoiceId: { gt: after } } : {}) },
+    orderBy: { externalInvoiceId: "asc" },
+    take: take + 1,
+  });
+  const hasMore = rows.length > take;
+  const items = hasMore ? rows.slice(0, take) : rows;
+  res.json({ items, nextAfter: hasMore ? items[items.length - 1].externalInvoiceId : null });
+});
+
+// Phase 2: the only post-creation Invoice state change that exists today is
+// ISSUED -> PAID (Excel's mark_invoice_paid). It was never mirrored to
+// Postgres, so every paid invoice stayed ISSUED here. Atomic compare-and-set
+// on the current status (same pattern as the approval claim and the
+// production-order completion claim): two concurrent callers cannot both
+// "win", and a repeat of an already-applied PAID is an idempotent 200, not
+// an error, so the Python caller can retry safely.
+app.patch("/invoices/:externalInvoiceId/status", async (req, res) => {
+  const { externalInvoiceId } = req.params;
+  const { status } = req.body as { status?: string };
+  if (status !== "PAID") {
+    res.status(400).json({ error: "Only status PAID is supported (ISSUED -> PAID)" });
+    return;
+  }
+  const enterpriseId = req.identity!.enterpriseId;
+  const where = { enterpriseId_externalInvoiceId: { enterpriseId, externalInvoiceId } };
+
+  const claimed = await prisma.invoice.updateMany({
+    where: { enterpriseId, externalInvoiceId, status: "ISSUED" },
+    data: { status: "PAID" },
+  });
+  const current = await prisma.invoice.findUnique({ where });
+  if (!current) {
+    res.status(404).json({ error: `Invoice ${externalInvoiceId} not found` });
+    return;
+  }
+  if (claimed.count === 1 || current.status === "PAID") {
+    res.json(current);
+    return;
+  }
+  res.status(409).json({ error: `Cannot mark ${externalInvoiceId} paid from status ${current.status}` });
 });
 
 const VALID_FULFILLMENT_LINE_STATUSES = [
@@ -906,7 +1201,7 @@ app.post("/orders", async (req, res) => {
   // logical preview. Reuses the exact same claim-first IdempotencyKey
   // mechanism as POST /sales-orders — an absent header leaves every
   // existing caller's behavior byte-for-byte unchanged.
-  await withIdempotency(req, res, "create_production_order", async () => {
+  await withIdempotency(req, res, "create_production_order", async (tx) => {
     const { plantId, salesOrderId, productId, routingId, bomId, quantity, manualOverride, metadata } = req.body as {
       plantId: string;
       salesOrderId?: string;
@@ -923,7 +1218,7 @@ app.post("/orders", async (req, res) => {
     // against a plant it doesn't actually have access to merely by knowing
     // its id. enterpriseId on the new row is always taken from this already-
     // verified identity, never derived a second, independently-trusted way.
-    const plant = await prisma.plant.findFirst({ where: { id: plantId, site: { enterpriseId: req.identity!.enterpriseId } } });
+    const plant = await tx.plant.findFirst({ where: { id: plantId, site: { enterpriseId: req.identity!.enterpriseId } } });
     if (!plant) {
       return { status: 404, body: { error: `No Plant found with id ${plantId}` } };
     }
@@ -933,7 +1228,7 @@ app.post("/orders", async (req, res) => {
       // Stage 02: scoped by enterprise — a SalesOrder from another
       // enterprise is treated as not found, same as everywhere else, rather
       // than silently skipping the priority computation.
-      const salesOrder = await prisma.salesOrder.findFirst({
+      const salesOrder = await tx.salesOrder.findFirst({
         where: { id: salesOrderId, enterpriseId: req.identity!.enterpriseId },
         include: { customer: true },
       });
@@ -954,7 +1249,7 @@ app.post("/orders", async (req, res) => {
       });
     }
 
-    const order = await prisma.productionOrder.create({
+    const order = await tx.productionOrder.create({
       data: {
         plantId, salesOrderId, productId, routingId, bomId, quantity, priorityScore, status: "PLANNED", metadata,
         enterpriseId: req.identity!.enterpriseId,
@@ -962,27 +1257,35 @@ app.post("/orders", async (req, res) => {
     });
     logger.info("Production order created", { orderId: order.id, priorityScore });
 
-    // Stage 01 (Fail Loud, Fail Closed): the ProductionOrder above already
-    // committed — a publish failure here must never turn into an HTTP 500,
-    // which would tell the caller the creation itself failed and risk a
-    // retry that creates a duplicate order. Logged in full, and surfaced to
-    // the caller as a visible warning on an otherwise-normal 201, not
-    // swallowed and not misrepresented as a failure.
-    const syncError = await publishTracked(
-      TOPICS.ORDERS_PRODUCTION_CREATED,
-      { orderId: order.id, plantId, productId, priorityScore },
-      { operation: "POST /orders", entityId: order.id }
-    );
-    if (syncError) {
-      logger.error("Downstream sync failed after commit", {
-        operation: syncError.operation,
-        target: syncError.target,
-        entityId: syncError.entityId,
-        cause: String(syncError.cause),
-      });
-      return { status: 201, body: { ...order, syncWarning: syncError.message } };
-    }
-    return { status: 201, body: order };
+    // Stage 01 (Fail Loud, Fail Closed): once the ProductionOrder commits, a
+    // publish failure must never become an HTTP 500 (which would invite a
+    // retry that duplicates the order). Phase 2: the publish now runs in
+    // afterCommit, i.e. only for an order that actually committed (it used to
+    // fire inside the request, before the commit was durable). A failure is
+    // logged in full and surfaced as a visible syncWarning on an otherwise
+    // normal 201 — in the live response only, never in the stored replay.
+    // Residual gap (Phase 3, outbox): a crash between commit and publish
+    // loses the event; the order itself is safe and a retry replays it.
+    return {
+      status: 201,
+      body: order,
+      afterCommit: async () => {
+        const syncError = await publishTracked(
+          TOPICS.ORDERS_PRODUCTION_CREATED,
+          { orderId: order.id, plantId, productId, priorityScore },
+          { operation: "POST /orders", entityId: order.id }
+        );
+        if (syncError) {
+          logger.error("Downstream sync failed after commit", {
+            operation: syncError.operation,
+            target: syncError.target,
+            entityId: syncError.entityId,
+            cause: String(syncError.cause),
+          });
+          return { syncWarning: syncError.message };
+        }
+      },
+    };
   });
 });
 

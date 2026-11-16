@@ -11,9 +11,19 @@
 // touches real demo data.
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { randomUUID } from "node:crypto";
-import request from "supertest";
+import supertest from "supertest";
+import http from "node:http";
 import { prisma } from "@aps/domain";
 import { app } from "./app";
+
+// One persistent server bound to 127.0.0.1 for the whole file. supertest's
+// default is a NEW ephemeral server per request; on macOS a wildcard bind can
+// lose to another local process listening on 127.0.0.1 at the same port, so a
+// request occasionally reached the wrong server (404/200/ECONNRESET with no
+// application log line). A single exclusively-owned port removes that.
+const testServer = http.createServer(app).listen(0, "127.0.0.1");
+afterAll(() => new Promise<void>((resolve) => { testServer.close(() => resolve()); }));
+const request = (_app?: unknown) => supertest(testServer);
 
 // Stage 01 (Fail Loud, Fail Closed) tests below need to simulate a
 // downstream Kafka publish failure without touching the DB/messaging
@@ -51,6 +61,7 @@ const req = (enterpriseId?: string) => ({
   patch: (url: string) => request(app).patch(url).set(AUTH_HEADER).set(identityHeader(enterpriseId)),
   delete: (url: string) => request(app).delete(url).set(AUTH_HEADER).set(identityHeader(enterpriseId)),
 });
+
 
 describe("order-service — order-to-production domain endpoints", () => {
   const suffix = randomUUID().slice(0, 8);
@@ -303,6 +314,66 @@ describe("order-service — order-to-production domain endpoints", () => {
         include: { orderLines: true },
       });
       expect(order!.orderLines).toHaveLength(1); // the retry did not create a second OrderLine
+    });
+
+    // Reliability-pass fix: the retry test above only proves a SEQUENTIAL
+    // retry (second call awaited strictly after the first fully resolved)
+    // replays correctly — it never exercises withIdempotency's actual
+    // concurrency guarantee (the prisma.idempotencyKey.create unique-
+    // constraint claim, not a check-then-act race) for THIS route. Same
+    // Promise.all pattern as the already-proven analogous test for
+    // POST /orders above ("concurrent requests for the same preview...").
+    it("concurrent requests with the same Idempotency-Key never create two distinct OrderLines", async () => {
+      const key = `fulfillment-concurrent-${idemSalesOrderId}`;
+      const body = {
+        productId, productName: "Test Widget", quantity: 11, unitPrice: 900,
+        strategy: "MTS", reasoning: "concurrent same-key fulfillment", lines: [{ sourceType: "STOCK", quantity: 11 }],
+      };
+
+      const [a, b] = await Promise.all([
+        req().post(`/sales-orders/${idemSalesOrderId}/fulfillment`).set("Idempotency-Key", key).send(body),
+        req().post(`/sales-orders/${idemSalesOrderId}/fulfillment`).set("Idempotency-Key", key).send(body),
+      ]);
+
+      // Same real guarantee as the analogous POST /orders race test:
+      // under genuine concurrency either response may legitimately be a
+      // 409 ("already in progress") if it lost the claim race before the
+      // winner's result was recorded — what must never happen is two
+      // distinct OrderLines for one logical request.
+      const created = [a, b].filter((r) => r.status === 201);
+      expect(created.length).toBeGreaterThanOrEqual(1);
+      const distinctOrderLineIds = new Set(created.map((r) => r.body.orderLineId));
+      expect(distinctOrderLineIds.size).toBe(1);
+
+      const order = await prisma.salesOrder.findUnique({
+        where: { id: idemSalesOrderId },
+        include: { orderLines: { where: { quantity: 11 } } },
+      });
+      expect(order!.orderLines).toHaveLength(1); // exactly one real OrderLine, not two
+    });
+
+    // Reliability-pass fix: proves a failed attempt's claim is actually
+    // released (withIdempotency deletes the IdempotencyKey row on a
+    // throw or non-2xx — see its own "Stage 03C correctness fix"
+    // comment), so a genuine retry with the SAME key after fixing the
+    // input gets a real second attempt instead of being permanently
+    // frozen onto the first failure.
+    it("a request that fails validation under an Idempotency-Key is not cached, so a corrected retry with the same key succeeds", async () => {
+      const key = `fulfillment-failed-then-retry-${idemSalesOrderId}`;
+      const badBody = {
+        productId, productName: "Test Widget", quantity: 9, unitPrice: 900,
+        strategy: "MTS", reasoning: "bad lines", lines: [{ sourceType: "STOCK", quantity: 999 }], // mismatched total
+      };
+
+      const failed = await req().post(`/sales-orders/${idemSalesOrderId}/fulfillment`).set("Idempotency-Key", key).send(badBody);
+      expect(failed.status).toBeGreaterThanOrEqual(400);
+
+      const goodBody = {
+        productId, productName: "Test Widget", quantity: 9, unitPrice: 900,
+        strategy: "MTS", reasoning: "corrected", lines: [{ sourceType: "STOCK", quantity: 9 }],
+      };
+      const retried = await req().post(`/sales-orders/${idemSalesOrderId}/fulfillment`).set("Idempotency-Key", key).send(goodBody);
+      expect(retried.status).toBe(201);
     });
 
     it("a different Idempotency-Key for the same SalesOrder creates its own separate OrderLine (not conflated with another key's)", async () => {
@@ -2060,5 +2131,605 @@ describe("order-service — POST /deliveries and POST /invoices (Delivery/Invoic
     } finally {
       await prisma.enterprise.deleteMany({ where: { id: other.id } });
     }
+  });
+});
+
+// Phase 2 (Database Authority): GET /deliveries and GET /invoices are the
+// read side the reconciler uses to compare Postgres against the Excel
+// representation. Keyset pagination + tenant scoping are the two things a
+// reconciler silently depends on, so both are proven here.
+describe("order-service — GET /deliveries and GET /invoices (reconciliation read side)", () => {
+  const suffix = randomUUID().slice(0, 8);
+  let enterpriseId: string;
+  let otherEnterpriseId: string;
+  const AUTH = { "x-internal-token": process.env.INTERNAL_SERVICE_TOKEN ?? "" };
+
+  function identity(entId: string) {
+    const token = shared.signIdentityAssertion(
+      { sub: "test-user", type: "user", role: "PLANNER", enterpriseId: entId, aud: "aps-internal" },
+      process.env.INTERNAL_SERVICE_TOKEN ?? ""
+    );
+    return { "x-identity-assertion": token };
+  }
+
+  beforeAll(async () => {
+    enterpriseId = (await prisma.enterprise.create({ data: { name: `test-recon-${suffix}`, timezone: "UTC", currency: "USD" } })).id;
+    otherEnterpriseId = (await prisma.enterprise.create({ data: { name: `test-recon-other-${suffix}`, timezone: "UTC", currency: "USD" } })).id;
+    for (let i = 1; i <= 5; i++) {
+      await prisma.delivery.create({ data: { enterpriseId, externalDeliveryId: `DEL-R-${suffix}-${i}`, quantity: i, status: "DISPATCHED" } });
+      await prisma.invoice.create({
+        data: { enterpriseId, externalInvoiceId: `INV-R-${suffix}-${i}`, quantityBilled: i, unitPrice: 10, invoiceAmount: i * 10, status: "ISSUED" },
+      });
+    }
+    await prisma.delivery.create({ data: { enterpriseId: otherEnterpriseId, externalDeliveryId: `DEL-R-${suffix}-other`, quantity: 1, status: "DISPATCHED" } });
+    await prisma.invoice.create({
+      data: { enterpriseId: otherEnterpriseId, externalInvoiceId: `INV-R-${suffix}-other`, quantityBilled: 1, unitPrice: 1, invoiceAmount: 1, status: "ISSUED" },
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.delivery.deleteMany({ where: { enterpriseId: { in: [enterpriseId, otherEnterpriseId] } } });
+    await prisma.invoice.deleteMany({ where: { enterpriseId: { in: [enterpriseId, otherEnterpriseId] } } });
+    await prisma.enterprise.deleteMany({ where: { id: { in: [enterpriseId, otherEnterpriseId] } } });
+  });
+
+  it("walks every delivery exactly once across pages and never returns another enterprise's rows", async () => {
+    const seen: string[] = [];
+    let after: string | null = null;
+    let pages = 0;
+    do {
+      const res: any = await request(app).get("/deliveries").query({ limit: 2, ...(after ? { after } : {}) }).set(AUTH).set(identity(enterpriseId));
+      expect(res.status).toBe(200);
+      seen.push(...res.body.items.map((d: any) => d.externalDeliveryId));
+      after = res.body.nextAfter;
+      pages++;
+    } while (after && pages < 10);
+    expect(pages).toBe(3); // 5 rows, page size 2 → 2+2+1
+    expect(seen).toEqual([1, 2, 3, 4, 5].map((i) => `DEL-R-${suffix}-${i}`));
+  });
+
+  it("walks every invoice exactly once and is tenant-scoped", async () => {
+    const mine = await request(app).get("/invoices").query({ limit: 1000 }).set(AUTH).set(identity(enterpriseId));
+    expect(mine.status).toBe(200);
+    expect(mine.body.items).toHaveLength(5);
+    expect(mine.body.nextAfter).toBeNull();
+    expect(mine.body.items.some((i: any) => i.externalInvoiceId.endsWith("-other"))).toBe(false);
+
+    const theirs = await request(app).get("/invoices").set(AUTH).set(identity(otherEnterpriseId));
+    expect(theirs.body.items.map((i: any) => i.externalInvoiceId)).toEqual([`INV-R-${suffix}-other`]);
+  });
+
+  it("caps an oversized limit and requires auth", async () => {
+    const capped = await request(app).get("/deliveries").query({ limit: 999999 }).set(AUTH).set(identity(enterpriseId));
+    expect(capped.status).toBe(200);
+    const noAuth = await request(app).get("/deliveries");
+    expect([401, 403]).toContain(noAuth.status);
+  });
+});
+
+describe("order-service — PATCH /invoices/:id/status (ISSUED -> PAID mirror)", () => {
+  const suffix = randomUUID().slice(0, 8);
+  let enterpriseId: string;
+  let otherEnterpriseId: string;
+  const AUTH = { "x-internal-token": process.env.INTERNAL_SERVICE_TOKEN ?? "" };
+  const id = (n: string) => `INV-PAY-${suffix}-${n}`;
+
+  function identity(entId: string) {
+    const token = shared.signIdentityAssertion(
+      { sub: "test-user", type: "user", role: "PLANNER", enterpriseId: entId, aud: "aps-internal" },
+      process.env.INTERNAL_SERVICE_TOKEN ?? ""
+    );
+    return { "x-identity-assertion": token };
+  }
+
+  beforeAll(async () => {
+    enterpriseId = (await prisma.enterprise.create({ data: { name: `test-pay-${suffix}`, timezone: "UTC", currency: "USD" } })).id;
+    otherEnterpriseId = (await prisma.enterprise.create({ data: { name: `test-pay-other-${suffix}`, timezone: "UTC", currency: "USD" } })).id;
+    for (const n of ["a", "b", "c", "d"]) {
+      await prisma.invoice.create({
+        data: { enterpriseId, externalInvoiceId: id(n), quantityBilled: 1, unitPrice: 5, invoiceAmount: 5, status: "ISSUED" },
+      });
+    }
+    await prisma.invoice.create({
+      data: { enterpriseId, externalInvoiceId: id("void"), quantityBilled: 1, unitPrice: 5, invoiceAmount: 5, status: "VOID" },
+    });
+  });
+
+  afterAll(async () => {
+    await prisma.invoice.deleteMany({ where: { enterpriseId: { in: [enterpriseId, otherEnterpriseId] } } });
+    await prisma.enterprise.deleteMany({ where: { id: { in: [enterpriseId, otherEnterpriseId] } } });
+  });
+
+  const patch = (ent: string, invoiceId: string, status = "PAID") =>
+    request(app).patch(`/invoices/${invoiceId}/status`).set(AUTH).set(identity(ent)).send({ status });
+
+  it("marks an ISSUED invoice PAID", async () => {
+    const res = await patch(enterpriseId, id("a"));
+    expect(res.status).toBe(200);
+    expect(res.body.status).toBe("PAID");
+    expect((await prisma.invoice.findFirst({ where: { enterpriseId, externalInvoiceId: id("a") } }))?.status).toBe("PAID");
+  });
+
+  it("is idempotent: repeating an already-applied PAID returns 200, not an error", async () => {
+    expect((await patch(enterpriseId, id("b"))).status).toBe(200);
+    const again = await patch(enterpriseId, id("b"));
+    expect(again.status).toBe(200);
+    expect(again.body.status).toBe("PAID");
+  });
+
+  it("20 concurrent PAID requests all converge on PAID with exactly one transition", async () => {
+    const results = await Promise.all(Array.from({ length: 20 }, () => patch(enterpriseId, id("c"))));
+    expect(results.every((r) => r.status === 200)).toBe(true);
+    expect((await prisma.invoice.findFirst({ where: { enterpriseId, externalInvoiceId: id("c") } }))?.status).toBe("PAID");
+  });
+
+  it("rejects an illegal transition (VOID -> PAID) with 409 and leaves the row untouched", async () => {
+    const res = await patch(enterpriseId, id("void"));
+    expect(res.status).toBe(409);
+    expect((await prisma.invoice.findFirst({ where: { enterpriseId, externalInvoiceId: id("void") } }))?.status).toBe("VOID");
+  });
+
+  it("404 for an unknown invoice, 400 for an unsupported status, and never crosses tenants", async () => {
+    expect((await patch(enterpriseId, id("nope"))).status).toBe(404);
+    expect((await patch(enterpriseId, id("d"), "REFUNDED")).status).toBe(400);
+    expect((await patch(otherEnterpriseId, id("d"))).status).toBe(404); // exists, but in a different enterprise
+    expect((await prisma.invoice.findFirst({ where: { enterpriseId, externalInvoiceId: id("d") } }))?.status).toBe("ISSUED");
+  });
+});
+
+// Phase 2 (Database Authority): Postgres-owned document ids.
+describe("order-service — POST /sequences/:kind/next (Postgres id authority)", () => {
+  const suffix = randomUUID().slice(0, 8);
+  let enterpriseId: string;
+  let otherEnterpriseId: string;
+  const AUTH = { "x-internal-token": process.env.INTERNAL_SERVICE_TOKEN ?? "" };
+
+  function identity(entId: string) {
+    const token = shared.signIdentityAssertion(
+      { sub: "test-user", type: "user", role: "PLANNER", enterpriseId: entId, aud: "aps-internal" },
+      process.env.INTERNAL_SERVICE_TOKEN ?? ""
+    );
+    return { "x-identity-assertion": token };
+  }
+  const next = (ent: string, kind: string, body: object = {}) =>
+    request(app).post(`/sequences/${kind}/next`).set(AUTH).set(identity(ent)).send(body);
+
+  beforeAll(async () => {
+    enterpriseId = (await prisma.enterprise.create({ data: { name: `test-seq-${suffix}`, timezone: "UTC", currency: "USD" } })).id;
+    otherEnterpriseId = (await prisma.enterprise.create({ data: { name: `test-seq-other-${suffix}`, timezone: "UTC", currency: "USD" } })).id;
+  });
+
+  afterAll(async () => {
+    await prisma.documentNumberAllocation.deleteMany({ where: { enterpriseId: { in: [enterpriseId, otherEnterpriseId] } } });
+    await prisma.documentSequence.deleteMany({ where: { enterpriseId: { in: [enterpriseId, otherEnterpriseId] } } });
+    await prisma.enterprise.deleteMany({ where: { id: { in: [enterpriseId, otherEnterpriseId] } } });
+  });
+
+  it("first call starts above the caller's floor, then increments by one", async () => {
+    expect((await next(enterpriseId, "DELIVERY", { floor: 41 })).body.value).toBe(42);
+    expect((await next(enterpriseId, "DELIVERY", { floor: 41 })).body.value).toBe(43);
+  });
+
+  it("never moves down when a later caller passes a lower floor, and jumps up for a higher one", async () => {
+    expect((await next(enterpriseId, "INVOICE", { floor: 10 })).body.value).toBe(11);
+    expect((await next(enterpriseId, "INVOICE", { floor: 0 })).body.value).toBe(12);
+    expect((await next(enterpriseId, "INVOICE", { floor: 100 })).body.value).toBe(101);
+  });
+
+  it("50 concurrent calls receive 50 distinct, contiguous values", async () => {
+    const results = await Promise.all(Array.from({ length: 50 }, () => next(otherEnterpriseId, "DELIVERY")));
+    expect(results.every((r) => r.status === 200)).toBe(true);
+    const values = results.map((r) => r.body.value as number).sort((a, b) => a - b);
+    expect(new Set(values).size).toBe(50);
+    expect(values[0]).toBe(1);
+    expect(values[49]).toBe(50);
+  });
+
+  it("sequences are per-enterprise and per-kind", async () => {
+    expect((await next(enterpriseId, "DELIVERY")).body.value).toBe(44);
+    expect((await next(otherEnterpriseId, "INVOICE")).body.value).toBe(1);
+  });
+
+  it("rejects unknown kinds and bad floors", async () => {
+    expect((await next(enterpriseId, "BANANA")).status).toBe(400);
+    expect((await next(enterpriseId, "DELIVERY", { floor: -1 })).status).toBe(400);
+    expect((await next(enterpriseId, "DELIVERY", { floor: "7" })).status).toBe(400);
+  });
+});
+
+describe("order-service — document sequence: idempotent allocation and Postgres-row floor", () => {
+  const suffix = randomUUID().slice(0, 8);
+  let enterpriseId: string;
+  let otherEnterpriseId: string;
+  const AUTH = { "x-internal-token": process.env.INTERNAL_SERVICE_TOKEN ?? "" };
+
+  function identity(entId: string) {
+    const token = shared.signIdentityAssertion(
+      { sub: "test-user", type: "user", role: "PLANNER", enterpriseId: entId, aud: "aps-internal" },
+      process.env.INTERNAL_SERVICE_TOKEN ?? ""
+    );
+    return { "x-identity-assertion": token };
+  }
+  const next = (ent: string, kind: string, body: object = {}) =>
+    request(app).post(`/sequences/${kind}/next`).set(AUTH).set(identity(ent)).send(body);
+
+  beforeAll(async () => {
+    enterpriseId = (await prisma.enterprise.create({ data: { name: `test-seqk-${suffix}`, timezone: "UTC", currency: "USD" } })).id;
+    otherEnterpriseId = (await prisma.enterprise.create({ data: { name: `test-seqk-other-${suffix}`, timezone: "UTC", currency: "USD" } })).id;
+  });
+
+  afterAll(async () => {
+    const ents = { in: [enterpriseId, otherEnterpriseId] };
+    await prisma.documentNumberAllocation.deleteMany({ where: { enterpriseId: ents } });
+    await prisma.documentSequence.deleteMany({ where: { enterpriseId: ents } });
+    await prisma.delivery.deleteMany({ where: { enterpriseId: ents } });
+    await prisma.invoice.deleteMany({ where: { enterpriseId: ents } });
+    await prisma.enterprise.deleteMany({ where: { id: ents } });
+  });
+
+  it("the same idempotencyKey always receives the same number (retry after a crash), a new key a new one", async () => {
+    const a = await next(enterpriseId, "DELIVERY", { idempotencyKey: "req-1" });
+    const again = await next(enterpriseId, "DELIVERY", { idempotencyKey: "req-1", floor: 500 }); // floor ignored on replay
+    const other = await next(enterpriseId, "DELIVERY", { idempotencyKey: "req-2" });
+    expect(again.body.value).toBe(a.body.value);
+    expect(again.body.replayed).toBe(true);
+    expect(a.body.replayed).toBe(false);
+    expect(other.body.value).toBe(a.body.value + 1);
+  });
+
+  it("20 concurrent requests with the SAME key allocate exactly one number", async () => {
+    const results = await Promise.all(Array.from({ length: 20 }, () => next(enterpriseId, "INVOICE", { idempotencyKey: "same" })));
+    expect(results.every((r) => r.status === 200)).toBe(true);
+    expect(new Set(results.map((r) => r.body.value)).size).toBe(1);
+    expect(results.filter((r) => r.body.replayed === false).length).toBe(1);
+    const after = await next(enterpriseId, "INVOICE"); // exactly one number was consumed
+    expect(after.body.value).toBe(results[0].body.value + 1);
+  });
+
+  it("a key is scoped to its enterprise and kind", async () => {
+    const d = await next(enterpriseId, "DELIVERY", { idempotencyKey: "scoped" });
+    const i = await next(enterpriseId, "INVOICE", { idempotencyKey: "scoped" });
+    const o = await next(otherEnterpriseId, "DELIVERY", { idempotencyKey: "scoped" });
+    expect(d.body.replayed).toBe(false);
+    expect(i.body.replayed).toBe(false);
+    expect(o.body.replayed).toBe(false);
+    expect(o.body.value).toBe(1);
+  });
+
+  it("starts above ids already present in Postgres even when the caller's floor is lower (no silent overwrite of existing rows)", async () => {
+    await prisma.delivery.createMany({
+      data: ["DEL0007", "DEL0070", "NOT-A-DEL-ID", "DELX9"].map((externalDeliveryId) => ({
+        enterpriseId: otherEnterpriseId, externalDeliveryId, quantity: 1, status: "DISPATCHED",
+      })),
+    });
+    // otherEnterprise's DELIVERY sequence is already at 1 from the previous test, so use INVOICE for a fresh one
+    await prisma.invoice.create({
+      data: { enterpriseId: otherEnterpriseId, externalInvoiceId: "INV0163", quantityBilled: 1, unitPrice: 1, invoiceAmount: 1, status: "ISSUED" },
+    });
+    expect((await next(otherEnterpriseId, "INVOICE", { floor: 3 })).body.value).toBe(164);
+    // DELIVERY: lastValue was 1, Postgres max is 70 -> jumps to 71; malformed ids are ignored
+    expect((await next(otherEnterpriseId, "DELIVERY", { floor: 0 })).body.value).toBe(71);
+  });
+
+  it("rejects a malformed idempotencyKey", async () => {
+    expect((await next(enterpriseId, "DELIVERY", { idempotencyKey: "" })).status).toBe(400);
+    expect((await next(enterpriseId, "DELIVERY", { idempotencyKey: 5 })).status).toBe(400);
+    expect((await next(enterpriseId, "DELIVERY", { idempotencyKey: "x".repeat(201) })).status).toBe(400);
+  });
+});
+
+// Phase 2 (Database Authority): SalesOrder and Customer creation are
+// protected by PostgreSQL constraints/transactions, not by caller discipline.
+describe("order-service — Phase 2 SalesOrder and Customer creation hardening", () => {
+  const suffix = randomUUID().slice(0, 8);
+  let enterpriseId: string;
+  let otherEnterpriseId: string;
+  let customerId: string;
+  const AUTH = { "x-internal-token": process.env.INTERNAL_SERVICE_TOKEN ?? "" };
+
+  function identity(entId: string) {
+    const token = shared.signIdentityAssertion(
+      { sub: "test-user", type: "user", role: "PLANNER", enterpriseId: entId, aud: "aps-internal" },
+      process.env.INTERNAL_SERVICE_TOKEN ?? ""
+    );
+    return { "x-identity-assertion": token };
+  }
+  const post = (ent: string, path: string, body: object, key?: string) => {
+    const r = request(app).post(path).set(AUTH).set(identity(ent));
+    return (key ? r.set("Idempotency-Key", key) : r).send(body);
+  };
+  const orderBody = (externalOrderId: string, withLines = true) => ({
+    customerId, dueDate: "2026-12-01", value: 100, priority: 0, currency: "USD", externalOrderId,
+    productName: "Widget", quantity: 5, unitPrice: 20, strategy: "MTS",
+    ...(withLines ? { lines: [{ sourceType: "STOCK", quantity: 5 }] } : {}),
+  });
+
+  beforeAll(async () => {
+    enterpriseId = (await prisma.enterprise.create({ data: { name: `test-p2so-${suffix}`, timezone: "UTC", currency: "USD" } })).id;
+    otherEnterpriseId = (await prisma.enterprise.create({ data: { name: `test-p2so-other-${suffix}`, timezone: "UTC", currency: "USD" } })).id;
+    customerId = (await prisma.customer.create({ data: { name: `P2 Customer ${suffix}`, enterpriseId } })).id;
+  });
+
+  afterAll(async () => {
+    const ents = { in: [enterpriseId, otherEnterpriseId] };
+    const orders = await prisma.salesOrder.findMany({ where: { enterpriseId: ents }, select: { id: true } });
+    const ids = orders.map((o) => o.id);
+    await prisma.fulfillmentLine.deleteMany({ where: { fulfillmentPlan: { orderLine: { orderId: { in: ids } } } } });
+    await prisma.fulfillmentPlan.deleteMany({ where: { orderLine: { orderId: { in: ids } } } });
+    await prisma.orderLine.deleteMany({ where: { orderId: { in: ids } } });
+    await prisma.idempotencyKey.deleteMany({ where: { enterpriseId: ents } });
+    await prisma.auditLog.deleteMany({ where: { enterpriseId: ents } }).catch(() => undefined);
+    await prisma.salesOrder.deleteMany({ where: { id: { in: ids } } });
+    await prisma.customer.deleteMany({ where: { enterpriseId: ents } });
+    await prisma.enterprise.deleteMany({ where: { id: ents } });
+  });
+
+  it("20 concurrent identical requests under ONE Idempotency-Key create exactly one SalesOrder, all replaying it", async () => {
+    const ext = `SO-P2-KEY-${suffix}`;
+    const results = await Promise.all(Array.from({ length: 20 }, () => post(enterpriseId, "/sales-orders", orderBody(ext), `p2-key-${suffix}`)));
+    const ok = results.filter((r) => r.status === 201);
+    expect(ok.length).toBeGreaterThanOrEqual(1);
+    // the rest are either replays (201) or "in progress" (409) — never a second order
+    expect(results.every((r) => r.status === 201 || r.status === 409)).toBe(true);
+    expect(new Set(ok.map((r) => r.body.id)).size).toBe(1);
+    expect(await prisma.salesOrder.count({ where: { enterpriseId, externalOrderId: ext } })).toBe(1);
+  });
+
+  it("20 concurrent requests with DIFFERENT keys for the SAME externalOrderId yield one order (DB constraint), no orphan lines", async () => {
+    const ext = `SO-P2-DUP-${suffix}`;
+    const results = await Promise.all(Array.from({ length: 20 }, (_, i) => post(enterpriseId, "/sales-orders", orderBody(ext), `p2-dup-${suffix}-${i}`)));
+    expect(results.filter((r) => r.status === 201).length).toBe(1);
+    expect(results.filter((r) => r.status === 409).length).toBe(19);
+    const orders = await prisma.salesOrder.findMany({ where: { enterpriseId, externalOrderId: ext }, select: { id: true } });
+    expect(orders).toHaveLength(1);
+    // the 19 rolled-back transactions left nothing behind
+    expect(await prisma.orderLine.count({ where: { orderId: orders[0].id } })).toBe(1);
+  });
+
+  it("the no-lines path (no idempotency support) is still protected: a repeated externalOrderId is a 409, not a second row", async () => {
+    const ext = `SO-P2-NOLINES-${suffix}`;
+    const results = await Promise.all(Array.from({ length: 10 }, () => post(enterpriseId, "/sales-orders", orderBody(ext, false))));
+    expect(results.filter((r) => r.status === 201).length).toBe(1);
+    expect(results.filter((r) => r.status === 409).length).toBe(9);
+    expect(await prisma.salesOrder.count({ where: { enterpriseId, externalOrderId: ext } })).toBe(1);
+  });
+
+  it("the same Idempotency-Key with a different body is refused (409), never replayed as another request's result", async () => {
+    const key = `p2-mismatch-${suffix}`;
+    expect((await post(enterpriseId, "/sales-orders", orderBody(`SO-P2-M1-${suffix}`), key)).status).toBe(201);
+    const second = await post(enterpriseId, "/sales-orders", orderBody(`SO-P2-M2-${suffix}`), key);
+    expect(second.status).toBe(409);
+    expect(await prisma.salesOrder.count({ where: { enterpriseId, externalOrderId: `SO-P2-M2-${suffix}` } })).toBe(0);
+  });
+
+  it("an order against another enterprise's customer is refused and creates nothing", async () => {
+    const res = await post(otherEnterpriseId, "/sales-orders", orderBody(`SO-P2-XT-${suffix}`));
+    expect(res.status).toBe(404);
+    expect(await prisma.salesOrder.count({ where: { externalOrderId: `SO-P2-XT-${suffix}` } })).toBe(0);
+  });
+
+  it("POST /customers/find-or-create: 20 concurrent calls for one new name create exactly one Customer", async () => {
+    const name = `Concurrent Co ${suffix}`;
+    const results = await Promise.all(Array.from({ length: 20 }, () => post(enterpriseId, "/customers/find-or-create", { name })));
+    expect(results.every((r) => r.status === 200 || r.status === 201)).toBe(true);
+    expect(results.filter((r) => r.status === 201).length).toBe(1);
+    expect(new Set(results.map((r) => r.body.id)).size).toBe(1);
+    expect(await prisma.customer.count({ where: { enterpriseId, name } })).toBe(1);
+  });
+
+  it("find-or-create is tenant-scoped, returns an existing row untouched, and validates the name", async () => {
+    const name = `Shared Name ${suffix}`;
+    const a = await post(enterpriseId, "/customers/find-or-create", { name });
+    const again = await post(enterpriseId, "/customers/find-or-create", { name });
+    const other = await post(otherEnterpriseId, "/customers/find-or-create", { name });
+    expect(a.status).toBe(201);
+    expect(again.status).toBe(200);
+    expect(again.body.id).toBe(a.body.id);
+    expect(other.status).toBe(201);
+    expect(other.body.id).not.toBe(a.body.id);
+    expect((await post(enterpriseId, "/customers/find-or-create", { name: "   " })).status).toBe(400);
+    expect((await post(enterpriseId, "/customers/find-or-create", {})).status).toBe(400);
+  });
+});
+
+// Phase 2: withIdempotency commits the claim, the business write and the
+// stored response in ONE transaction. A hard crash at any point therefore
+// leaves nothing behind (no stranded statusCode=0 claim, no half-written
+// rows) and the same key can be retried safely.
+describe("order-service — withIdempotency hard-crash recovery (claim + write + completion are atomic)", () => {
+  const suffix = randomUUID().slice(0, 8);
+  let enterpriseId: string;
+  const AUTH = { "x-internal-token": process.env.INTERNAL_SERVICE_TOKEN ?? "" };
+
+  function identity(entId: string) {
+    const token = shared.signIdentityAssertion(
+      { sub: "test-user", type: "user", role: "PLANNER", enterpriseId: entId, aud: "aps-internal" },
+      process.env.INTERNAL_SERVICE_TOKEN ?? ""
+    );
+    return { "x-identity-assertion": token };
+  }
+  const postDelivery = (key: string, body: object) =>
+    request(app).post("/deliveries").set(AUTH).set(identity(enterpriseId)).set("Idempotency-Key", key).send(body);
+  const claim = (key: string) =>
+    prisma.idempotencyKey.findFirst({ where: { enterpriseId, key, operation: "create_delivery" } });
+
+  beforeAll(async () => {
+    enterpriseId = (await prisma.enterprise.create({ data: { name: `test-idem-crash-${suffix}`, timezone: "UTC", currency: "USD" } })).id;
+  });
+
+  afterAll(async () => {
+    await prisma.idempotencyKey.deleteMany({ where: { enterpriseId } });
+    await prisma.delivery.deleteMany({ where: { enterpriseId } });
+    await prisma.enterprise.deleteMany({ where: { id: enterpriseId } });
+  });
+
+  it("a DB session killed after the claim insert and during the business write rolls back both; the same key then succeeds", async () => {
+    const externalDeliveryId = `DEL-CRASH-${suffix}`;
+    const key = `crash-${suffix}`;
+    await prisma.delivery.create({ data: { enterpriseId, externalDeliveryId, quantity: 1, status: "DISPATCHED" } });
+
+    // Hold a row lock so the request's business write (the upsert's UPDATE)
+    // stalls INSIDE its transaction, after the claim has been inserted.
+    let releaseLock!: () => void;
+    const lockReleased = new Promise<void>((resolve) => (releaseLock = resolve));
+    let lockTaken!: () => void;
+    const lockReady = new Promise<void>((resolve) => (lockTaken = resolve));
+    const holder = prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM "Delivery" WHERE "enterpriseId" = ${enterpriseId} AND "externalDeliveryId" = ${externalDeliveryId} FOR UPDATE`;
+      lockTaken();
+      await lockReleased;
+    }, { timeout: 60_000 });
+    await lockReady;
+
+    const inFlight = postDelivery(key, { externalDeliveryId, quantity: 99, status: "DISPATCHED" }).then((r) => r);
+
+    // Wait until the request's backend is blocked on our lock, then kill that session.
+    let killed = 0;
+    for (let i = 0; i < 100 && killed === 0; i++) {
+      await new Promise((r) => setTimeout(r, 100));
+      const victims = await prisma.$queryRaw<{ killed: boolean }[]>`
+        SELECT pg_terminate_backend(pid) AS killed FROM pg_stat_activity
+        WHERE datname = current_database() AND pid <> pg_backend_pid()
+          AND wait_event_type = 'Lock' AND query ILIKE '%"Delivery"%' AND query NOT ILIKE '%FOR UPDATE%'`;
+      killed = victims.filter((v) => v.killed).length;
+    }
+    expect(killed).toBeGreaterThan(0); // the request really was mid-transaction when its session died
+
+    const crashed = await inFlight;
+    expect(crashed.status).toBeGreaterThanOrEqual(500);
+
+    releaseLock();
+    await holder;
+
+    // Nothing committed: no stranded claim, and the business row is untouched.
+    expect(await claim(key)).toBeNull();
+    expect((await prisma.delivery.findFirst({ where: { enterpriseId, externalDeliveryId } }))?.quantity).toBe(1);
+
+    // The very same key now runs fresh and completes.
+    const retry = await postDelivery(key, { externalDeliveryId, quantity: 99, status: "DISPATCHED" });
+    expect(retry.status).toBe(201);
+    expect((await prisma.delivery.findFirst({ where: { enterpriseId, externalDeliveryId } }))?.quantity).toBe(99);
+    expect((await claim(key))?.statusCode).toBe(201);
+
+    // And a further retry replays the stored response without re-running.
+    const replay = await postDelivery(key, { externalDeliveryId, quantity: 99, status: "DISPATCHED" });
+    expect(replay.status).toBe(201);
+    expect(replay.body.id).toBe(retry.body.id);
+  });
+
+  it("20 concurrent requests with one key all succeed (replaying the first); no transient 'in progress' answers, one row, one claim", async () => {
+    const externalDeliveryId = `DEL-CONC-${suffix}`;
+    const key = `conc-${suffix}`;
+    const results = await Promise.all(
+      Array.from({ length: 20 }, () => postDelivery(key, { externalDeliveryId, quantity: 5, status: "DISPATCHED" }))
+    );
+    expect(results.map((r) => r.status)).toEqual(Array(20).fill(201));
+    expect(new Set(results.map((r) => r.body.id)).size).toBe(1);
+    expect(await prisma.delivery.count({ where: { enterpriseId, externalDeliveryId } })).toBe(1);
+    expect(await prisma.idempotencyKey.count({ where: { enterpriseId, key } })).toBe(1);
+  });
+
+  it("a failing attempt leaves no claim behind (a failed request is never cached as the key's answer)", async () => {
+    const key = `fail-${suffix}`;
+    const bad = await postDelivery(key, { quantity: 1, status: "DISPATCHED" }); // missing externalDeliveryId -> 400 before any claim
+    expect(bad.status).toBe(400);
+    expect(await claim(key)).toBeNull();
+    const good = await postDelivery(key, { externalDeliveryId: `DEL-FAIL-${suffix}`, quantity: 1, status: "DISPATCHED" });
+    expect(good.status).toBe(201);
+  });
+
+  it("the same key with a different body is refused with 409 and changes nothing", async () => {
+    const key = `mismatch-${suffix}`;
+    const externalDeliveryId = `DEL-MM-${suffix}`;
+    expect((await postDelivery(key, { externalDeliveryId, quantity: 1, status: "DISPATCHED" })).status).toBe(201);
+    expect((await postDelivery(key, { externalDeliveryId, quantity: 2, status: "DISPATCHED" })).status).toBe(409);
+    expect((await prisma.delivery.findFirst({ where: { enterpriseId, externalDeliveryId } }))?.quantity).toBe(1);
+  });
+});
+
+// Phase 2: PostgreSQL as the first writer for SalesOrder and Customer ids,
+// customer credit terms, and the paged reads the reconciler uses.
+describe("order-service — Phase 2 SalesOrder/Customer authority primitives", () => {
+  const suffix = randomUUID().slice(0, 8);
+  let enterpriseId: string;
+  let otherEnterpriseId: string;
+  const AUTH = { "x-internal-token": process.env.INTERNAL_SERVICE_TOKEN ?? "" };
+
+  function identity(entId: string) {
+    const token = shared.signIdentityAssertion(
+      { sub: "test-user", type: "user", role: "PLANNER", enterpriseId: entId, aud: "aps-internal" },
+      process.env.INTERNAL_SERVICE_TOKEN ?? ""
+    );
+    return { "x-identity-assertion": token };
+  }
+  const post = (ent: string, path: string, body: object) => request(app).post(path).set(AUTH).set(identity(ent)).send(body);
+  const get = (ent: string, path: string) => request(app).get(path).set(AUTH).set(identity(ent));
+
+  beforeAll(async () => {
+    enterpriseId = (await prisma.enterprise.create({ data: { name: `test-p2auth-${suffix}`, timezone: "UTC", currency: "USD" } })).id;
+    otherEnterpriseId = (await prisma.enterprise.create({ data: { name: `test-p2auth-other-${suffix}`, timezone: "UTC", currency: "USD" } })).id;
+  });
+
+  afterAll(async () => {
+    const ents = { in: [enterpriseId, otherEnterpriseId] };
+    await prisma.documentNumberAllocation.deleteMany({ where: { enterpriseId: ents } });
+    await prisma.documentSequence.deleteMany({ where: { enterpriseId: ents } });
+    await prisma.salesOrder.deleteMany({ where: { enterpriseId: ents } });
+    await prisma.customer.deleteMany({ where: { enterpriseId: ents } });
+    await prisma.enterprise.deleteMany({ where: { id: ents } });
+  });
+
+  it("SALES_ORDER and CUSTOMER sequences start above ids already in Postgres and ignore malformed ones", async () => {
+    const c = await prisma.customer.create({ data: { name: `Seeded ${suffix}`, enterpriseId, externalCustomerId: "C017" } });
+    await prisma.customer.create({ data: { name: `Odd ${suffix}`, enterpriseId, externalCustomerId: "100023" } }); // SAP-style id: ignored
+    await prisma.salesOrder.create({ data: { customerId: c.id, dueDate: new Date(), enterpriseId, externalOrderId: "SO0042" } });
+    await prisma.salesOrder.create({ data: { customerId: c.id, dueDate: new Date(), enterpriseId, externalOrderId: "SO-TEST-9" } }); // ignored
+    expect((await post(enterpriseId, "/sequences/CUSTOMER/next", { floor: 3 })).body.value).toBe(18);
+    expect((await post(enterpriseId, "/sequences/SALES_ORDER/next", { floor: 0 })).body.value).toBe(43);
+    expect((await post(enterpriseId, "/sequences/SALES_ORDER/next", { floor: 0, idempotencyKey: "so-k" })).body.value).toBe(44);
+    expect((await post(enterpriseId, "/sequences/SALES_ORDER/next", { floor: 0, idempotencyKey: "so-k" })).body.value).toBe(44); // replay
+  });
+
+  it("find-or-create stores the external id, credit limit and active flag on a new customer", async () => {
+    const res = await post(enterpriseId, "/customers/find-or-create", { name: `New Co ${suffix}`, externalCustomerId: "C100", creditLimit: 50000, active: true });
+    expect(res.status).toBe(201);
+    expect(res.body).toMatchObject({ externalCustomerId: "C100", creditLimit: 50000, active: true });
+  });
+
+  it("find-or-create adopts missing external id / credit limit onto a legacy row but never overwrites set values", async () => {
+    const legacy = await prisma.customer.create({ data: { name: `Legacy ${suffix}`, enterpriseId } });
+    const adopted = await post(enterpriseId, "/customers/find-or-create", { name: `Legacy ${suffix}`, externalCustomerId: "C101", creditLimit: 1234 });
+    expect(adopted.status).toBe(200);
+    expect(adopted.body).toMatchObject({ id: legacy.id, externalCustomerId: "C101", creditLimit: 1234 });
+    const again = await post(enterpriseId, "/customers/find-or-create", { name: `Legacy ${suffix}`, externalCustomerId: "C999", creditLimit: 9 });
+    expect(again.body).toMatchObject({ id: legacy.id, externalCustomerId: "C101", creditLimit: 1234 });
+  });
+
+  it("find-or-create validates the new fields", async () => {
+    const n = `Bad ${suffix}`;
+    expect((await post(enterpriseId, "/customers/find-or-create", { name: n, creditLimit: -1 })).status).toBe(400);
+    expect((await post(enterpriseId, "/customers/find-or-create", { name: n, creditLimit: "5" })).status).toBe(400);
+    expect((await post(enterpriseId, "/customers/find-or-create", { name: n, active: "yes" })).status).toBe(400);
+    expect((await post(enterpriseId, "/customers/find-or-create", { name: n, externalCustomerId: "" })).status).toBe(400);
+  });
+
+  it("paged reads are tenant-scoped and keyset-paginate without gaps or repeats", async () => {
+    const mine = await prisma.customer.findMany({ where: { enterpriseId }, select: { id: true } });
+    await prisma.customer.create({ data: { name: `Other tenant ${suffix}`, enterpriseId: otherEnterpriseId } });
+    const seen: string[] = [];
+    let after: string | null = null;
+    for (let i = 0; i < 50; i++) {
+      const res: supertest.Response = await get(enterpriseId, `/customers/page?limit=2${after ? `&after=${after}` : ""}`);
+      expect(res.status).toBe(200);
+      seen.push(...res.body.items.map((c: { id: string }) => c.id));
+      after = res.body.nextAfter;
+      if (!after) break;
+    }
+    expect(new Set(seen).size).toBe(seen.length);
+    expect(seen.length).toBeGreaterThanOrEqual(mine.length);
+    expect(seen).toEqual(expect.arrayContaining(mine.map((m) => m.id)));
+    const orders = await get(enterpriseId, "/sales-orders/page?limit=1000");
+    expect(orders.body.items.every((o: { externalOrderId: string | null }) => o.externalOrderId !== undefined)).toBe(true);
+    expect((await get(otherEnterpriseId, "/sales-orders/page")).body.items).toHaveLength(0);
   });
 });

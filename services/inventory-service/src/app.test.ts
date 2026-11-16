@@ -407,3 +407,50 @@ describe("inventory-service — POST /inventory/goods-receipt + idempotency", ()
     expect(after).toBe(before + 2); // both executed — no key means no dedup, exactly like today
   });
 });
+
+// Phase 2 (Database Authority): POST /purchase-orders idempotency is enforced
+// by a UNIQUE column, so concurrent retries race on the database.
+describe("inventory-service — POST /purchase-orders Idempotency-Key", () => {
+  const suffix = randomUUID().slice(0, 8);
+  let vendorId: string;
+  const body = (quantity = 10) => ({ vendorId, productSku: `sku-${suffix}`, quantity, expectedDate: "2026-12-01T00:00:00.000Z", confirmed: true });
+  const post = (b: object, key?: string) => {
+    const r = request(app).post("/purchase-orders").set(AUTH_HEADER);
+    return (key ? r.set("Idempotency-Key", key) : r).send(b);
+  };
+
+  beforeAll(async () => {
+    vendorId = (await prisma.vendor.create({ data: { name: `PO Idem Vendor ${suffix}`, leadTimeDays: 5 } })).id;
+  });
+
+  afterAll(async () => {
+    await prisma.purchaseOrder.deleteMany({ where: { vendorId } });
+    await prisma.vendor.deleteMany({ where: { id: vendorId } });
+  });
+
+  it("20 concurrent requests with one key create exactly one PurchaseOrder; the rest replay it", async () => {
+    const key = `po-conc-${suffix}`;
+    const results = await Promise.all(Array.from({ length: 20 }, () => post(body(), key)));
+    expect(results.every((r) => r.status === 201 || r.status === 200)).toBe(true);
+    expect(results.filter((r) => r.status === 201).length).toBe(1);
+    expect(new Set(results.map((r) => r.body.id)).size).toBe(1);
+    expect(await prisma.purchaseOrder.count({ where: { idempotencyKey: key } })).toBe(1);
+  });
+
+  it("the same key with a different request is refused with 409 and creates nothing", async () => {
+    const key = `po-mismatch-${suffix}`;
+    expect((await post(body(10), key)).status).toBe(201);
+    const second = await post(body(99), key);
+    expect(second.status).toBe(409);
+    expect(await prisma.purchaseOrder.count({ where: { vendorId, quantity: 99 } })).toBe(0);
+  });
+
+  it("different keys create separate orders, and no key keeps the old behaviour (every call creates one)", async () => {
+    const before = await prisma.purchaseOrder.count({ where: { vendorId } });
+    await post(body(), `po-a-${suffix}`);
+    await post(body(), `po-b-${suffix}`);
+    await post(body());
+    await post(body());
+    expect(await prisma.purchaseOrder.count({ where: { vendorId } })).toBe(before + 4);
+  });
+});

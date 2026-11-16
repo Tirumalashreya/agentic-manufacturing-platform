@@ -138,7 +138,14 @@ def test_reserve_stock_concurrent_same_key_produces_exactly_one_real_reservation
 def test_reserve_stock_concurrent_different_keys_each_reserve_without_overselling_or_losing_a_decrement():
     import threading
 
-    before = _inventory_qty("P011", "PLANT02")
+    # reserve_stock allocates across plants in sheet order, so the
+    # lost-update check must sum every plant — asserting on PLANT02 alone
+    # passed or failed depending on how much PLANT01 stock earlier tests
+    # (or the demo data) left behind, not on whether a decrement was lost.
+    def total_p011():
+        return _inventory_qty("P011", "PLANT01") + _inventory_qty("P011", "PLANT02")
+
+    before = total_p011()
     results: list[dict] = []
 
     def call(key: str):
@@ -156,7 +163,7 @@ def test_reserve_stock_concurrent_different_keys_each_reserve_without_oversellin
     succeeded = [r for r in results if r["reserved"]]
     assert len(succeeded) == 5  # every distinct-key reservation genuinely went through
 
-    after = _inventory_qty("P011", "PLANT02")
+    after = total_p011()
     # The real proof the lock prevents a lost-update race, not just
     # duplicate creation: if two threads had read the same stale quantity
     # and both written their own decrement back, the total drop would be

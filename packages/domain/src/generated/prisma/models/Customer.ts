@@ -29,11 +29,13 @@ export type AggregateCustomer = {
 export type CustomerAvgAggregateOutputType = {
   slaDays: number | null
   penaltyPerDay: number | null
+  creditLimit: number | null
 }
 
 export type CustomerSumAggregateOutputType = {
   slaDays: number | null
   penaltyPerDay: number | null
+  creditLimit: number | null
 }
 
 export type CustomerMinAggregateOutputType = {
@@ -44,6 +46,8 @@ export type CustomerMinAggregateOutputType = {
   penaltyPerDay: number | null
   enterpriseId: string | null
   externalCustomerId: string | null
+  creditLimit: number | null
+  active: boolean | null
 }
 
 export type CustomerMaxAggregateOutputType = {
@@ -54,6 +58,8 @@ export type CustomerMaxAggregateOutputType = {
   penaltyPerDay: number | null
   enterpriseId: string | null
   externalCustomerId: string | null
+  creditLimit: number | null
+  active: boolean | null
 }
 
 export type CustomerCountAggregateOutputType = {
@@ -64,6 +70,8 @@ export type CustomerCountAggregateOutputType = {
   penaltyPerDay: number
   enterpriseId: number
   externalCustomerId: number
+  creditLimit: number
+  active: number
   _all: number
 }
 
@@ -71,11 +79,13 @@ export type CustomerCountAggregateOutputType = {
 export type CustomerAvgAggregateInputType = {
   slaDays?: true
   penaltyPerDay?: true
+  creditLimit?: true
 }
 
 export type CustomerSumAggregateInputType = {
   slaDays?: true
   penaltyPerDay?: true
+  creditLimit?: true
 }
 
 export type CustomerMinAggregateInputType = {
@@ -86,6 +96,8 @@ export type CustomerMinAggregateInputType = {
   penaltyPerDay?: true
   enterpriseId?: true
   externalCustomerId?: true
+  creditLimit?: true
+  active?: true
 }
 
 export type CustomerMaxAggregateInputType = {
@@ -96,6 +108,8 @@ export type CustomerMaxAggregateInputType = {
   penaltyPerDay?: true
   enterpriseId?: true
   externalCustomerId?: true
+  creditLimit?: true
+  active?: true
 }
 
 export type CustomerCountAggregateInputType = {
@@ -106,6 +120,8 @@ export type CustomerCountAggregateInputType = {
   penaltyPerDay?: true
   enterpriseId?: true
   externalCustomerId?: true
+  creditLimit?: true
+  active?: true
   _all?: true
 }
 
@@ -203,6 +219,8 @@ export type CustomerGroupByOutputType = {
   penaltyPerDay: number
   enterpriseId: string
   externalCustomerId: string | null
+  creditLimit: number | null
+  active: boolean
   _count: CustomerCountAggregateOutputType | null
   _avg: CustomerAvgAggregateOutputType | null
   _sum: CustomerSumAggregateOutputType | null
@@ -236,6 +254,8 @@ export type CustomerWhereInput = {
   penaltyPerDay?: Prisma.FloatFilter<"Customer"> | number
   enterpriseId?: Prisma.StringFilter<"Customer"> | string
   externalCustomerId?: Prisma.StringNullableFilter<"Customer"> | string | null
+  creditLimit?: Prisma.FloatNullableFilter<"Customer"> | number | null
+  active?: Prisma.BoolFilter<"Customer"> | boolean
   enterprise?: Prisma.XOR<Prisma.EnterpriseScalarRelationFilter, Prisma.EnterpriseWhereInput>
   salesOrders?: Prisma.SalesOrderListRelationFilter
 }
@@ -248,6 +268,8 @@ export type CustomerOrderByWithRelationInput = {
   penaltyPerDay?: Prisma.SortOrder
   enterpriseId?: Prisma.SortOrder
   externalCustomerId?: Prisma.SortOrderInput | Prisma.SortOrder
+  creditLimit?: Prisma.SortOrderInput | Prisma.SortOrder
+  active?: Prisma.SortOrder
   enterprise?: Prisma.EnterpriseOrderByWithRelationInput
   salesOrders?: Prisma.SalesOrderOrderByRelationAggregateInput
 }
@@ -264,6 +286,8 @@ export type CustomerWhereUniqueInput = Prisma.AtLeast<{
   penaltyPerDay?: Prisma.FloatFilter<"Customer"> | number
   enterpriseId?: Prisma.StringFilter<"Customer"> | string
   externalCustomerId?: Prisma.StringNullableFilter<"Customer"> | string | null
+  creditLimit?: Prisma.FloatNullableFilter<"Customer"> | number | null
+  active?: Prisma.BoolFilter<"Customer"> | boolean
   enterprise?: Prisma.XOR<Prisma.EnterpriseScalarRelationFilter, Prisma.EnterpriseWhereInput>
   salesOrders?: Prisma.SalesOrderListRelationFilter
 }, "id" | "enterpriseId_externalCustomerId">
@@ -276,6 +300,8 @@ export type CustomerOrderByWithAggregationInput = {
   penaltyPerDay?: Prisma.SortOrder
   enterpriseId?: Prisma.SortOrder
   externalCustomerId?: Prisma.SortOrderInput | Prisma.SortOrder
+  creditLimit?: Prisma.SortOrderInput | Prisma.SortOrder
+  active?: Prisma.SortOrder
   _count?: Prisma.CustomerCountOrderByAggregateInput
   _avg?: Prisma.CustomerAvgOrderByAggregateInput
   _max?: Prisma.CustomerMaxOrderByAggregateInput
@@ -294,6 +320,8 @@ export type CustomerScalarWhereWithAggregatesInput = {
   penaltyPerDay?: Prisma.FloatWithAggregatesFilter<"Customer"> | number
   enterpriseId?: Prisma.StringWithAggregatesFilter<"Customer"> | string
   externalCustomerId?: Prisma.StringNullableWithAggregatesFilter<"Customer"> | string | null
+  creditLimit?: Prisma.FloatNullableWithAggregatesFilter<"Customer"> | number | null
+  active?: Prisma.BoolWithAggregatesFilter<"Customer"> | boolean
 }
 
 export type CustomerCreateInput = {
@@ -303,6 +331,8 @@ export type CustomerCreateInput = {
   slaDays?: number
   penaltyPerDay?: number
   externalCustomerId?: string | null
+  creditLimit?: number | null
+  active?: boolean
   enterprise: Prisma.EnterpriseCreateNestedOneWithoutCustomersInput
   salesOrders?: Prisma.SalesOrderCreateNestedManyWithoutCustomerInput
 }
@@ -315,6 +345,8 @@ export type CustomerUncheckedCreateInput = {
   penaltyPerDay?: number
   enterpriseId: string
   externalCustomerId?: string | null
+  creditLimit?: number | null
+  active?: boolean
   salesOrders?: Prisma.SalesOrderUncheckedCreateNestedManyWithoutCustomerInput
 }
 
@@ -325,6 +357,8 @@ export type CustomerUpdateInput = {
   slaDays?: Prisma.IntFieldUpdateOperationsInput | number
   penaltyPerDay?: Prisma.FloatFieldUpdateOperationsInput | number
   externalCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  creditLimit?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutCustomersNestedInput
   salesOrders?: Prisma.SalesOrderUpdateManyWithoutCustomerNestedInput
 }
@@ -337,6 +371,8 @@ export type CustomerUncheckedUpdateInput = {
   penaltyPerDay?: Prisma.FloatFieldUpdateOperationsInput | number
   enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
   externalCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  creditLimit?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   salesOrders?: Prisma.SalesOrderUncheckedUpdateManyWithoutCustomerNestedInput
 }
 
@@ -348,6 +384,8 @@ export type CustomerCreateManyInput = {
   penaltyPerDay?: number
   enterpriseId: string
   externalCustomerId?: string | null
+  creditLimit?: number | null
+  active?: boolean
 }
 
 export type CustomerUpdateManyMutationInput = {
@@ -357,6 +395,8 @@ export type CustomerUpdateManyMutationInput = {
   slaDays?: Prisma.IntFieldUpdateOperationsInput | number
   penaltyPerDay?: Prisma.FloatFieldUpdateOperationsInput | number
   externalCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  creditLimit?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type CustomerUncheckedUpdateManyInput = {
@@ -367,6 +407,8 @@ export type CustomerUncheckedUpdateManyInput = {
   penaltyPerDay?: Prisma.FloatFieldUpdateOperationsInput | number
   enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
   externalCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  creditLimit?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type CustomerListRelationFilter = {
@@ -392,11 +434,14 @@ export type CustomerCountOrderByAggregateInput = {
   penaltyPerDay?: Prisma.SortOrder
   enterpriseId?: Prisma.SortOrder
   externalCustomerId?: Prisma.SortOrder
+  creditLimit?: Prisma.SortOrder
+  active?: Prisma.SortOrder
 }
 
 export type CustomerAvgOrderByAggregateInput = {
   slaDays?: Prisma.SortOrder
   penaltyPerDay?: Prisma.SortOrder
+  creditLimit?: Prisma.SortOrder
 }
 
 export type CustomerMaxOrderByAggregateInput = {
@@ -407,6 +452,8 @@ export type CustomerMaxOrderByAggregateInput = {
   penaltyPerDay?: Prisma.SortOrder
   enterpriseId?: Prisma.SortOrder
   externalCustomerId?: Prisma.SortOrder
+  creditLimit?: Prisma.SortOrder
+  active?: Prisma.SortOrder
 }
 
 export type CustomerMinOrderByAggregateInput = {
@@ -417,11 +464,14 @@ export type CustomerMinOrderByAggregateInput = {
   penaltyPerDay?: Prisma.SortOrder
   enterpriseId?: Prisma.SortOrder
   externalCustomerId?: Prisma.SortOrder
+  creditLimit?: Prisma.SortOrder
+  active?: Prisma.SortOrder
 }
 
 export type CustomerSumOrderByAggregateInput = {
   slaDays?: Prisma.SortOrder
   penaltyPerDay?: Prisma.SortOrder
+  creditLimit?: Prisma.SortOrder
 }
 
 export type CustomerScalarRelationFilter = {
@@ -496,6 +546,8 @@ export type CustomerCreateWithoutEnterpriseInput = {
   slaDays?: number
   penaltyPerDay?: number
   externalCustomerId?: string | null
+  creditLimit?: number | null
+  active?: boolean
   salesOrders?: Prisma.SalesOrderCreateNestedManyWithoutCustomerInput
 }
 
@@ -506,6 +558,8 @@ export type CustomerUncheckedCreateWithoutEnterpriseInput = {
   slaDays?: number
   penaltyPerDay?: number
   externalCustomerId?: string | null
+  creditLimit?: number | null
+  active?: boolean
   salesOrders?: Prisma.SalesOrderUncheckedCreateNestedManyWithoutCustomerInput
 }
 
@@ -546,6 +600,8 @@ export type CustomerScalarWhereInput = {
   penaltyPerDay?: Prisma.FloatFilter<"Customer"> | number
   enterpriseId?: Prisma.StringFilter<"Customer"> | string
   externalCustomerId?: Prisma.StringNullableFilter<"Customer"> | string | null
+  creditLimit?: Prisma.FloatNullableFilter<"Customer"> | number | null
+  active?: Prisma.BoolFilter<"Customer"> | boolean
 }
 
 export type CustomerCreateWithoutSalesOrdersInput = {
@@ -555,6 +611,8 @@ export type CustomerCreateWithoutSalesOrdersInput = {
   slaDays?: number
   penaltyPerDay?: number
   externalCustomerId?: string | null
+  creditLimit?: number | null
+  active?: boolean
   enterprise: Prisma.EnterpriseCreateNestedOneWithoutCustomersInput
 }
 
@@ -566,6 +624,8 @@ export type CustomerUncheckedCreateWithoutSalesOrdersInput = {
   penaltyPerDay?: number
   enterpriseId: string
   externalCustomerId?: string | null
+  creditLimit?: number | null
+  active?: boolean
 }
 
 export type CustomerCreateOrConnectWithoutSalesOrdersInput = {
@@ -591,6 +651,8 @@ export type CustomerUpdateWithoutSalesOrdersInput = {
   slaDays?: Prisma.IntFieldUpdateOperationsInput | number
   penaltyPerDay?: Prisma.FloatFieldUpdateOperationsInput | number
   externalCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  creditLimit?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   enterprise?: Prisma.EnterpriseUpdateOneRequiredWithoutCustomersNestedInput
 }
 
@@ -602,6 +664,8 @@ export type CustomerUncheckedUpdateWithoutSalesOrdersInput = {
   penaltyPerDay?: Prisma.FloatFieldUpdateOperationsInput | number
   enterpriseId?: Prisma.StringFieldUpdateOperationsInput | string
   externalCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  creditLimit?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 export type CustomerCreateManyEnterpriseInput = {
@@ -611,6 +675,8 @@ export type CustomerCreateManyEnterpriseInput = {
   slaDays?: number
   penaltyPerDay?: number
   externalCustomerId?: string | null
+  creditLimit?: number | null
+  active?: boolean
 }
 
 export type CustomerUpdateWithoutEnterpriseInput = {
@@ -620,6 +686,8 @@ export type CustomerUpdateWithoutEnterpriseInput = {
   slaDays?: Prisma.IntFieldUpdateOperationsInput | number
   penaltyPerDay?: Prisma.FloatFieldUpdateOperationsInput | number
   externalCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  creditLimit?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   salesOrders?: Prisma.SalesOrderUpdateManyWithoutCustomerNestedInput
 }
 
@@ -630,6 +698,8 @@ export type CustomerUncheckedUpdateWithoutEnterpriseInput = {
   slaDays?: Prisma.IntFieldUpdateOperationsInput | number
   penaltyPerDay?: Prisma.FloatFieldUpdateOperationsInput | number
   externalCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  creditLimit?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
   salesOrders?: Prisma.SalesOrderUncheckedUpdateManyWithoutCustomerNestedInput
 }
 
@@ -640,6 +710,8 @@ export type CustomerUncheckedUpdateManyWithoutEnterpriseInput = {
   slaDays?: Prisma.IntFieldUpdateOperationsInput | number
   penaltyPerDay?: Prisma.FloatFieldUpdateOperationsInput | number
   externalCustomerId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  creditLimit?: Prisma.NullableFloatFieldUpdateOperationsInput | number | null
+  active?: Prisma.BoolFieldUpdateOperationsInput | boolean
 }
 
 
@@ -681,6 +753,8 @@ export type CustomerSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs
   penaltyPerDay?: boolean
   enterpriseId?: boolean
   externalCustomerId?: boolean
+  creditLimit?: boolean
+  active?: boolean
   enterprise?: boolean | Prisma.EnterpriseDefaultArgs<ExtArgs>
   salesOrders?: boolean | Prisma.Customer$salesOrdersArgs<ExtArgs>
   _count?: boolean | Prisma.CustomerCountOutputTypeDefaultArgs<ExtArgs>
@@ -694,6 +768,8 @@ export type CustomerSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Exte
   penaltyPerDay?: boolean
   enterpriseId?: boolean
   externalCustomerId?: boolean
+  creditLimit?: boolean
+  active?: boolean
   enterprise?: boolean | Prisma.EnterpriseDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["customer"]>
 
@@ -705,6 +781,8 @@ export type CustomerSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Exte
   penaltyPerDay?: boolean
   enterpriseId?: boolean
   externalCustomerId?: boolean
+  creditLimit?: boolean
+  active?: boolean
   enterprise?: boolean | Prisma.EnterpriseDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["customer"]>
 
@@ -716,9 +794,11 @@ export type CustomerSelectScalar = {
   penaltyPerDay?: boolean
   enterpriseId?: boolean
   externalCustomerId?: boolean
+  creditLimit?: boolean
+  active?: boolean
 }
 
-export type CustomerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "tier" | "slaDays" | "penaltyPerDay" | "enterpriseId" | "externalCustomerId", ExtArgs["result"]["customer"]>
+export type CustomerOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "name" | "tier" | "slaDays" | "penaltyPerDay" | "enterpriseId" | "externalCustomerId" | "creditLimit" | "active", ExtArgs["result"]["customer"]>
 export type CustomerInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   enterprise?: boolean | Prisma.EnterpriseDefaultArgs<ExtArgs>
   salesOrders?: boolean | Prisma.Customer$salesOrdersArgs<ExtArgs>
@@ -745,6 +825,8 @@ export type $CustomerPayload<ExtArgs extends runtime.Types.Extensions.InternalAr
     penaltyPerDay: number
     enterpriseId: string
     externalCustomerId: string | null
+    creditLimit: number | null
+    active: boolean
   }, ExtArgs["result"]["customer"]>
   composites: {}
 }
@@ -1177,6 +1259,8 @@ export interface CustomerFieldRefs {
   readonly penaltyPerDay: Prisma.FieldRef<"Customer", 'Float'>
   readonly enterpriseId: Prisma.FieldRef<"Customer", 'String'>
   readonly externalCustomerId: Prisma.FieldRef<"Customer", 'String'>
+  readonly creditLimit: Prisma.FieldRef<"Customer", 'Float'>
+  readonly active: Prisma.FieldRef<"Customer", 'Boolean'>
 }
     
 

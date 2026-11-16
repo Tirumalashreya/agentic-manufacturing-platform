@@ -4,7 +4,8 @@ import openpyxl
 
 from app.erp.mock_erp_adapter import default_erp_adapter as erp
 from app.tools.audit_tools import record_audit_event
-from app.tools.idempotency_tools import get_idempotent_result, idempotency_lock, record_idempotent_result
+from app.tools.idempotency_tools import get_idempotent_result, idempotency_lock, read_lock, record_idempotent_result
+from app.tools.idempotency_tools import save_workbook
 
 MOCK_ERP_PATH = "mock_erp.xlsx"
 
@@ -47,6 +48,7 @@ def _next_consignment_id(sheet) -> str:
     return f"CNG{max_num + 1:04d}"
 
 
+@read_lock()
 def find_consignment(consignment_id: str) -> dict | None:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "ConsignmentStock" not in wb.sheetnames:
@@ -60,6 +62,7 @@ def find_consignment(consignment_id: str) -> dict | None:
 
 # Full history for the Consignment Sales channel view — includes CLOSED,
 # unlike list_open_consignments() which powers Active Workflows.
+@read_lock()
 def list_consignments() -> list[dict]:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "ConsignmentStock" not in wb.sheetnames:
@@ -70,6 +73,7 @@ def list_consignments() -> list[dict]:
     return rows
 
 
+@read_lock()
 def list_open_consignments() -> list[dict]:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     if "ConsignmentStock" not in wb.sheetnames:
@@ -82,6 +86,7 @@ def list_open_consignments() -> list[dict]:
     ]
 
 
+@idempotency_lock()
 def _set_fields(consignment_id: str, **fields) -> None:
     wb = openpyxl.load_workbook(MOCK_ERP_PATH)
     sheet = wb["ConsignmentStock"]
@@ -89,7 +94,7 @@ def _set_fields(consignment_id: str, **fields) -> None:
         if row[0].value == consignment_id:
             for name, value in fields.items():
                 sheet.cell(row=row_idx, column=CONSIGNMENT_HEADERS.index(name) + 1, value=value)
-            wb.save(MOCK_ERP_PATH)
+            save_workbook(wb)
             return
 
 
@@ -98,6 +103,7 @@ def _set_fields(consignment_id: str, **fields) -> None:
 # real mechanic (atomically decrement real Inventory, fail clean if there
 # isn't enough), but deliberately with no create_invoice() call anywhere
 # near it. Nothing is billed until the consignee actually reports a sale.
+@idempotency_lock()
 def create_consignment(
     customer_id: str | None,
     customer_name: str | None,
@@ -131,7 +137,7 @@ def create_consignment(
         unit_price, quantity_sent, 0, 0, quantity_sent,
         reservation["reservation_id"], notes, "ACTIVE", created_at, None,
     ])
-    wb.save(MOCK_ERP_PATH)
+    save_workbook(wb)
     record_audit_event("Consignment", consignment_id, "CONSIGNMENT_CREATED", {"quantity_sent": quantity_sent})
 
     return {
@@ -245,7 +251,7 @@ def return_unsold_consignment_stock(consignment_id: str, quantity_returned: int,
         if pid_cell.value == consignment["product_id"]:
             qty_cell.value = (qty_cell.value or 0) + quantity_returned
             break
-    wb.save(MOCK_ERP_PATH)
+    save_workbook(wb)
 
     new_returned = consignment["quantity_returned"] + quantity_returned
     new_remaining = consignment["quantity_sent"] - consignment["quantity_sold"] - new_returned

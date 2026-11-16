@@ -109,7 +109,9 @@ export const ModelName = {
   AuditLog: 'AuditLog',
   ChangeoverMatrix: 'ChangeoverMatrix',
   AgentPipelineRun: 'AgentPipelineRun',
-  AgentStageResult: 'AgentStageResult'
+  AgentStageResult: 'AgentStageResult',
+  DocumentSequence: 'DocumentSequence',
+  DocumentNumberAllocation: 'DocumentNumberAllocation'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -448,7 +450,9 @@ export const CustomerScalarFieldEnum = {
   slaDays: 'slaDays',
   penaltyPerDay: 'penaltyPerDay',
   enterpriseId: 'enterpriseId',
-  externalCustomerId: 'externalCustomerId'
+  externalCustomerId: 'externalCustomerId',
+  creditLimit: 'creditLimit',
+  active: 'active'
 } as const
 
 export type CustomerScalarFieldEnum = (typeof CustomerScalarFieldEnum)[keyof typeof CustomerScalarFieldEnum]
@@ -730,7 +734,8 @@ export const PurchaseOrderScalarFieldEnum = {
   quantity: 'quantity',
   expectedDate: 'expectedDate',
   confirmed: 'confirmed',
-  receivedAt: 'receivedAt'
+  receivedAt: 'receivedAt',
+  idempotencyKey: 'idempotencyKey'
 } as const
 
 export type PurchaseOrderScalarFieldEnum = (typeof PurchaseOrderScalarFieldEnum)[keyof typeof PurchaseOrderScalarFieldEnum]
@@ -933,6 +938,28 @@ export const AgentStageResultScalarFieldEnum = {
 } as const
 
 export type AgentStageResultScalarFieldEnum = (typeof AgentStageResultScalarFieldEnum)[keyof typeof AgentStageResultScalarFieldEnum]
+
+
+export const DocumentSequenceScalarFieldEnum = {
+  id: 'id',
+  kind: 'kind',
+  lastValue: 'lastValue',
+  enterpriseId: 'enterpriseId'
+} as const
+
+export type DocumentSequenceScalarFieldEnum = (typeof DocumentSequenceScalarFieldEnum)[keyof typeof DocumentSequenceScalarFieldEnum]
+
+
+export const DocumentNumberAllocationScalarFieldEnum = {
+  id: 'id',
+  kind: 'kind',
+  idempotencyKey: 'idempotencyKey',
+  value: 'value',
+  createdAt: 'createdAt',
+  enterpriseId: 'enterpriseId'
+} as const
+
+export type DocumentNumberAllocationScalarFieldEnum = (typeof DocumentNumberAllocationScalarFieldEnum)[keyof typeof DocumentNumberAllocationScalarFieldEnum]
 
 
 export const SortOrder = {

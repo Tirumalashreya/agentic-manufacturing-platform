@@ -136,3 +136,47 @@ def test_list_recent_audit_events_respects_limit():
     events = list_recent_audit_events(limit=3)
 
     assert len(events) == 3
+
+
+# Reliability-pass fix: this is the exact scenario the independent audit
+# reproduced live — 8 concurrent writers + 8 concurrent readers against
+# real record_audit_event/get_audit_trail/list_recent_audit_events, with
+# NO shared lock on the readers, crashed all 8 readers with
+# zipfile.BadZipFile/EOFError (0 writer crashes — idempotency_lock()
+# already serialized writers correctly; the gap was reads never checking
+# any lock at all). record_audit_event/get_audit_trail/
+# list_recent_audit_events are now @idempotency_lock()/@read_lock()
+# respectively; this proves the same shape of load no longer crashes
+# either side. Not a toy — same thread counts, same real file, same
+# functions, same unprotected entity-id pattern as the audit's own
+# reproduction.
+def test_concurrent_writers_and_readers_never_crash_the_workbook():
+    import threading
+
+    errors: list[tuple] = []
+
+    def writer(i: int):
+        try:
+            for j in range(20):
+                record_audit_event("StressTest", f"ENT{i}", f"EVT_{j}", {"i": i, "j": j})
+        except Exception as e:
+            errors.append(("writer", i, repr(e)))
+
+    def reader(i: int):
+        try:
+            for j in range(40):
+                get_audit_trail("StressTest", f"ENT{i % 8}")
+                list_recent_audit_events(50)
+        except Exception as e:
+            errors.append(("reader", i, repr(e)))
+
+    threads = (
+        [threading.Thread(target=writer, args=(i,)) for i in range(8)]
+        + [threading.Thread(target=reader, args=(i,)) for i in range(8)]
+    )
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+
+    assert errors == [], f"expected zero crashes under concurrent read/write load, got {len(errors)}: {errors[:5]}"
