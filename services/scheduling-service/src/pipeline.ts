@@ -16,7 +16,7 @@ import {
   type Prisma,
 } from "@aps/domain";
 import { getAvailableWindows, reserveCapacity, releaseCapacity, initBucket, getBucket, seedNamespaceFromReal, BUCKET_MINUTES } from "@aps/domain";
-import { acquirePlantLock, releasePlantLock, renewPlantLock, PLANT_LOCK_RENEWAL_INTERVAL_MS, publishTracked, TOPICS, logger, redis, internalServiceHeaders } from "@aps/shared";
+import { acquirePlantLock, releasePlantLock, renewPlantLock, PLANT_LOCK_RENEWAL_INTERVAL_MS, publishTracked, stageOutboxEvent, TOPICS, logger, redis, internalServiceHeaders } from "@aps/shared";
 import { computeCriticalPath, type CpmNode } from "./cpm";
 import { validateScheduleFeasibility } from "./schedule-validator";
 import { resolveEnterpriseId } from "./idempotency";
@@ -488,7 +488,7 @@ export async function runSchedulingPipeline(
       },
       include: {
         salesOrder: { include: { customer: true } },
-        product: { select: { defaultSchedulingMode: true } },
+        product: { select: { defaultSchedulingMode: true, family: true } },
         routing: {
           include: {
             operations: {
@@ -558,6 +558,27 @@ export async function runSchedulingPipeline(
         plantHolidayCalendarDates.push(new Date(Date.UTC(h.year, h.month - 1, h.day)));
       }
     }
+    // Sequence-Dependent Changeover Matrix: maps `${machineId}:${fromFamily}:${toFamily}` -> setupTimeMinutes
+    const changeoverEntries = dryRunCtx ? [] : await prisma.changeoverMatrix.findMany();
+    const changeoverMap = new Map<string, number>();
+    for (const entry of changeoverEntries) {
+      changeoverMap.set(`${entry.machineId}:${entry.fromFamily}:${entry.toFamily}`, entry.setupTimeMinutes);
+    }
+    const lastProductFamilyOnMachine = new Map<string, string>();
+
+    const resolveSetupTime = (machineId: string, baseSetupMin: number, currentFamily?: string | null): number => {
+      if (!currentFamily) return baseSetupMin;
+      const priorFamily = lastProductFamilyOnMachine.get(machineId);
+      if (priorFamily && priorFamily !== currentFamily) {
+        const key = `${machineId}:${priorFamily}:${currentFamily}`;
+        const dynamicSetup = changeoverMap.get(key);
+        if (dynamicSetup !== undefined) {
+          return dynamicSetup;
+        }
+      }
+      return baseSetupMin;
+    };
+
     // null = no FactoryCalendar configured at all for this plant, i.e. "no
     // weekly restriction" (matches the workingDaysOfWeek column's own
     // default of every weekday when a calendar DOES exist but doesn't
@@ -844,16 +865,18 @@ export async function runSchedulingPipeline(
           type Candidate = { machine: (typeof eligibleMachines)[number]; scheduledStart: Date; scheduledEnd: Date };
           const candidates: Candidate[] = [];
           for (const machine of eligibleMachines) {
-            await ensureBucketsInitialized(machine.id, materialFloor, durationMin, dryRunCtx?.namespace);
-            let windows = await getAvailableWindows(redis, machine.id, durationMin, materialFloor, latestAllowedEnd, dryRunCtx?.namespace);
-            windows = narrowWindowsToShifts(windows, op.workCenter.shifts.map((s) => s.shift), materialFloor, latestAllowedEnd, durationMin);
+            const machineSetupMin = resolveSetupTime(machine.id, op.setupTimeMin, order.product?.family);
+            const machineDurationMin = Math.ceil(op.processingTimeMin * order.quantity + machineSetupMin);
+            await ensureBucketsInitialized(machine.id, materialFloor, machineDurationMin, dryRunCtx?.namespace);
+            let windows = await getAvailableWindows(redis, machine.id, machineDurationMin, materialFloor, latestAllowedEnd, dryRunCtx?.namespace);
+            windows = narrowWindowsToShifts(windows, op.workCenter.shifts.map((s) => s.shift), materialFloor, latestAllowedEnd, machineDurationMin);
             const workCenterCalendar = resolveCalendarForWorkCenter(op.workCenter);
-            windows = narrowWindowsToHolidays(windows, workCenterCalendar.holidayDates, workCenterCalendar.workingDaysOfWeek, durationMin);
+            windows = narrowWindowsToHolidays(windows, workCenterCalendar.holidayDates, workCenterCalendar.workingDaysOfWeek, machineDurationMin);
             if (windows.length === 0) continue;
 
             const chosenWindow = windows[windows.length - 1]; // latest window, not earliest
             const scheduledEnd = new Date(Math.min(chosenWindow.end.getTime(), latestAllowedEnd.getTime()));
-            const scheduledStart = new Date(scheduledEnd.getTime() - durationMin * 60_000);
+            const scheduledStart = new Date(scheduledEnd.getTime() - machineDurationMin * 60_000);
             if (scheduledStart < chosenWindow.start) continue; // doesn't actually fit in this window
             candidates.push({ machine, scheduledStart, scheduledEnd });
           }
@@ -909,6 +932,7 @@ export async function runSchedulingPipeline(
                 });
                 return created;
               });
+              lastProductFamilyOnMachine.set(machine.id, order.product?.family ?? "");
               if (operators.length > 0) {
                 await resolveAndAssignOperator(
                   scheduledOp.id,
@@ -1056,6 +1080,8 @@ export async function runSchedulingPipeline(
             type Candidate = { machine: (typeof eligibleMachines)[number]; scheduledStart: Date; scheduledEnd: Date };
             const candidates: Candidate[] = [];
             for (const machine of eligibleMachines) {
+              const machineSetupMin = resolveSetupTime(machine.id, op.setupTimeMin, order.product?.family);
+              const machineDurationMin = Math.ceil(op.processingTimeMin * order.quantity + machineSetupMin);
               // Real bug found live (agreed with the user): ensureBucketsInitialized's
               // span used to be just durationMin (the operation's own few
               // minutes), floored at MIN_LOOKAHEAD_BUCKETS (15 days) — fine
@@ -1088,14 +1114,14 @@ export async function runSchedulingPipeline(
                   extendedHorizonInitialized.add(machine.id);
                 }
               } else {
-                await ensureBucketsInitialized(machine.id, effectiveEarliestStart, durationMin, dryRunCtx?.namespace);
+                await ensureBucketsInitialized(machine.id, effectiveEarliestStart, machineDurationMin, dryRunCtx?.namespace);
               }
-              let windows = await getAvailableWindows(redis, machine.id, durationMin, effectiveEarliestStart, searchEnd, dryRunCtx?.namespace);
-              windows = narrowWindowsToShifts(windows, op.workCenter.shifts.map((s) => s.shift), effectiveEarliestStart, searchEnd, durationMin);
+              let windows = await getAvailableWindows(redis, machine.id, machineDurationMin, effectiveEarliestStart, searchEnd, dryRunCtx?.namespace);
+              windows = narrowWindowsToShifts(windows, op.workCenter.shifts.map((s) => s.shift), effectiveEarliestStart, searchEnd, machineDurationMin);
               const workCenterCalendar = resolveCalendarForWorkCenter(op.workCenter);
-              windows = narrowWindowsToHolidays(windows, workCenterCalendar.holidayDates, workCenterCalendar.workingDaysOfWeek, durationMin);
+              windows = narrowWindowsToHolidays(windows, workCenterCalendar.holidayDates, workCenterCalendar.workingDaysOfWeek, machineDurationMin);
               if (windows.length === 0) continue;
-              candidates.push({ machine, scheduledStart: windows[0].start, scheduledEnd: new Date(windows[0].start.getTime() + durationMin * 60_000) });
+              candidates.push({ machine, scheduledStart: windows[0].start, scheduledEnd: new Date(windows[0].start.getTime() + machineDurationMin * 60_000) });
             }
             // Bottleneck mode is the one deliberate exception: the drum
             // machine should pack as tightly as possible regardless of whether
@@ -1174,6 +1200,7 @@ export async function runSchedulingPipeline(
                   });
                   return created;
                 });
+                lastProductFamilyOnMachine.set(machine.id, order.product?.family ?? "");
                 if (operators.length > 0) {
                   await resolveAndAssignOperator(
                     scheduledOp.id,
@@ -1375,6 +1402,13 @@ export async function runSchedulingPipeline(
     // table (reusing recordScheduleAudit's own table, not a new one) so the
     // failure is durably visible, and the run still finishes COMPLETED —
     // the one truthful status given what actually happened.
+    // Transactional Outbox: stage the event durably in Postgres so downstream services are guaranteed delivery
+    await stageOutboxEvent(
+      prisma,
+      TOPICS.SCHEDULE_PUBLISHED,
+      { plantId, scheduleId: schedule.id, versionNumber: nextVersion }
+    );
+
     const syncError = await publishTracked(
       TOPICS.SCHEDULE_PUBLISHED,
       { plantId, scheduleId: schedule.id, versionNumber: nextVersion },

@@ -1,5 +1,24 @@
 # app/tools/fulfillment_tools.py
-# The agent decides the strategy; this computes the actual numbers. Never
+
+def determine_fulfillment_strategy(
+    product_configurable: bool,
+    quantity: int | None,
+    stock_total: int,
+    can_produce: bool,
+) -> str:
+    qty = quantity or 0
+    if product_configurable:
+        return "CTO"
+    if stock_total >= qty and qty > 0:
+        return "MTS"
+    if stock_total > 0 and can_produce and stock_total < qty:
+        return "HYBRID"
+    if can_produce:
+        return "MTO"
+    return "THIRD_PARTY"
+
+
+# The agent explains the strategy; this computes the actual numbers. Never
 # the model's job — pure arithmetic on already-known quantities.
 def compute_fulfillment_split(strategy: str, quantity: int, stock_total: int) -> dict:
     if strategy == "MTS":

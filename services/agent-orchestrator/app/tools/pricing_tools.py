@@ -152,3 +152,31 @@ def evaluate_negotiation(
         "revised_price": round(requested_price, 2) if within_authority else None,
         "status": status,
     }
+
+
+async def process_price_negotiation(
+    customer_message: str,
+    original_price: float,
+    quantity: int,
+    customer_credit_limit: float = 100000.0,
+) -> dict:
+    """
+    Connects the negotiation_agent's natural-language discount extraction
+    with deterministic policy evaluation.
+    """
+    from app.agents.negotiation_agent import negotiation_agent
+
+    decision = await negotiation_agent(customer_message)
+    evaluation = evaluate_negotiation(
+        original_price=original_price,
+        quantity=quantity,
+        customer_credit_limit=customer_credit_limit,
+        requested_discount_percent=decision.requested_discount_percent,
+        requested_price=decision.requested_price,
+    )
+    return {
+        "summary": decision.summary,
+        "extracted_discount_percent": decision.requested_discount_percent,
+        "extracted_target_price": decision.requested_price,
+        "evaluation": evaluation,
+    }

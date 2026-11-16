@@ -88,14 +88,18 @@ app.post("/inventory/goods-issue", requireInventoryIdentity, async (req, res) =>
     const movement = await prisma.inventoryMovement.create({
       data: { type: "GOODS_ISSUE", productId, location, quantity, productionOrderId },
     });
-    await publish(TOPICS.INVENTORY_MOVEMENT_RECORDED, {
-      movementId: movement.id,
-      type: movement.type,
-      productId: movement.productId,
-      location: movement.location,
-      quantity: movement.quantity,
-      productionOrderId,
-    });
+    await publishTracked(
+      TOPICS.INVENTORY_MOVEMENT_RECORDED,
+      {
+        movementId: movement.id,
+        type: movement.type,
+        productId: movement.productId,
+        location: movement.location,
+        quantity: movement.quantity,
+        productionOrderId,
+      },
+      { operation: "goods-issue", entityId: movement.id }
+    );
     return { status: 201, body: movement };
   });
 });
@@ -124,14 +128,18 @@ app.post("/inventory/goods-receipt", requireInventoryIdentity, async (req, res) 
     const movement = await prisma.inventoryMovement.create({
       data: { type: "GOODS_RECEIPT", productId, location, quantity, productionOrderId },
     });
-    await publish(TOPICS.INVENTORY_MOVEMENT_RECORDED, {
-      movementId: movement.id,
-      type: movement.type,
-      productId: movement.productId,
-      location: movement.location,
-      quantity: movement.quantity,
-      productionOrderId,
-    });
+    await publishTracked(
+      TOPICS.INVENTORY_MOVEMENT_RECORDED,
+      {
+        movementId: movement.id,
+        type: movement.type,
+        productId: movement.productId,
+        location: movement.location,
+        quantity: movement.quantity,
+        productionOrderId,
+      },
+      { operation: "goods-receipt", entityId: movement.id }
+    );
     return { status: 201, body: movement };
   });
 });
@@ -168,7 +176,11 @@ async function checkShortagesForProduct(productId: string, requiredQty: number) 
     const result = checkMaterialAvailability({ stock, priorReservations: reserved, confirmedInbound, required });
     if (!result.feasible) {
       shortages.push({ productId: line.componentId, required, available: stock - reserved + confirmedInbound });
-      await publish(TOPICS.INVENTORY_SHORTAGE_DETECTED, { productId: line.componentId, required, triggeringProductId: productId });
+      await publishTracked(
+        TOPICS.INVENTORY_SHORTAGE_DETECTED,
+        { productId: line.componentId, required, triggeringProductId: productId },
+        { operation: "shortage-detected", entityId: line.componentId }
+      );
     }
   }
   return shortages;

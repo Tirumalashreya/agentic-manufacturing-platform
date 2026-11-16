@@ -111,7 +111,8 @@ export const ModelName = {
   AgentPipelineRun: 'AgentPipelineRun',
   AgentStageResult: 'AgentStageResult',
   DocumentSequence: 'DocumentSequence',
-  DocumentNumberAllocation: 'DocumentNumberAllocation'
+  DocumentNumberAllocation: 'DocumentNumberAllocation',
+  OutboxEvent: 'OutboxEvent'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -960,6 +961,21 @@ export const DocumentNumberAllocationScalarFieldEnum = {
 } as const
 
 export type DocumentNumberAllocationScalarFieldEnum = (typeof DocumentNumberAllocationScalarFieldEnum)[keyof typeof DocumentNumberAllocationScalarFieldEnum]
+
+
+export const OutboxEventScalarFieldEnum = {
+  id: 'id',
+  topic: 'topic',
+  payload: 'payload',
+  status: 'status',
+  retryCount: 'retryCount',
+  lastError: 'lastError',
+  createdAt: 'createdAt',
+  publishedAt: 'publishedAt',
+  enterpriseId: 'enterpriseId'
+} as const
+
+export type OutboxEventScalarFieldEnum = (typeof OutboxEventScalarFieldEnum)[keyof typeof OutboxEventScalarFieldEnum]
 
 
 export const SortOrder = {

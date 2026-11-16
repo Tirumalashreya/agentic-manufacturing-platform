@@ -457,7 +457,8 @@ export const ModelName = {
   AgentPipelineRun: 'AgentPipelineRun',
   AgentStageResult: 'AgentStageResult',
   DocumentSequence: 'DocumentSequence',
-  DocumentNumberAllocation: 'DocumentNumberAllocation'
+  DocumentNumberAllocation: 'DocumentNumberAllocation',
+  OutboxEvent: 'OutboxEvent'
 } as const
 
 export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -473,7 +474,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "verificationToken" | "passwordResetToken" | "enterprise" | "site" | "plant" | "productionLine" | "workCenter" | "machine" | "machineCapability" | "skill" | "operator" | "operatorSkill" | "shift" | "workCenterShift" | "operatorShift" | "factoryCalendar" | "factoryCalendarDay" | "holidayCalendar" | "holiday" | "product" | "bOM" | "bOMLine" | "routing" | "routingOperation" | "routingOpDependency" | "customer" | "salesOrder" | "delivery" | "invoice" | "productionOrder" | "orderLine" | "fulfillmentPlan" | "fulfillmentLine" | "productionOrderDependency" | "productionCompletionStep" | "scheduledOperation" | "qualityInspection" | "productionException" | "tool" | "toolUsage" | "inventory" | "vendor" | "vendorProduct" | "purchaseOrder" | "inventoryMovement" | "maintenancePlan" | "maintenanceOrder" | "resourceReservation" | "schedule" | "scheduleRun" | "machineEvent" | "sensorReading" | "idempotencyKey" | "scheduleAuditLog" | "auditLog" | "changeoverMatrix" | "agentPipelineRun" | "agentStageResult" | "documentSequence" | "documentNumberAllocation"
+    modelProps: "user" | "verificationToken" | "passwordResetToken" | "enterprise" | "site" | "plant" | "productionLine" | "workCenter" | "machine" | "machineCapability" | "skill" | "operator" | "operatorSkill" | "shift" | "workCenterShift" | "operatorShift" | "factoryCalendar" | "factoryCalendarDay" | "holidayCalendar" | "holiday" | "product" | "bOM" | "bOMLine" | "routing" | "routingOperation" | "routingOpDependency" | "customer" | "salesOrder" | "delivery" | "invoice" | "productionOrder" | "orderLine" | "fulfillmentPlan" | "fulfillmentLine" | "productionOrderDependency" | "productionCompletionStep" | "scheduledOperation" | "qualityInspection" | "productionException" | "tool" | "toolUsage" | "inventory" | "vendor" | "vendorProduct" | "purchaseOrder" | "inventoryMovement" | "maintenancePlan" | "maintenanceOrder" | "resourceReservation" | "schedule" | "scheduleRun" | "machineEvent" | "sensorReading" | "idempotencyKey" | "scheduleAuditLog" | "auditLog" | "changeoverMatrix" | "agentPipelineRun" | "agentStageResult" | "documentSequence" | "documentNumberAllocation" | "outboxEvent"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -4991,6 +4992,80 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
+    OutboxEvent: {
+      payload: Prisma.$OutboxEventPayload<ExtArgs>
+      fields: Prisma.OutboxEventFieldRefs
+      operations: {
+        findUnique: {
+          args: Prisma.OutboxEventFindUniqueArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OutboxEventPayload> | null
+        }
+        findUniqueOrThrow: {
+          args: Prisma.OutboxEventFindUniqueOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OutboxEventPayload>
+        }
+        findFirst: {
+          args: Prisma.OutboxEventFindFirstArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OutboxEventPayload> | null
+        }
+        findFirstOrThrow: {
+          args: Prisma.OutboxEventFindFirstOrThrowArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OutboxEventPayload>
+        }
+        findMany: {
+          args: Prisma.OutboxEventFindManyArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OutboxEventPayload>[]
+        }
+        create: {
+          args: Prisma.OutboxEventCreateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OutboxEventPayload>
+        }
+        createMany: {
+          args: Prisma.OutboxEventCreateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        createManyAndReturn: {
+          args: Prisma.OutboxEventCreateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OutboxEventPayload>[]
+        }
+        delete: {
+          args: Prisma.OutboxEventDeleteArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OutboxEventPayload>
+        }
+        update: {
+          args: Prisma.OutboxEventUpdateArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OutboxEventPayload>
+        }
+        deleteMany: {
+          args: Prisma.OutboxEventDeleteManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateMany: {
+          args: Prisma.OutboxEventUpdateManyArgs<ExtArgs>
+          result: BatchPayload
+        }
+        updateManyAndReturn: {
+          args: Prisma.OutboxEventUpdateManyAndReturnArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OutboxEventPayload>[]
+        }
+        upsert: {
+          args: Prisma.OutboxEventUpsertArgs<ExtArgs>
+          result: runtime.Types.Utils.PayloadToResult<Prisma.$OutboxEventPayload>
+        }
+        aggregate: {
+          args: Prisma.OutboxEventAggregateArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.AggregateOutboxEvent>
+        }
+        groupBy: {
+          args: Prisma.OutboxEventGroupByArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.OutboxEventGroupByOutputType>[]
+        }
+        count: {
+          args: Prisma.OutboxEventCountArgs<ExtArgs>
+          result: runtime.Types.Utils.Optional<Prisma.OutboxEventCountAggregateOutputType> | number
+        }
+      }
+    }
   }
 } & {
   other: {
@@ -5862,6 +5937,21 @@ export const DocumentNumberAllocationScalarFieldEnum = {
 export type DocumentNumberAllocationScalarFieldEnum = (typeof DocumentNumberAllocationScalarFieldEnum)[keyof typeof DocumentNumberAllocationScalarFieldEnum]
 
 
+export const OutboxEventScalarFieldEnum = {
+  id: 'id',
+  topic: 'topic',
+  payload: 'payload',
+  status: 'status',
+  retryCount: 'retryCount',
+  lastError: 'lastError',
+  createdAt: 'createdAt',
+  publishedAt: 'publishedAt',
+  enterpriseId: 'enterpriseId'
+} as const
+
+export type OutboxEventScalarFieldEnum = (typeof OutboxEventScalarFieldEnum)[keyof typeof OutboxEventScalarFieldEnum]
+
+
 export const SortOrder = {
   asc: 'asc',
   desc: 'desc'
@@ -6568,6 +6658,7 @@ export type GlobalOmitConfig = {
   agentStageResult?: Prisma.AgentStageResultOmit
   documentSequence?: Prisma.DocumentSequenceOmit
   documentNumberAllocation?: Prisma.DocumentNumberAllocationOmit
+  outboxEvent?: Prisma.OutboxEventOmit
 }
 
 /* Types for Logging */

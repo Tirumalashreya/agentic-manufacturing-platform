@@ -7,6 +7,7 @@ from tenacity import retry, retry_if_exception, stop_after_attempt, wait_fixed
 
 from app.config import GROQ_MODEL, groq_api_key
 from app.schemas.fulfillment import FulfillmentDecision
+from app.tools.fulfillment_tools import determine_fulfillment_strategy
 
 load_dotenv()
 
@@ -78,15 +79,36 @@ async def fulfillment_agent(
     product_configurable: bool,
     lead_time_days: int | None,
 ) -> FulfillmentDecision:
+    # 1. Compute authoritative deterministic strategy based on ground-truth inventory & capability
+    deterministic_strategy = determine_fulfillment_strategy(
+        product_configurable=product_configurable,
+        quantity=quantity,
+        stock_total=stock_total,
+        can_produce=can_produce,
+    )
+
     context = (
         f"product_name: {product_name}\n"
         f"quantity: {quantity}\n"
         f"stock_available: {stock_total}\n"
         f"can_produce: {can_produce}\n"
         f"product_configurable: {product_configurable}\n"
-        f"lead_time_days: {lead_time_days}"
+        f"lead_time_days: {lead_time_days}\n"
+        f"recommended_strategy: {deterministic_strategy}"
     )
-    model = _model()
-    messages = [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=context)]
-    result: FulfillmentDecision = await _invoke(model, messages)
-    return result
+
+    try:
+        model = _model()
+        messages = [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=context)]
+        result: FulfillmentDecision = await _invoke(model, messages)
+        # Production clamp: the strategy is mathematically guaranteed by the deterministic rule,
+        # while the agent contributes plain-language explanation and business context.
+        result.strategy = deterministic_strategy
+        return result
+    except Exception as exc:
+        # Resilient fallback: LLM outage or rate-limiting must never halt mission-critical fulfillment
+        fallback_reasoning = (
+            f"Fulfillment determined as {deterministic_strategy} based on inventory ({stock_total}), "
+            f"order quantity ({quantity}), and production capability ({can_produce})."
+        )
+        return FulfillmentDecision(strategy=deterministic_strategy, reasoning=fallback_reasoning)

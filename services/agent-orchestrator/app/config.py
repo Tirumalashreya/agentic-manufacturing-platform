@@ -48,6 +48,14 @@ SAP_TRANSACTION_CURRENCY = os.environ.get("SAP_TRANSACTION_CURRENCY", "USD")
 SAP_INTEGRATION_TESTS = os.environ.get("SAP_INTEGRATION_TESTS", "false").strip().lower() == "true"
 SAP_TEST_CUSTOMER = os.environ.get("SAP_TEST_CUSTOMER")
 SAP_TEST_MATERIAL = os.environ.get("SAP_TEST_MATERIAL")
+
+# Oracle Cloud SCM Order Management integration
+ORACLE_BASE_URL = os.environ.get("ORACLE_BASE_URL")
+ORACLE_USERNAME = os.environ.get("ORACLE_USERNAME")
+ORACLE_PASSWORD = os.environ.get("ORACLE_PASSWORD")
+ORACLE_TIMEOUT_SECONDS = float(os.environ.get("ORACLE_TIMEOUT_SECONDS", "30"))
+ORACLE_BUSINESS_UNIT = os.environ.get("ORACLE_BUSINESS_UNIT", "Vision Operations")
+ORACLE_DRY_RUN = os.environ.get("ORACLE_DRY_RUN", "false").strip().lower() == "true"
 SAP_TEST_QUANTITY = os.environ.get("SAP_TEST_QUANTITY")
 
 # Production Planning Agent's real manufacturing-service integrations (see

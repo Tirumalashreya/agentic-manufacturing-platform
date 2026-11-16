@@ -6,3 +6,4 @@ export * from "./http";
 export * from "./serviceAuth";
 export * from "./errors";
 export * from "./identity";
+export * from "./outbox";

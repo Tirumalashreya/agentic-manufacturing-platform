@@ -322,3 +322,8 @@ export type DocumentSequence = Prisma.DocumentSequenceModel
  * 
  */
 export type DocumentNumberAllocation = Prisma.DocumentNumberAllocationModel
+/**
+ * Model OutboxEvent
+ * 
+ */
+export type OutboxEvent = Prisma.OutboxEventModel

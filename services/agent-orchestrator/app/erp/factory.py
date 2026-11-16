@@ -16,8 +16,16 @@ def get_erp_adapter() -> ERPAdapter:
         from app.erp.sap.adapter import SAPAdapter
 
         return SAPAdapter()
+    if config.ERP_BACKEND == "oracle":
+        from app.erp.oracle.adapter import OracleAdapter
+
+        return OracleAdapter()
+    if config.ERP_BACKEND == "postgres":
+        from app.erp.postgres_adapter import PostgresERPAdapter
+
+        return PostgresERPAdapter()
     if config.ERP_BACKEND != "mock":
-        raise ValueError(f"Unknown ERP_BACKEND={config.ERP_BACKEND!r} — expected 'mock' or 'sap'.")
+        raise ValueError(f"Unknown ERP_BACKEND={config.ERP_BACKEND!r} — expected 'mock', 'postgres', 'sap', or 'oracle'.")
     from app.erp.mock_erp_adapter import MockERPAdapter
 
     return MockERPAdapter()

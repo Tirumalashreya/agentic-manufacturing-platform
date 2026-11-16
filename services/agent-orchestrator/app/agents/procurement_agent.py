@@ -6,7 +6,8 @@ from dotenv import load_dotenv
 from tenacity import retry, retry_if_exception, stop_after_attempt, wait_fixed
 
 from app.config import GROQ_MODEL, groq_api_key
-from app.schemas.procurement import ProcurementDecision
+from app.schemas.procurement import ProcurementDecision, VendorChoice
+from app.tools.procurement_tools import select_optimal_vendor
 
 load_dotenv()
 
@@ -58,14 +59,44 @@ async def _invoke(model, messages) -> ProcurementDecision:
 
 
 async def procurement_agent(shortages: list[dict], target_completion_date: str) -> ProcurementDecision:
+    # Deterministic baseline ranking for each shortage
+    optimal_map = {}
     lines = [f"target_completion_date: {target_completion_date}", "shortages:"]
     for s in shortages:
+        cid = s["component_id"]
+        vendors = s.get("vendors", [])
+        opt = select_optimal_vendor(vendors, target_completion_date)
+        optimal_map[cid] = opt
+        opt_str = f"recommended_vendor={opt['vendor_id']}" if opt else "no_vendor"
         lines.append(
-            f"- component_id={s['component_id']} component_name={s['component_name']} "
-            f"shortage_qty={s['shortage']} vendors={s['vendors']}"
+            f"- component_id={cid} component_name={s['component_name']} "
+            f"shortage_qty={s['shortage']} vendors={vendors} ({opt_str})"
         )
     context = "\n".join(lines)
-    model = _model()
-    messages = [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=context)]
-    result: ProcurementDecision = await _invoke(model, messages)
-    return result
+
+    try:
+        model = _model()
+        messages = [SystemMessage(content=SYSTEM_PROMPT), HumanMessage(content=context)]
+        result: ProcurementDecision = await _invoke(model, messages)
+        # Clamp choices to ensure valid vendors are selected
+        for choice in result.choices:
+            opt = optimal_map.get(choice.component_id)
+            if opt and not any(v.get("vendor_id") == choice.vendor_id for v in next((s.get("vendors", []) for s in shortages if s["component_id"] == choice.component_id), [])):
+                choice.vendor_id = opt["vendor_id"]
+                choice.reasoning += f" (Clamped to optimal vendor {opt['vendor_id']})"
+        return result
+    except Exception as exc:
+        fallback_choices = []
+        for s in shortages:
+            cid = s["component_id"]
+            opt = optimal_map.get(cid)
+            if opt:
+                fallback_choices.append(VendorChoice(
+                    component_id=cid,
+                    vendor_id=opt["vendor_id"],
+                    reasoning=f"Selected {opt['vendor_name']} based on optimal lead-time ({opt['lead_time_days']}d) and cost (${opt['unit_cost']})."
+                ))
+        return ProcurementDecision(
+            choices=fallback_choices,
+            notes="Deterministically ranked vendors by cost and schedule feasibility."
+        )

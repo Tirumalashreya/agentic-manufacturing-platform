@@ -2,7 +2,7 @@ process.env.SERVICE_NAME = "order-service";
 
 import { createHash, randomUUID } from "node:crypto";
 import type { Request, Response } from "express";
-import { createApp, registerErrorHandler, logger, publishTracked, TOPICS, requireIdentity } from "@aps/shared";
+import { createApp, registerErrorHandler, logger, publishTracked, stageOutboxEvent, TOPICS, requireIdentity } from "@aps/shared";
 import { prisma, computePriorityScore, type CustomerTier, type Prisma, type PromiseRiskStatus } from "@aps/domain";
 import { getPromiseInbox } from "./promise-inbox";
 
@@ -1255,6 +1255,13 @@ app.post("/orders", async (req, res) => {
         enterpriseId: req.identity!.enterpriseId,
       },
     });
+    // Transactional Outbox: atomically stage the event within the same DB transaction
+    await stageOutboxEvent(
+      tx,
+      TOPICS.ORDERS_PRODUCTION_CREATED,
+      { orderId: order.id, plantId, productId, priorityScore },
+      req.identity!.enterpriseId
+    );
     logger.info("Production order created", { orderId: order.id, priorityScore });
 
     // Stage 01 (Fail Loud, Fail Closed): once the ProductionOrder commits, a
@@ -1320,9 +1327,18 @@ app.patch("/orders/:id", async (req, res) => {
       return;
     }
   }
-  const order = await prisma.productionOrder.update({
-    where: { id: req.params.id },
-    data: { status: status as never, quantity, metadata, salesOrderId },
+  const order = await prisma.$transaction(async (tx) => {
+    const updated = await tx.productionOrder.update({
+      where: { id: req.params.id },
+      data: { status: status as never, quantity, metadata, salesOrderId },
+    });
+    await stageOutboxEvent(
+      tx,
+      TOPICS.ORDERS_PRODUCTION_UPDATED,
+      { orderId: updated.id, plantId: updated.plantId, status: updated.status, quantityChanged: quantity !== undefined },
+      req.identity!.enterpriseId
+    );
+    return updated;
   });
   // plantId + quantityChanged let a rescheduling consumer (§14 Order
   // Cancellation / Order Qty Change) act only on genuine disruptions —

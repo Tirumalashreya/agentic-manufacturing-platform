@@ -63,3 +63,4 @@ venv/
 
 # local agent tooling state
 /.claude/
+.vscode/

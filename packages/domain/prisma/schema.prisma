@@ -1634,3 +1634,21 @@ model DocumentNumberAllocation {
 
   @@unique([enterpriseId, kind, idempotencyKey])
 }
+
+// Transactional Outbox: enables atomic DB writes + event publishing.
+// An event row is written in the SAME database transaction as the domain entity.
+// A background worker or afterCommit dispatcher reads and delivers to Kafka,
+// guaranteeing at-least-once delivery without dropping events on broker latency.
+model OutboxEvent {
+  id             String    @id @default(cuid())
+  topic          String
+  payload        Json
+  status         String    @default("PENDING") // PENDING | PUBLISHED | FAILED
+  retryCount     Int       @default(0)
+  lastError      String?
+  createdAt      DateTime  @default(now())
+  publishedAt    DateTime?
+  enterpriseId   String?
+
+  @@index([status, createdAt])
+}

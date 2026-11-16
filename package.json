@@ -9,6 +9,10 @@
     "services/*"
   ],
   "scripts": {
+    "start:platform": "./scripts/start-platform.sh",
+    "dev:commercial": "npm run -w frontend dev",
+    "dev:aps": "npm run -w @aps/web dev",
+    "dev:all-ui": "concurrently \"npm run dev:commercial\" \"npm run dev:aps\"",
     "db:migrate": "npm run -w @aps/domain prisma:migrate",
     "db:generate": "npm run -w @aps/domain prisma:generate",
     "check:architecture": "node architecture/check-contract.mjs",

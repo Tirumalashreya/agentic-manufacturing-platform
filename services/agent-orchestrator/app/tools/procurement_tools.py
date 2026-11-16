@@ -79,6 +79,41 @@ def get_vendors_for_component(component_id: str) -> list[dict]:
     return vendors
 
 
+def select_optimal_vendor(vendors: list[dict], target_completion_date: str | None = None) -> dict | None:
+    """
+    Deterministically ranks and selects the optimal vendor for a component shortage.
+    Pareto Lead-Time vs Cost Optimization:
+    1. If only 1 vendor exists, return that vendor.
+    2. If multiple vendors exist and a target date is specified:
+       - Find all vendors whose expected arrival <= target completion date.
+       - Among on-time vendors, select the one with lowest unit_cost (cheapest feasible).
+       - If no vendor can arrive on time, select the fastest vendor (shortest lead time)
+         to minimize delivery breach.
+    3. If no target date, select the vendor with lowest unit_cost.
+    """
+    if not vendors:
+        return None
+    if len(vendors) == 1:
+        return vendors[0]
+
+    if target_completion_date:
+        try:
+            target_dt = datetime.date.fromisoformat(target_completion_date[:10])
+            today = datetime.date.today()
+            on_time_vendors = []
+            for v in vendors:
+                arrival = today + datetime.timedelta(days=int(v.get("lead_time_days", 0)))
+                if arrival <= target_dt:
+                    on_time_vendors.append(v)
+            if on_time_vendors:
+                return min(on_time_vendors, key=lambda v: (float(v.get("unit_cost", 0)), int(v.get("lead_time_days", 0))))
+            return min(vendors, key=lambda v: (int(v.get("lead_time_days", 0)), float(v.get("unit_cost", 0))))
+        except Exception:
+            pass
+
+    return min(vendors, key=lambda v: (float(v.get("unit_cost", 0)), int(v.get("lead_time_days", 0))))
+
+
 def _purchase_orders_sheet(wb):
     if "PurchaseOrders" not in wb.sheetnames:
         sheet = wb.create_sheet("PurchaseOrders")
