@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { prisma } from "@/lib/prisma";
 import { fetchDeviationAnalysis, fetchScrap } from "@/lib/services";
-import { listPipelineRuns } from "@/lib/api";
+import { listPipelineRuns } from "@/lib/api-server";
 import { Gauge } from "@/components/manufacturing/Gauge";
 import { StageTracker } from "@/components/manufacturing/StageTracker";
 import { PageHeader, Panel, StatusBadge, EmptyState } from "@/components/ui";

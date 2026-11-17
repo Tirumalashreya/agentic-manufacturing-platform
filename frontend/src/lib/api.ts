@@ -51,30 +51,9 @@ export class ApiError extends Error {
 // identity + internal-service-token the proxy route itself forwards (see
 // app/api/orchestrator/[...path]/route.ts), just without the extra HTTP hop.
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const isServer = typeof window === "undefined";
-  let url: string;
-  let headers: Record<string, string> = { "Content-Type": "application/json" };
-
-  if (isServer) {
-    const { auth } = await import("@/lib/auth");
-    const session = await auth();
-    if (!session?.user) throw new ApiError("Authentication required", 401);
-    const token = process.env.INTERNAL_SERVICE_TOKEN;
-    if (!token) throw new ApiError("Service misconfigured — internal auth token not set", 500);
-    const orchestratorUrl = process.env.AGENT_ORCHESTRATOR_URL ?? "http://localhost:8000";
-    url = `${orchestratorUrl}${path}`;
-    headers = {
-      ...headers,
-      "x-internal-token": token,
-      "x-forwarded-user": session.user.id,
-      "x-forwarded-role": session.user.role,
-    };
-  } else {
-    url = `${API_BASE_URL}${path}`;
-  }
-
+  const url = `${API_BASE_URL}${path}`;
   const res = await fetch(url, {
-    headers,
+    headers: { "Content-Type": "application/json", ...init?.headers },
     ...init,
   });
 
