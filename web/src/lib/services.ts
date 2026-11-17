@@ -225,9 +225,13 @@ export function deleteOrder(orderId: string) {
 // presenters can turn the simulated shop floor on/off without restarting
 // the service or setting an env var.
 export async function fetchDemoTickerStatus() {
-  const response = await internalFetch(`${SCHEDULING_SERVICE_URL}/scheduling/demo-ticker`, { cache: "no-store" });
-  if (!response.ok) return { enabled: false, timeScale: 60 };
-  return (await response.json()) as { enabled: boolean; timeScale: number };
+  try {
+    const response = await internalFetch(`${SCHEDULING_SERVICE_URL}/scheduling/demo-ticker`, { cache: "no-store" });
+    if (!response.ok) return { enabled: false, timeScale: 60 };
+    return (await response.json()) as { enabled: boolean; timeScale: number };
+  } catch {
+    return { enabled: false, timeScale: 60 };
+  }
 }
 
 export function setDemoTicker(enabled: boolean) {
