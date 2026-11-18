@@ -77,22 +77,41 @@ def _inventory(qty: int):
     return [{"qtyUnrestricted": qty}]
 
 
+_MOCK_PLAN_CLEAN = {
+    "verdict": "PASS",
+    "production_order_id": "po-1",
+    "materials": [
+        {"component_id": "comp-body", "component_name": "Cable Body", "required": 15, "available": 500, "shortage": 0},
+        {"component_id": "comp-clip", "component_name": "Mounting Clip", "required": 30, "available": 500, "shortage": 0},
+        {"component_id": "comp-fastener", "component_name": "Fastener", "required": 60, "available": 500, "shortage": 0},
+    ],
+    "routing_operations": [
+        {"operation_id": "op-10", "operation": "Cut/Prep Cable Body", "op_number": 10, "work_center_code": "WC-ASSY"},
+        {"operation_id": "op-20", "operation": "Assemble", "op_number": 20, "work_center_code": "WC-ASSY"},
+    ],
+    "simulated_operations": [
+        {"production_order_id": "po-1", "routing_operation_id": "op-10", "machine_id": "m-1", "machine_name": "M-01",
+         "scheduled_start": "2026-09-10T09:00:00Z", "scheduled_end": "2026-09-10T09:15:00Z"},
+    ],
+    "plant_id": "cmttuotng0000xucaila9ze65",
+    "has_shortage": False,
+    "operations_not_placed": 0,
+    "needed_extended_horizon": False,
+}
+
+_MOCK_PLAN_SHORTAGE = {
+    **_MOCK_PLAN_CLEAN,
+    "production_order_id": "po-2",
+    "materials": [
+        {"component_id": "comp-body", "component_name": "Cable Body", "required": 15, "available": 1, "shortage": 14},
+    ],
+    "has_shortage": True,
+}
+
+
 @pytest.mark.asyncio
 async def test_plan_production_pass_when_materials_and_schedule_are_clean():
-    with patch("app.graph.mfg.get_bom", new=AsyncMock(return_value=_BOM)), patch(
-        "app.graph.mfg.get_routing", new=AsyncMock(return_value=_ROUTING)
-    ), patch("app.graph.mfg.get_inventory", new=AsyncMock(return_value=_inventory(500))), patch(
-        "app.graph.mfg.create_production_order", new=AsyncMock(return_value={"id": "po-1"})
-    ), patch(
-        "app.graph.mfg.trigger_what_if_scheduling",
-        new=AsyncMock(return_value={
-            "simulatedOperations": [
-                {"productionOrderId": "po-1", "routingOperationId": "op-10", "machineId": "m-1",
-                 "scheduledStart": "2026-09-10T09:00:00Z", "scheduledEnd": "2026-09-10T09:15:00Z"},
-            ],
-            "conflictsDetected": 0,
-        }),
-    ), patch("app.graph.mfg.get_machine", new=AsyncMock(return_value={"name": "M-01"})), patch(
+    with patch("app.graph.mfg.request_production_plan", new=AsyncMock(return_value=_MOCK_PLAN_CLEAN)), patch(
         "app.graph.production_planning_agent",
         new=AsyncMock(return_value=ProductionPlanningDecision(status="PASS", explanation="All clear.")),
     ), patch("app.config.MANUFACTURING_PRODUCT_IDS", {"Cable Management Kit": "mfg-product-1"}):
@@ -113,13 +132,7 @@ async def test_plan_production_forces_material_shortage_even_if_agent_says_pass(
     # Deterministic safety net (agreed with the user: "the service must
     # never hide the reason") — a real shortage always wins over whatever
     # the LLM classified it as.
-    with patch("app.graph.mfg.get_bom", new=AsyncMock(return_value=_BOM)), patch(
-        "app.graph.mfg.get_routing", new=AsyncMock(return_value=_ROUTING)
-    ), patch("app.graph.mfg.get_inventory", new=AsyncMock(return_value=_inventory(1))), patch(
-        "app.graph.mfg.create_production_order", new=AsyncMock(return_value={"id": "po-2"})
-    ), patch(
-        "app.graph.mfg.trigger_what_if_scheduling", new=AsyncMock(return_value={"simulatedOperations": [], "conflictsDetected": 0})
-    ), patch("app.graph.mfg.get_machine", new=AsyncMock()), patch(
+    with patch("app.graph.mfg.request_production_plan", new=AsyncMock(return_value=_MOCK_PLAN_SHORTAGE)), patch(
         "app.graph.production_planning_agent",
         new=AsyncMock(return_value=ProductionPlanningDecision(status="PASS", explanation="Looks fine to me.")),
     ), patch("app.config.MANUFACTURING_PRODUCT_IDS", {"Cable Management Kit": "mfg-product-1"}):
@@ -138,13 +151,14 @@ async def test_plan_production_unplannable_when_product_not_mapped():
             product_id="P999", product_name="Unknown Widget", quantity=5, required_date=None,
         )
 
-    assert result["verdict"] == "UNPLANNABLE"
+    assert result["verdict"] == "PLANNING_CONFIGURATION_ISSUE"
     assert result["production_order_id"] is None
     assert "no manufacturing master data" in result["explanation"].lower() or "unknown widget" in result["explanation"].lower()
 
 
 @pytest.mark.asyncio
 async def test_composed_execution_mto_plans_production_before_approval():
+    plan_with_po3 = {**_MOCK_PLAN_CLEAN, "production_order_id": "po-3"}
     with patch("app.graph.intent_agent", return_value=_intent()), patch(
         "app.graph.request_understanding_agent", return_value=_understanding()
     ), patch("app.graph.context_agent", return_value=_context()), patch(
@@ -152,13 +166,7 @@ async def test_composed_execution_mto_plans_production_before_approval():
     ), patch(
         "app.graph.fulfillment_agent",
         new=AsyncMock(return_value=FulfillmentDecision(strategy="MTO", reasoning="No stock; can produce.")),
-    ), patch("app.graph.mfg.get_bom", new=AsyncMock(return_value=_BOM)), patch(
-        "app.graph.mfg.get_routing", new=AsyncMock(return_value=_ROUTING)
-    ), patch("app.graph.mfg.get_inventory", new=AsyncMock(return_value=_inventory(500))), patch(
-        "app.graph.mfg.create_production_order", new=AsyncMock(return_value={"id": "po-3"})
-    ), patch(
-        "app.graph.mfg.trigger_what_if_scheduling", new=AsyncMock(return_value={"simulatedOperations": [], "conflictsDetected": 0})
-    ), patch(
+    ), patch("app.graph.mfg.request_production_plan", new=AsyncMock(return_value=plan_with_po3)), patch(
         "app.graph.production_planning_agent",
         new=AsyncMock(return_value=ProductionPlanningDecision(status="PASS", explanation="All clear.")),
     ), patch("app.config.MANUFACTURING_PRODUCT_IDS", {"Cable Management Kit": "mfg-product-1"}):

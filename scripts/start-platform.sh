@@ -7,6 +7,12 @@ set -e
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
+if [ -f "$ROOT_DIR/.env" ]; then
+  set -a
+  source "$ROOT_DIR/.env"
+  set +a
+fi
+
 echo "================================================================="
 echo " Starting Enterprise Agentic Manufacturing & O2C Platform"
 echo "================================================================="

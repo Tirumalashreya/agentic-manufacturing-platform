@@ -143,7 +143,7 @@ async def test_reference_resolution_runs_between_understanding_and_context():
     # live graph wiring and resolves a real record, not just that the
     # standalone resolve_reference() function works in isolation.
     references = [EntityReference(entity_type="customer", identifier_type="explicit_name", identifier="ABC Corp")]
-    with patch("app.graph.intent_agent", return_value=_intent()), patch(
+    with patch("app.graph.intent_agent", return_value=_intent(intent="credit_memo")), patch(
         "app.graph.request_understanding_agent",
         return_value=_understanding(
             is_supported=True,

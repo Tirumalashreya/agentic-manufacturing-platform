@@ -41,6 +41,37 @@ declare global {
 const HEADER = "x-internal-token";
 
 function expectedToken(): string | undefined {
+  if (!process.env.INTERNAL_SERVICE_TOKEN && typeof window === "undefined") {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const fs = require("fs");
+      // eslint-disable-next-line @typescript-eslint/no-require-imports
+      const path = require("path");
+      let dir = process.cwd();
+      for (let i = 0; i < 4; i++) {
+        const envPath = path.join(dir, ".env");
+        if (fs.existsSync(envPath)) {
+          const content = fs.readFileSync(envPath, "utf-8");
+          for (const line of content.split("\n")) {
+            const trimmed = line.trim();
+            if (!trimmed || trimmed.startsWith("#")) continue;
+            const eq = trimmed.indexOf("=");
+            if (eq > 0) {
+              const key = trimmed.slice(0, eq).trim();
+              const val = trimmed.slice(eq + 1).trim();
+              if (!process.env[key]) {
+                process.env[key] = val;
+              }
+            }
+          }
+          break;
+        }
+        dir = path.dirname(dir);
+      }
+    } catch {
+      // ignore
+    }
+  }
   return process.env.INTERNAL_SERVICE_TOKEN;
 }
 

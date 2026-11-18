@@ -25,8 +25,18 @@ def test_sap_backend_without_config_raises_not_configured(monkeypatch):
         get_erp_adapter()
 
 
-def test_unknown_backend_raises_value_error(monkeypatch):
+def test_oracle_backend_without_config_raises_not_configured(monkeypatch):
     monkeypatch.setattr("app.config.ERP_BACKEND", "oracle")
+    monkeypatch.setattr("app.config.ORACLE_BASE_URL", None)
 
-    with pytest.raises(ValueError, match="oracle"):
+    from app.erp.oracle.adapter import OracleERPNotConfiguredError
+
+    with pytest.raises(OracleERPNotConfiguredError):
+        get_erp_adapter()
+
+
+def test_unknown_backend_raises_value_error(monkeypatch):
+    monkeypatch.setattr("app.config.ERP_BACKEND", "netsuite")
+
+    with pytest.raises(ValueError, match="netsuite"):
         get_erp_adapter()

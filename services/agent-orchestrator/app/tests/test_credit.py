@@ -48,9 +48,18 @@ def test_check_credit_missing_limit():
 
 
 def test_check_credit_includes_existing_orders_from_real_customer():
-    # C001 (ABC Corp, credit_limit 100000) already has real Sales Orders on
-    # record from earlier live testing this session — confirm existing
-    # exposure is picked up, not just the new order in isolation.
+    # Create an order first so exposure is guaranteed to be > 0 regardless of
+    # whether mock_erp.xlsx has prior demo data.
+    create_sales_order(
+        customer_id="C001",
+        customer_name="ABC Corp",
+        customer_active=True,
+        product_id="P011",
+        product_name="Wireless Mouse",
+        quantity=1,
+        unit_price=800.0,
+        requested_deadline=None,
+    )
     result = check_credit(
         customer_id="C001",
         credit_limit=100000.0,

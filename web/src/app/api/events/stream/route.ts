@@ -24,20 +24,24 @@ const NOTIFICATION_SERVICE_URL = process.env.NOTIFICATION_SERVICE_URL ?? "http:/
 // none of them gate on the caller's session either; this doesn't introduce
 // a new, inconsistent security bar for just this one route.
 export async function GET() {
-  const upstream = await fetch(`${NOTIFICATION_SERVICE_URL}/events/stream`, {
-    headers: internalServiceHeaders(),
-  });
+  try {
+    const upstream = await fetch(`${NOTIFICATION_SERVICE_URL}/events/stream`, {
+      headers: internalServiceHeaders(),
+    });
 
-  if (!upstream.ok || !upstream.body) {
+    if (!upstream.ok || !upstream.body) {
+      return new Response("notification-service unavailable", { status: 502 });
+    }
+
+    return new Response(upstream.body, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
+  } catch {
     return new Response("notification-service unavailable", { status: 502 });
   }
-
-  return new Response(upstream.body, {
-    status: 200,
-    headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache",
-      Connection: "keep-alive",
-    },
-  });
 }
