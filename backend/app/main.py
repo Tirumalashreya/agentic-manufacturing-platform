@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 
 from app.core.config import settings
 from app.core.database import init_db
-from app.api import sales, manufacturing, scheduling
+from app.api import sales, manufacturing, scheduling, mrp
 
 
 @asynccontextmanager
@@ -35,6 +35,7 @@ app.add_middleware(
 app.include_router(sales.router, prefix=settings.API_V1_STR)
 app.include_router(manufacturing.router, prefix=settings.API_V1_STR)
 app.include_router(scheduling.router, prefix=settings.API_V1_STR)
+app.include_router(mrp.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/")

@@ -31,6 +31,10 @@ import {
   BarChart3,
   Flame,
   Download,
+  Boxes,
+  PackageCheck,
+  ShoppingCart,
+  GitFork,
 } from "lucide-react";
 
 const API_BASE = "http://localhost:8080/api/v1";
@@ -66,7 +70,7 @@ function exportToCsv(filename: string, rows: Record<string, any>[]) {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<"commercial" | "schedule" | "copilot" | "executive">("commercial");
+  const [activeTab, setActiveTab] = useState<"commercial" | "schedule" | "mrp" | "copilot" | "executive">("commercial");
   const [commercialSubTab, setCommercialSubTab] = useState<"intake" | "orders" | "deliveries" | "invoices" | "inventory" | "audit">("intake");
 
   // Search and Filter state
@@ -92,6 +96,17 @@ export default function App() {
   const [mitigationMessage, setMitigationMessage] = useState<string | null>(null);
   const [ganttData, setGanttData] = useState<any>(null);
 
+  // MRP State
+  const [mrpSubTab, setMrpSubTab] = useState<"requirements" | "purchase_orders" | "boms" | "suppliers">("requirements");
+  const [mrpData, setMrpData] = useState<any>(null);
+  const [mrpBoms, setMrpBoms] = useState<any[]>([]);
+  const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [runningMrp, setRunningMrp] = useState(false);
+  const [selectedBomIndex, setSelectedBomIndex] = useState<number>(0);
+  const [mrpFilterStatus, setMrpFilterStatus] = useState<string>("ALL");
+  const [mrpMessage, setMrpMessage] = useState<string | null>(null);
+
   // Gantt interactive inspection
   const [selectedOperation, setSelectedOperation] = useState<any>(null);
 
@@ -110,7 +125,7 @@ export default function App() {
   const fetchData = async () => {
     setSyncing(true);
     try {
-      const [custRes, ordRes, delivRes, invRes, auditRes, ganttRes, invenRes] = await Promise.all([
+      const [custRes, ordRes, delivRes, invRes, auditRes, ganttRes, invenRes, bomsRes, poRes, suppRes] = await Promise.all([
         fetch(`${API_BASE}/sales/customers`).then((r) => (r.ok ? r.json() : [])),
         fetch(`${API_BASE}/sales/orders`).then((r) => (r.ok ? r.json() : [])),
         fetch(`${API_BASE}/sales/deliveries`).then((r) => (r.ok ? r.json() : [])),
@@ -118,6 +133,9 @@ export default function App() {
         fetch(`${API_BASE}/sales/audit-logs`).then((r) => (r.ok ? r.json() : [])),
         fetch(`${API_BASE}/scheduling/gantt`).then((r) => (r.ok ? r.json() : null)),
         fetch(`${API_BASE}/manufacturing/inventory`).then((r) => (r.ok ? r.json() : null)),
+        fetch(`${API_BASE}/mrp/boms`).then((r) => (r.ok ? r.json() : [])),
+        fetch(`${API_BASE}/mrp/purchase-orders`).then((r) => (r.ok ? r.json() : [])),
+        fetch(`${API_BASE}/mrp/suppliers`).then((r) => (r.ok ? r.json() : [])),
       ]);
       setCustomers(custRes);
       setSalesOrders(ordRes);
@@ -126,6 +144,9 @@ export default function App() {
       setAuditLogs(auditRes);
       setGanttData(ganttRes);
       setInventoryData(invenRes);
+      setMrpBoms(bomsRes);
+      setPurchaseOrders(poRes);
+      setSuppliers(suppRes);
     } catch (e) {
       console.error("API sync error:", e);
     } finally {
@@ -307,7 +328,87 @@ export default function App() {
     }
   };
 
+  // Run Multi-Level MRP Run (MD01N)
+  const handleRunMrp = async () => {
+    setRunningMrp(true);
+    setMrpMessage(null);
+    try {
+      const res = await fetch(`${API_BASE}/mrp/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      setMrpData(data);
+      setMrpMessage(
+        data.shortages_detected_count > 0
+          ? `MRP Run Complete (MD01N): Identified ${data.shortages_detected_count} component shortage(s). Auto-generated ${data.generated_purchase_requisitions?.length || 0} Purchase Requisition(s).`
+          : "MRP Run Complete (MD01N): All components healthy. Zero material shortages detected across active demand."
+      );
+      await fetchData();
+    } catch (e) {
+      alert("Failed to execute MRP run.");
+    } finally {
+      setRunningMrp(false);
+    }
+  };
+
+  // Approve Purchase Requisition into Released PO (ME21N)
+  const handleApprovePo = async (poId: string) => {
+    setActionLoading(poId);
+    try {
+      const res = await fetch(`${API_BASE}/mrp/purchase-orders/${poId}/approve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (res.ok) {
+        await fetchData();
+      }
+    } catch (e) {
+      alert("Failed to release purchase order.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Post Physical Goods Receipt at Receiving Dock (MIGO 101 Movement)
+  const handleReceivePo = async (poId: string) => {
+    setActionLoading(poId);
+    try {
+      const res = await fetch(`${API_BASE}/mrp/purchase-orders/${poId}/receive`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (res.ok) {
+        await fetchData();
+      }
+    } catch (e) {
+      alert("Failed to post goods receipt.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
   // Filtered Collections
+  const filteredMrpItems = useMemo(() => {
+    if (!mrpData?.items) return [];
+    let items = mrpData.items;
+    if (mrpFilterStatus === "SHORTAGES") {
+      items = items.filter((i: any) => i.status === "SHORTAGE_DETECTED");
+    } else if (mrpFilterStatus === "HEALTHY") {
+      items = items.filter((i: any) => i.status === "HEALTHY");
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      items = items.filter(
+        (i: any) =>
+          i.sku?.toLowerCase().includes(q) ||
+          i.name?.toLowerCase().includes(q) ||
+          i.material_type?.toLowerCase().includes(q)
+      );
+    }
+    return items;
+  }, [mrpData, mrpFilterStatus, searchQuery]);
+
   const filteredOrders = useMemo(() => {
     if (!searchQuery.trim()) return salesOrders;
     const q = searchQuery.toLowerCase();
@@ -438,6 +539,17 @@ export default function App() {
           >
             <Calendar className="w-3.5 h-3.5" />
             <span>Master Gantt</span>
+          </button>
+          <button
+            onClick={() => setActiveTab("mrp")}
+            className={`px-3 py-1.5 rounded-md font-medium transition-all flex items-center space-x-2 ${
+              activeTab === "mrp"
+                ? "bg-white/[0.1] text-white shadow-sm border border-white/[0.12]"
+                : "text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <Boxes className="w-3.5 h-3.5 text-blue-400" />
+            <span>Supply & MRP (MD01N)</span>
           </button>
           <button
             onClick={() => setActiveTab("copilot")}
@@ -1555,6 +1667,574 @@ export default function App() {
                 >
                   Close Detail
                 </button>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* TAB 2.5: AUTONOMOUS MRP & BOM SUPPLY RUN (SAP MD01N / ME21N)   */}
+        {/* ============================================================== */}
+        {activeTab === "mrp" && (
+          <div className="max-w-7xl mx-auto space-y-6">
+            {/* Header with Run MRP Action */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <h1 className="text-lg font-bold text-white tracking-tight flex items-center space-x-2">
+                  <Boxes className="w-5 h-5 text-blue-400" />
+                  <span>Autonomous Material Requirements Planning (MD01N / ME21N)</span>
+                </h1>
+                <p className="text-xs text-slate-400">
+                  Recursive multi-level BOM explosion across active demand, deterministic net requirement calculations, and automated Purchase Requisitions.
+                </p>
+              </div>
+              <button
+                onClick={handleRunMrp}
+                disabled={runningMrp}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-lg text-xs shadow-sm flex items-center space-x-2 transition-all cursor-pointer"
+              >
+                {runningMrp ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Exploding BOMs & Calculating Net Requirements...</span>
+                  </>
+                ) : (
+                  <>
+                    <Cpu className="w-3.5 h-3.5" />
+                    <span>Run Multi-Level MRP (MD01N)</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Notification Banner */}
+            {mrpMessage && (
+              <div className="p-4 rounded-xl border border-blue-500/40 bg-blue-950/40 text-blue-100 flex items-center justify-between shadow-xl animate-in fade-in duration-200">
+                <div className="flex items-center space-x-3 text-xs">
+                  <div className="w-7 h-7 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold">
+                    ✓
+                  </div>
+                  <span className="font-mono text-slate-200">{mrpMessage}</span>
+                </div>
+                <button
+                  onClick={() => setMrpMessage(null)}
+                  className="text-xs text-blue-300 hover:text-white px-2 py-0.5 bg-blue-900/40 rounded border border-blue-700/50"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
+
+            {/* Telemetry Summary Cards */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="hairline-panel p-4 rounded-xl">
+                <span className="text-[11px] text-slate-400 font-mono block">DEMAND SIGNALS</span>
+                <div className="text-xl font-bold font-mono text-slate-100 mt-1">
+                  {mrpData?.demand_orders_count || salesOrders.length || 5} Orders
+                </div>
+                <span className="text-[10px] text-slate-400">Pegged Sales & Production</span>
+              </div>
+              <div className="hairline-panel p-4 rounded-xl">
+                <span className="text-[11px] text-slate-400 font-mono block">COMPONENTS ANALYZED</span>
+                <div className="text-xl font-bold font-mono text-blue-400 mt-1">
+                  {mrpData?.components_analyzed || 6} Items
+                </div>
+                <span className="text-[10px] text-slate-400">Multi-Level BOM Exploded</span>
+              </div>
+              <div className="hairline-panel p-4 rounded-xl">
+                <span className="text-[11px] text-slate-400 font-mono block">SHORTAGES DETECTED</span>
+                <div className={`text-xl font-bold font-mono mt-1 ${
+                  (mrpData?.shortages_detected_count || 0) > 0 ? "text-rose-400" : "text-emerald-400"
+                }`}>
+                  {mrpData?.shortages_detected_count || 0}
+                </div>
+                <span className="text-[10px] text-slate-400">Below Safety Stock</span>
+              </div>
+              <div className="hairline-panel p-4 rounded-xl">
+                <span className="text-[11px] text-slate-400 font-mono block">OPEN PURCHASE ORDERS</span>
+                <div className="text-xl font-bold font-mono text-indigo-400 mt-1">
+                  {purchaseOrders.filter((p: any) => p.status !== "RECEIVED").length} Orders
+                </div>
+                <span className="text-[10px] text-slate-400">Inbound Supply Pipeline</span>
+              </div>
+            </div>
+
+            {/* Sub-navigation */}
+            <div className="flex border-b border-white/[0.08] space-x-6 text-xs">
+              <button
+                onClick={() => setMrpSubTab("requirements")}
+                className={`pb-3 font-semibold transition-colors flex items-center space-x-1.5 ${
+                  mrpSubTab === "requirements"
+                    ? "text-blue-400 border-b-2 border-blue-500"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <Boxes className="w-3.5 h-3.5" />
+                <span>Net Requirements & Shortages (MD01N)</span>
+              </button>
+              <button
+                onClick={() => setMrpSubTab("purchase_orders")}
+                className={`pb-3 font-semibold transition-colors flex items-center space-x-1.5 ${
+                  mrpSubTab === "purchase_orders"
+                    ? "text-blue-400 border-b-2 border-blue-500"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <ShoppingCart className="w-3.5 h-3.5" />
+                <span>Purchase Orders & Dock Receiving ({purchaseOrders.length})</span>
+              </button>
+              <button
+                onClick={() => setMrpSubTab("boms")}
+                className={`pb-3 font-semibold transition-colors flex items-center space-x-1.5 ${
+                  mrpSubTab === "boms"
+                    ? "text-blue-400 border-b-2 border-blue-500"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <GitFork className="w-3.5 h-3.5" />
+                <span>BOM Hierarchy Explorer ({mrpBoms.length})</span>
+              </button>
+              <button
+                onClick={() => setMrpSubTab("suppliers")}
+                className={`pb-3 font-semibold transition-colors flex items-center space-x-1.5 ${
+                  mrpSubTab === "suppliers"
+                    ? "text-blue-400 border-b-2 border-blue-500"
+                    : "text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                <Building2 className="w-3.5 h-3.5" />
+                <span>Certified Suppliers ({suppliers.length})</span>
+              </button>
+            </div>
+
+            {/* SUBTAB 1: NET REQUIREMENTS & SHORTAGES */}
+            {mrpSubTab === "requirements" && (
+              <div className="hairline-panel rounded-xl overflow-hidden space-y-4">
+                <div className="p-5 border-b border-white/[0.08] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                  <div>
+                    <h2 className="font-bold text-sm text-slate-100 flex items-center space-x-2">
+                      <Boxes className="w-4 h-4 text-blue-400" />
+                      <span>Net Material Requirements & Shortage Analysis (MD01N)</span>
+                    </h2>
+                    <p className="text-xs text-slate-400">
+                      Evaluates gross component demand against physical on-hand inventory, open purchase orders, and safety stock.
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => {
+                        const rows = filteredMrpItems.map((item: any) => ({
+                          SKU: item.sku,
+                          Component_Name: item.name,
+                          Material_Type: item.material_type,
+                          BOM_Level: item.bom_level,
+                          Gross_Requirement: item.gross_requirement,
+                          On_Hand_Stock: item.on_hand_stock,
+                          Safety_Stock: item.safety_stock,
+                          Inbound_Pipeline: item.inbound_pipeline,
+                          Net_Requirement: item.net_requirement,
+                          Unit_Cost: item.unit_cost,
+                          Shortage_Value: item.total_shortage_value,
+                          Status: item.status,
+                        }));
+                        exportToCsv("mrp_net_requirements.csv", rows);
+                      }}
+                      className="flex items-center space-x-1 px-2.5 py-1 text-xs bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded border border-white/[0.08] transition-colors"
+                      title="Download MRP Requirements as CSV"
+                    >
+                      <Download className="w-3 h-3 text-blue-400" />
+                      <span>Export CSV</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Filter Pills */}
+                <div className="px-5 flex items-center space-x-2 text-xs">
+                  <span className="text-slate-400 font-mono text-[11px] mr-1">Filter View:</span>
+                  {[
+                    { label: "All Items", val: "ALL" },
+                    { label: "Shortages Only", val: "SHORTAGES" },
+                    { label: "Healthy Only", val: "HEALTHY" },
+                  ].map((f) => (
+                    <button
+                      key={f.val}
+                      onClick={() => setMrpFilterStatus(f.val)}
+                      className={`px-2.5 py-0.5 rounded text-[11px] font-mono transition-colors ${
+                        mrpFilterStatus === f.val
+                          ? "bg-blue-600 text-white font-semibold"
+                          : "bg-white/[0.04] text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Table */}
+                <div className="overflow-x-auto px-5 pb-5">
+                  {filteredMrpItems.length > 0 ? (
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
+                        <tr>
+                          <th className="py-3 px-4">SKU</th>
+                          <th className="py-3 px-4">Component Description</th>
+                          <th className="py-3 px-4">Type</th>
+                          <th className="py-3 px-4 text-center">BOM Lvl</th>
+                          <th className="py-3 px-4 text-right">Gross Req</th>
+                          <th className="py-3 px-4 text-right">On-Hand</th>
+                          <th className="py-3 px-4 text-right">Safety Stock</th>
+                          <th className="py-3 px-4 text-right">Inbound Pipeline</th>
+                          <th className="py-3 px-4 text-right">Net Shortage</th>
+                          <th className="py-3 px-4">MRP Status</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/[0.04]">
+                        {filteredMrpItems.map((item: any, idx: number) => (
+                          <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
+                            <td className="py-3.5 px-4 font-mono font-medium text-blue-400">{item.sku}</td>
+                            <td className="py-3.5 px-4 font-semibold text-slate-200">{item.name}</td>
+                            <td className="py-3.5 px-4 font-mono text-[11px] text-slate-400">{item.material_type}</td>
+                            <td className="py-3.5 px-4 text-center font-mono">
+                              <span className="px-1.5 py-0.5 rounded bg-white/[0.06] text-slate-300 text-[10px]">
+                                L{item.bom_level}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-mono text-slate-100">
+                              {item.gross_requirement}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-mono text-slate-300">
+                              {item.on_hand_stock}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-mono text-slate-400">
+                              {item.safety_stock}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-mono text-indigo-300">
+                              {item.inbound_pipeline > 0 ? `+${item.inbound_pipeline}` : "0"}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-mono font-bold">
+                              {item.net_requirement > 0 ? (
+                                <span className="text-rose-400 font-bold">-{item.net_requirement}</span>
+                              ) : (
+                                <span className="text-slate-500">0</span>
+                              )}
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                  item.status === "HEALTHY"
+                                    ? "bg-emerald-950 text-emerald-400 border-emerald-800/40"
+                                    : "bg-rose-950 text-rose-400 border-rose-800/40"
+                                }`}
+                              >
+                                {item.status}
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="p-12 text-center text-slate-500 flex flex-col items-center justify-center">
+                      <Boxes className="w-10 h-10 mb-2 opacity-30" />
+                      <p className="text-sm font-medium">No MRP requirements calculated yet.</p>
+                      <p className="text-xs text-slate-600 max-w-sm mt-1">
+                        Click <strong>"Run Multi-Level MRP (MD01N)"</strong> in the top header to explode Bills of Materials and calculate component net requirements.
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* SUBTAB 2: PURCHASE ORDERS & DOCK RECEIVING */}
+            {mrpSubTab === "purchase_orders" && (
+              <div className="hairline-panel rounded-xl overflow-hidden space-y-4">
+                <div className="p-5 border-b border-white/[0.08] flex justify-between items-center">
+                  <div>
+                    <h2 className="font-bold text-sm text-slate-100 flex items-center space-x-2">
+                      <ShoppingCart className="w-4 h-4 text-indigo-400" />
+                      <span>Purchase Requisitions & Supplier Orders (ME21N / MIGO)</span>
+                    </h2>
+                    <p className="text-xs text-slate-400">
+                      Autonomous procurement orders generated from MRP shortages. Approve and post physical dock goods receipt.
+                    </p>
+                  </div>
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => {
+                        const rows = purchaseOrders.map((po: any) => ({
+                          PO_Number: po.po_number,
+                          Supplier_Name: po.supplier_name,
+                          Supplier_Code: po.supplier_code,
+                          Material_SKU: po.material_sku,
+                          Material_Name: po.material_name,
+                          Quantity: po.quantity,
+                          Unit_Cost: po.unit_cost,
+                          Total_Amount: po.total_amount,
+                          Dock_Due_Date: po.dock_due_date || "",
+                          Status: po.status,
+                        }));
+                        exportToCsv("purchase_orders.csv", rows);
+                      }}
+                      className="flex items-center space-x-1 px-2.5 py-1 text-xs bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded border border-white/[0.08] transition-colors"
+                      title="Download Purchase Orders as CSV"
+                    >
+                      <Download className="w-3 h-3 text-indigo-400" />
+                      <span>Export CSV</span>
+                    </button>
+                    <span className="text-xs text-slate-400 font-mono">{purchaseOrders.length} records</span>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto px-5 pb-5">
+                  {purchaseOrders.length > 0 ? (
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
+                        <tr>
+                          <th className="py-3 px-4">PO / PR #</th>
+                          <th className="py-3 px-4">Supplier</th>
+                          <th className="py-3 px-4">Material SKU</th>
+                          <th className="py-3 px-4 text-right">Order Qty</th>
+                          <th className="py-3 px-4 text-right">Unit Cost</th>
+                          <th className="py-3 px-4 text-right">Total Amount</th>
+                          <th className="py-3 px-4">Dock Due Date</th>
+                          <th className="py-3 px-4">Procurement Status</th>
+                          <th className="py-3 px-4 text-center">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-white/[0.04]">
+                        {purchaseOrders.map((po: any) => (
+                          <tr key={po.id} className="hover:bg-white/[0.02] transition-colors">
+                            <td className="py-3.5 px-4 font-mono font-medium text-indigo-400">{po.po_number}</td>
+                            <td className="py-3.5 px-4 font-semibold text-slate-200">{po.supplier_name}</td>
+                            <td className="py-3.5 px-4 font-mono text-blue-300">{po.material_sku}</td>
+                            <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-100">{po.quantity}</td>
+                            <td className="py-3.5 px-4 text-right font-mono text-slate-300">${po.unit_cost?.toFixed(2)}</td>
+                            <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-400">
+                              ${po.total_amount?.toLocaleString()}
+                            </td>
+                            <td className="py-3.5 px-4 font-mono text-slate-400">
+                              {po.dock_due_date ? new Date(po.dock_due_date).toLocaleDateString() : "TBD"}
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                  po.status === "RECEIVED"
+                                    ? "bg-emerald-950 text-emerald-400 border-emerald-800/40"
+                                    : po.status === "RELEASED"
+                                    ? "bg-blue-950 text-blue-400 border-blue-800/40"
+                                    : "bg-amber-950 text-amber-400 border-amber-800/40"
+                                }`}
+                              >
+                                {po.status}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              {po.status === "DRAFT_PR" && (
+                                <button
+                                  onClick={() => handleApprovePo(po.id)}
+                                  disabled={actionLoading === po.id}
+                                  className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[11px] font-semibold flex items-center space-x-1 mx-auto transition-all cursor-pointer"
+                                >
+                                  {actionLoading === po.id ? (
+                                    <RefreshCw className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    <PackageCheck className="w-3 h-3" />
+                                  )}
+                                  <span>Release PO (ME21N)</span>
+                                </button>
+                              )}
+                              {po.status === "RELEASED" && (
+                                <button
+                                  onClick={() => handleReceivePo(po.id)}
+                                  disabled={actionLoading === po.id}
+                                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-semibold flex items-center space-x-1 mx-auto transition-all cursor-pointer"
+                                >
+                                  {actionLoading === po.id ? (
+                                    <RefreshCw className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    <Truck className="w-3 h-3" />
+                                  )}
+                                  <span>Receive Dock (MIGO)</span>
+                                </button>
+                              )}
+                              {po.status === "RECEIVED" && (
+                                <span className="text-[11px] text-emerald-400 font-mono flex items-center justify-center space-x-1">
+                                  <Check className="w-3 h-3" />
+                                  <span>Dock Received</span>
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="p-8 text-center text-slate-500 font-mono text-xs">
+                      No purchase orders recorded in ledger.
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* SUBTAB 3: MULTI-LEVEL BOM HIERARCHY EXPLORER */}
+            {mrpSubTab === "boms" && (
+              <div className="space-y-4">
+                {/* Product Selector */}
+                <div className="flex items-center space-x-3">
+                  <span className="text-xs font-mono text-slate-400">Select Finished Product:</span>
+                  {mrpBoms.map((bom: any, idx: number) => (
+                    <button
+                      key={bom.bom_id}
+                      onClick={() => setSelectedBomIndex(idx)}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                        selectedBomIndex === idx
+                          ? "bg-blue-600/30 border-blue-500/50 text-blue-200"
+                          : "bg-[#0a0b0e] border-white/[0.08] text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      {bom.sku} ({bom.name})
+                    </button>
+                  ))}
+                </div>
+
+                {/* Active BOM Card */}
+                {mrpBoms[selectedBomIndex] && (
+                  <div className="hairline-panel rounded-xl p-5 space-y-4">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-white/[0.08] pb-4">
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                            Version {mrpBoms[selectedBomIndex].version}
+                          </span>
+                          <h2 className="text-base font-bold text-white">
+                            {mrpBoms[selectedBomIndex].sku} — {mrpBoms[selectedBomIndex].name}
+                          </h2>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-0.5">
+                          Multi-tier engineering Bill of Materials with scrap rate allowances and unit standard costs.
+                        </p>
+                      </div>
+                      <div className="flex items-center space-x-6 text-right font-mono">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">Finished Good Price</span>
+                          <span className="text-sm font-bold text-slate-200">
+                            ${mrpBoms[selectedBomIndex].finished_good_unit_cost?.toLocaleString()}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">Rolled-Up BOM Cost</span>
+                          <span className="text-sm font-bold text-amber-400">
+                            ${mrpBoms[selectedBomIndex].bom_standard_cost?.toLocaleString()}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">Gross Margin</span>
+                          <span className="text-sm font-bold text-emerald-400">
+                            {mrpBoms[selectedBomIndex].margin_pct}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
+                          <tr>
+                            <th className="py-3 px-4">Component SKU</th>
+                            <th className="py-3 px-4">Description</th>
+                            <th className="py-3 px-4">Type</th>
+                            <th className="py-3 px-4 text-right">Qty Per Unit</th>
+                            <th className="py-3 px-4 text-right">Scrap %</th>
+                            <th className="py-3 px-4 text-right">Unit Cost</th>
+                            <th className="py-3 px-4 text-right">Extended Cost</th>
+                            <th className="py-3 px-4 text-right">On-Hand Stock</th>
+                            <th className="py-3 px-4">Inventory Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/[0.04]">
+                          {mrpBoms[selectedBomIndex].components?.map((comp: any) => (
+                            <tr key={comp.id} className="hover:bg-white/[0.02] transition-colors">
+                              <td className="py-3.5 px-4 font-mono font-medium text-blue-400">{comp.sku}</td>
+                              <td className="py-3.5 px-4 font-semibold text-slate-200">{comp.name}</td>
+                              <td className="py-3.5 px-4 font-mono text-[11px] text-slate-400">{comp.material_type}</td>
+                              <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-100">
+                                {comp.quantity_per} {comp.unit_of_measure}
+                              </td>
+                              <td className="py-3.5 px-4 text-right font-mono text-slate-400">
+                                {comp.scrap_factor_pct}%
+                              </td>
+                              <td className="py-3.5 px-4 text-right font-mono text-slate-300">
+                                ${comp.unit_cost?.toFixed(2)}
+                              </td>
+                              <td className="py-3.5 px-4 text-right font-mono font-bold text-amber-400">
+                                ${comp.extended_cost?.toFixed(2)}
+                              </td>
+                              <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-200">
+                                {comp.on_hand_stock}
+                              </td>
+                              <td className="py-3.5 px-4">
+                                <span
+                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                    comp.stock_status === "HEALTHY"
+                                      ? "bg-emerald-950 text-emerald-400 border-emerald-800/40"
+                                      : "bg-rose-950 text-rose-400 border-rose-800/40"
+                                  }`}
+                                >
+                                  {comp.stock_status}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* SUBTAB 4: CERTIFIED SUPPLIER DIRECTORY */}
+            {mrpSubTab === "suppliers" && (
+              <div className="space-y-4">
+                <div className="hairline-panel p-5 rounded-xl">
+                  <h2 className="font-bold text-sm text-slate-100 flex items-center space-x-2">
+                    <Building2 className="w-4 h-4 text-blue-400" />
+                    <span>Certified Aerospace & Defense Supplier Roster</span>
+                  </h2>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Direct-contracted vendors supplying raw Inconel, aerospace fasteners, and hydraulic seals with guaranteed lead times.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {suppliers.map((supp: any) => (
+                    <div key={supp.id} className="hairline-panel p-5 rounded-xl space-y-3">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="font-mono text-xs text-blue-400 font-bold">{supp.code}</span>
+                          <h3 className="font-bold text-slate-100 text-sm mt-0.5">{supp.name}</h3>
+                          <span className="text-[11px] text-slate-400">{supp.country} · ISO 9001 / AS9100 Certified</span>
+                        </div>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                          {supp.rating}
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/[0.06] text-xs font-mono">
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">Contract Lead Time</span>
+                          <span className="font-bold text-slate-200">{supp.lead_time_days} Business Days</span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] text-slate-400 block">Historical OTIF</span>
+                          <span className="font-bold text-emerald-400">{supp.on_time_delivery_pct}%</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </div>

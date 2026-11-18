@@ -2,6 +2,7 @@ from app.models.master_data import Enterprise, Plant, WorkCenter, Machine, Mater
 from app.models.sales import Customer, CustomerQuote, SalesOrder, SalesOrderLine, DeliveryPromise, DeliveryNote, Invoice
 from app.models.manufacturing import ProductionOrder, ScheduledOperation, ChangeoverMatrix
 from app.models.audit import AuditLog, ApprovalRequest, OutboxEvent
+from app.models.procurement import Supplier, PurchaseOrder
 
 __all__ = [
     "Enterprise",
@@ -26,4 +27,6 @@ __all__ = [
     "AuditLog",
     "ApprovalRequest",
     "OutboxEvent",
+    "Supplier",
+    "PurchaseOrder",
 ]
