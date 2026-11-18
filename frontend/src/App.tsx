@@ -26,16 +26,18 @@ import {
   Search,
   Filter,
   ArrowUpRight,
-  Sparkle,
   Radio,
   BarChart3,
-  Flame,
   Download,
   Boxes,
-  PackageCheck,
-  ShoppingCart,
-  GitFork,
+  Split,
 } from "lucide-react";
+
+import CommercialStation from "./components/CommercialStation";
+import SchedulingStation from "./components/SchedulingStation";
+import SupplyPlanningStation from "./components/SupplyPlanningStation";
+import ExecutiveStation from "./components/ExecutiveStation";
+import DualStationMonitor from "./components/DualStationMonitor";
 
 const API_BASE = "http://localhost:8080/api/v1";
 
@@ -70,10 +72,9 @@ function exportToCsv(filename: string, rows: Record<string, any>[]) {
 }
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<"commercial" | "schedule" | "mrp" | "copilot" | "executive">("commercial");
-  const [commercialSubTab, setCommercialSubTab] = useState<"intake" | "orders" | "deliveries" | "invoices" | "inventory" | "audit">("intake");
+  const [activeTab, setActiveTab] = useState<"commercial" | "schedule" | "mrp" | "dual" | "executive">("commercial");
 
-  // Search and Filter state
+  // Search state
   const [searchQuery, setSearchQuery] = useState("");
 
   // Commercial state
@@ -85,39 +86,34 @@ export default function App() {
   const [selectedOrderFlow, setSelectedOrderFlow] = useState<any>(null);
   const [loadingFlow, setLoadingFlow] = useState(false);
 
-  // Data state
+  // Authoritative Backend Data State
   const [customers, setCustomers] = useState<any[]>([]);
   const [salesOrders, setSalesOrders] = useState<any[]>([]);
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [inventoryData, setInventoryData] = useState<any>(null);
-  const [applyingMitigation, setApplyingMitigation] = useState(false);
-  const [mitigationMessage, setMitigationMessage] = useState<string | null>(null);
   const [ganttData, setGanttData] = useState<any>(null);
 
-  // MRP State
-  const [mrpSubTab, setMrpSubTab] = useState<"requirements" | "purchase_orders" | "boms" | "suppliers">("requirements");
-  const [mrpData, setMrpData] = useState<any>(null);
-  const [mrpBoms, setMrpBoms] = useState<any[]>([]);
-  const [purchaseOrders, setPurchaseOrders] = useState<any[]>([]);
-  const [suppliers, setSuppliers] = useState<any[]>([]);
-  const [runningMrp, setRunningMrp] = useState(false);
-  const [selectedBomIndex, setSelectedBomIndex] = useState<number>(0);
-  const [mrpFilterStatus, setMrpFilterStatus] = useState<string>("ALL");
-  const [mrpMessage, setMrpMessage] = useState<string | null>(null);
-
-  // Gantt interactive inspection
+  // Scheduling State
+  const [ganttWorkCenterFilter, setGanttWorkCenterFilter] = useState<string>("ALL");
+  const [inventoryHealthFilter, setInventoryHealthFilter] = useState<string>("ALL");
   const [selectedOperation, setSelectedOperation] = useState<any>(null);
-
-  // Copilot state
   const [selectedMachine, setSelectedMachine] = useState("CNC-01");
   const [downtimeHours, setDowntimeHours] = useState(4);
   const [disruptionResult, setDisruptionResult] = useState<any>(null);
   const [simulating, setSimulating] = useState(false);
   const [selectedScenarioIndex, setSelectedScenarioIndex] = useState<number>(0);
+  const [applyingMitigation, setApplyingMitigation] = useState(false);
+  const [mitigationMessage, setMitigationMessage] = useState<string | null>(null);
 
-  // Action states
+  // MRP State
+  const [mrpData, setMrpData] = useState<any>(null);
+  const [runningMrp, setRunningMrp] = useState(false);
+  const [mrpFilterStatus, setMrpFilterStatus] = useState<"ALL" | "SHORTAGES" | "HEALTHY">("ALL");
+  const [mrpMessage, setMrpMessage] = useState<string | null>(null);
+
+  // General Action & Sync States
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
 
@@ -125,7 +121,7 @@ export default function App() {
   const fetchData = async () => {
     setSyncing(true);
     try {
-      const [custRes, ordRes, delivRes, invRes, auditRes, ganttRes, invenRes, bomsRes, poRes, suppRes] = await Promise.all([
+      const [custRes, ordRes, delivRes, invRes, auditRes, ganttRes, invenRes] = await Promise.all([
         fetch(`${API_BASE}/sales/customers`).then((r) => (r.ok ? r.json() : [])),
         fetch(`${API_BASE}/sales/orders`).then((r) => (r.ok ? r.json() : [])),
         fetch(`${API_BASE}/sales/deliveries`).then((r) => (r.ok ? r.json() : [])),
@@ -133,9 +129,6 @@ export default function App() {
         fetch(`${API_BASE}/sales/audit-logs`).then((r) => (r.ok ? r.json() : [])),
         fetch(`${API_BASE}/scheduling/gantt`).then((r) => (r.ok ? r.json() : null)),
         fetch(`${API_BASE}/manufacturing/inventory`).then((r) => (r.ok ? r.json() : null)),
-        fetch(`${API_BASE}/mrp/boms`).then((r) => (r.ok ? r.json() : [])),
-        fetch(`${API_BASE}/mrp/purchase-orders`).then((r) => (r.ok ? r.json() : [])),
-        fetch(`${API_BASE}/mrp/suppliers`).then((r) => (r.ok ? r.json() : [])),
       ]);
       setCustomers(custRes);
       setSalesOrders(ordRes);
@@ -144,9 +137,6 @@ export default function App() {
       setAuditLogs(auditRes);
       setGanttData(ganttRes);
       setInventoryData(invenRes);
-      setMrpBoms(bomsRes);
-      setPurchaseOrders(poRes);
-      setSuppliers(suppRes);
     } catch (e) {
       console.error("API sync error:", e);
     } finally {
@@ -160,7 +150,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Global Keyboard Shortcuts (Operate Mode Standard)
+  // Global Keyboard Shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -205,7 +195,6 @@ export default function App() {
       setOrderConfirmation(data);
       setProposal(null);
 
-      // Trigger high-velocity celebration
       confetti({
         particleCount: 180,
         spread: 110,
@@ -225,7 +214,7 @@ export default function App() {
     }
   };
 
-  // View Document Flow & Printable Order Modal
+  // View Document Flow Modal
   const handleViewOrderFlow = async (orderId: string) => {
     setLoadingFlow(true);
     try {
@@ -259,14 +248,51 @@ export default function App() {
     }
   };
 
-  // Filter and view states
-  const [ganttWorkCenterFilter, setGanttWorkCenterFilter] = useState<string>("ALL");
-  const [inventoryHealthFilter, setInventoryHealthFilter] = useState<string>("ALL");
+  // Record Customer Payment (Clear Invoice)
+  const handlePayInvoice = async (invoiceId: string) => {
+    setActionLoading(invoiceId);
+    try {
+      const res = await fetch(`${API_BASE}/sales/invoices/${invoiceId}/pay`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (res.ok) {
+        await fetchData();
+      }
+    } catch (e) {
+      alert("Failed to record invoice payment.");
+    } finally {
+      setActionLoading(null);
+    }
+  };
+
+  // Disruption Simulation
+  const handleSimulateDisruption = async () => {
+    setSimulating(true);
+    try {
+      const res = await fetch(`${API_BASE}/scheduling/disruption/simulate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ machine_code: selectedMachine, downtime_hours: downtimeHours }),
+      });
+      const data = await res.json();
+      setDisruptionResult(data);
+      setSelectedScenarioIndex(0);
+    } catch (e) {
+      alert("Simulation failed.");
+    } finally {
+      setSimulating(false);
+    }
+  };
 
   // Apply Disruption Mitigation Plan
   const handleApplyMitigation = async (scenarioToApply?: any) => {
     if (!disruptionResult) return;
-    const target = scenarioToApply || activeScenario;
+    const allScenarios = [
+      ...(disruptionResult.recommended_scenario ? [disruptionResult.recommended_scenario] : []),
+      ...(Array.isArray(disruptionResult.alternative_scenarios) ? disruptionResult.alternative_scenarios : []),
+    ];
+    const target = scenarioToApply || allScenarios[selectedScenarioIndex] || allScenarios[0];
     setApplyingMitigation(true);
     try {
       const isOvertime = target?.scenario_id?.includes("OVERTIME");
@@ -291,44 +317,7 @@ export default function App() {
     }
   };
 
-  // Record Customer Payment (Clear Invoice)
-  const handlePayInvoice = async (invoiceId: string) => {
-    setActionLoading(invoiceId);
-    try {
-      const res = await fetch(`${API_BASE}/sales/invoices/${invoiceId}/pay`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (res.ok) {
-        await fetchData();
-      }
-    } catch (e) {
-      alert("Failed to record invoice payment.");
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  // Run Disruption What-If Simulation
-  const handleSimulateDisruption = async () => {
-    setSimulating(true);
-    try {
-      const res = await fetch(`${API_BASE}/scheduling/disruption/simulate`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ machine_code: selectedMachine, downtime_hours: downtimeHours }),
-      });
-      const data = await res.json();
-      setDisruptionResult(data);
-      setSelectedScenarioIndex(0);
-    } catch (e) {
-      alert("Simulation failed.");
-    } finally {
-      setSimulating(false);
-    }
-  };
-
-  // Run Multi-Level MRP Run (MD01N)
+  // Multi-Level MRP Run (MD01N)
   const handleRunMrp = async () => {
     setRunningMrp(true);
     setMrpMessage(null);
@@ -361,7 +350,11 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
       });
       if (res.ok) {
-        await fetchData();
+        if (mrpData) {
+          await handleRunMrp();
+        } else {
+          await fetchData();
+        }
       }
     } catch (e) {
       alert("Failed to release purchase order.");
@@ -370,7 +363,7 @@ export default function App() {
     }
   };
 
-  // Post Physical Goods Receipt at Receiving Dock (MIGO 101 Movement)
+  // Post Physical Goods Receipt at Dock (MIGO 101)
   const handleReceivePo = async (poId: string) => {
     setActionLoading(poId);
     try {
@@ -379,7 +372,11 @@ export default function App() {
         headers: { "Content-Type": "application/json" },
       });
       if (res.ok) {
-        await fetchData();
+        if (mrpData) {
+          await handleRunMrp();
+        } else {
+          await fetchData();
+        }
       }
     } catch (e) {
       alert("Failed to post goods receipt.");
@@ -389,26 +386,6 @@ export default function App() {
   };
 
   // Filtered Collections
-  const filteredMrpItems = useMemo(() => {
-    if (!mrpData?.items) return [];
-    let items = mrpData.items;
-    if (mrpFilterStatus === "SHORTAGES") {
-      items = items.filter((i: any) => i.status === "SHORTAGE_DETECTED");
-    } else if (mrpFilterStatus === "HEALTHY") {
-      items = items.filter((i: any) => i.status === "HEALTHY");
-    }
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      items = items.filter(
-        (i: any) =>
-          i.sku?.toLowerCase().includes(q) ||
-          i.name?.toLowerCase().includes(q) ||
-          i.material_type?.toLowerCase().includes(q)
-      );
-    }
-    return items;
-  }, [mrpData, mrpFilterStatus, searchQuery]);
-
   const filteredOrders = useMemo(() => {
     if (!searchQuery.trim()) return salesOrders;
     const q = searchQuery.toLowerCase();
@@ -442,22 +419,6 @@ export default function App() {
     );
   }, [invoices, searchQuery]);
 
-  // Disruption Copilot Multi-Scenario List
-  const allScenarios = useMemo(() => {
-    if (!disruptionResult) return [];
-    const list = [];
-    if (disruptionResult.recommended_scenario) {
-      list.push(disruptionResult.recommended_scenario);
-    }
-    if (Array.isArray(disruptionResult.alternative_scenarios)) {
-      list.push(...disruptionResult.alternative_scenarios);
-    }
-    return list;
-  }, [disruptionResult]);
-
-  const activeScenario = allScenarios[selectedScenarioIndex] || allScenarios[0];
-
-  // Gantt Filtered by Work Center
   const filteredGanttResources = useMemo(() => {
     if (!ganttData?.resources) return [];
     if (ganttWorkCenterFilter === "ALL") return ganttData.resources;
@@ -466,7 +427,6 @@ export default function App() {
     );
   }, [ganttData, ganttWorkCenterFilter]);
 
-  // Inventory Filtered by Health & Search
   const filteredInventoryItems = useMemo(() => {
     if (!inventoryData?.items) return [];
     let items = inventoryData.items;
@@ -485,2100 +445,347 @@ export default function App() {
     return items;
   }, [inventoryData, inventoryHealthFilter, searchQuery]);
 
-  const totalPipeline = salesOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
-  const openInvoicesCount = invoices.filter((i) => i.status !== "PAID").length;
-  const pendingShipmentsCount = deliveries.filter((d) => d.status !== "SHIPPED").length;
+  const filteredMrpItems = useMemo(() => {
+    if (!mrpData?.items) return [];
+    let items = mrpData.items;
+    if (mrpFilterStatus === "SHORTAGES") {
+      items = items.filter((i: any) => i.status === "SHORTAGE_DETECTED");
+    } else if (mrpFilterStatus === "HEALTHY") {
+      items = items.filter((i: any) => i.status === "HEALTHY");
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      items = items.filter(
+        (i: any) =>
+          i.sku?.toLowerCase().includes(q) ||
+          i.name?.toLowerCase().includes(q) ||
+          i.material_type?.toLowerCase().includes(q)
+      );
+    }
+    return items;
+  }, [mrpData, mrpFilterStatus, searchQuery]);
 
   return (
     <div className="flex flex-col h-screen bg-[#090a0d] text-slate-100 overflow-hidden font-sans technical-grid selection:bg-blue-600/30">
       {/* Precision Master Cockpit Header */}
-      <header className="h-13 border-b border-white/[0.08] bg-[#0c0e14]/90 px-6 flex items-center justify-between backdrop-blur-md z-30">
-        <div className="flex items-center space-x-6">
+      <header className="h-14 border-b border-white/[0.08] bg-[#0c0e14]/95 px-6 flex items-center justify-between backdrop-blur-md z-30">
+        <div className="flex items-center space-x-5">
           <div className="flex items-center space-x-3">
-            <div className="w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center font-bold text-white text-xs shadow-sm">
+            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center font-bold text-white text-xs shadow-md">
               APS
             </div>
             <div className="flex items-baseline space-x-2">
-              <span className="font-semibold text-sm tracking-tight text-white">Enterprise APS & O2C</span>
-              <span className="text-[10px] font-mono text-slate-400 border border-white/[0.08] px-1.5 py-0.5 rounded bg-white/[0.03]">
-                Tier-1 Architecture
+              <span className="font-bold text-sm tracking-tight text-white">Enterprise APS & O2C</span>
+              <span className="text-[10px] font-mono text-cyan-400 border border-cyan-500/20 px-1.5 py-0.5 rounded bg-cyan-500/10">
+                Oracle Redwood / SAP S4
               </span>
             </div>
           </div>
 
-          <div className="hidden lg:flex items-center text-xs text-slate-400 space-x-3 border-l border-white/[0.08] pl-5 font-mono">
+          <div className="hidden xl:flex items-center text-xs text-slate-400 space-x-3 border-l border-white/[0.08] pl-4 font-mono">
             <span className="flex items-center">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2 animate-pulse"></span>
-              Plant: <strong>GAIC Chicago (PLANT-01)</strong>
+              <span className="w-2 h-2 rounded-full bg-emerald-400 mr-2 animate-pulse"></span>
+              Core: <strong>PostgreSQL + CP-SAT + MRP Engine (Synced)</strong>
             </span>
-            <span>·</span>
-            <span className="text-slate-400">Solver: Google OR-Tools CP-SAT (Deterministic)</span>
           </div>
         </div>
 
-        {/* Primary Role Switcher */}
-        <nav className="flex space-x-1 bg-black/40 p-1 rounded-lg border border-white/[0.06] text-xs">
+        {/* Dedicated Persona Workstation Seats */}
+        <nav className="flex space-x-1.5 bg-black/50 p-1 rounded-xl border border-white/[0.08] text-xs">
           <button
             onClick={() => setActiveTab("commercial")}
-            className={`px-3 py-1.5 rounded-md font-medium transition-all flex items-center space-x-2 ${
+            className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center space-x-2 cursor-pointer ${
               activeTab === "commercial"
-                ? "bg-white/[0.1] text-white shadow-sm border border-white/[0.12]"
+                ? "bg-blue-600 text-white shadow-sm border border-blue-400/40"
                 : "text-slate-400 hover:text-slate-200"
             }`}
+            title="Commercial Order Management Cloud (Sales Rep / CSR Seat)"
           >
             <Building2 className="w-3.5 h-3.5" />
-            <span>Commercial (O2C)</span>
+            <span>Seat 1: Commercial (O2C)</span>
           </button>
+
           <button
             onClick={() => setActiveTab("schedule")}
-            className={`px-3 py-1.5 rounded-md font-medium transition-all flex items-center space-x-2 ${
+            className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center space-x-2 cursor-pointer ${
               activeTab === "schedule"
-                ? "bg-white/[0.1] text-white shadow-sm border border-white/[0.12]"
+                ? "bg-indigo-600 text-white shadow-sm border border-indigo-400/40"
                 : "text-slate-400 hover:text-slate-200"
             }`}
+            title="Production Scheduling Console (Plant Dispatcher Seat)"
           >
             <Calendar className="w-3.5 h-3.5" />
-            <span>Master Gantt</span>
+            <span>Seat 2: Plant Operations</span>
           </button>
+
           <button
             onClick={() => setActiveTab("mrp")}
-            className={`px-3 py-1.5 rounded-md font-medium transition-all flex items-center space-x-2 ${
+            className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center space-x-2 cursor-pointer ${
               activeTab === "mrp"
-                ? "bg-white/[0.1] text-white shadow-sm border border-white/[0.12]"
+                ? "bg-emerald-600 text-white shadow-sm border border-emerald-400/40"
                 : "text-slate-400 hover:text-slate-200"
             }`}
+            title="Supply Planning & Procurement (Material Buyer Seat)"
           >
-            <Boxes className="w-3.5 h-3.5 text-blue-400" />
-            <span>Supply & MRP (MD01N)</span>
+            <Boxes className="w-3.5 h-3.5" />
+            <span>Seat 3: Supply Planning</span>
           </button>
+
           <button
-            onClick={() => setActiveTab("copilot")}
-            className={`px-3 py-1.5 rounded-md font-medium transition-all flex items-center space-x-2 ${
-              activeTab === "copilot"
-                ? "bg-indigo-600/30 text-indigo-300 shadow-sm border border-indigo-500/30"
+            onClick={() => setActiveTab("dual")}
+            className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center space-x-2 cursor-pointer ${
+              activeTab === "dual"
+                ? "bg-cyan-600 text-white shadow-sm border border-cyan-400/40"
                 : "text-slate-400 hover:text-slate-200"
             }`}
+            title="Side-by-Side Dual-Seat Synchronized Monitor"
           >
-            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Disruption Copilot</span>
+            <Split className="w-3.5 h-3.5" />
+            <span>Dual-Seat Split View</span>
           </button>
+
           <button
             onClick={() => setActiveTab("executive")}
-            className={`px-3 py-1.5 rounded-md font-medium transition-all flex items-center space-x-2 ${
+            className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center space-x-2 cursor-pointer ${
               activeTab === "executive"
-                ? "bg-white/[0.1] text-white shadow-sm border border-white/[0.12]"
+                ? "bg-purple-600 text-white shadow-sm border border-purple-400/40"
                 : "text-slate-400 hover:text-slate-200"
             }`}
+            title="Executive Radar & Telemetry"
           >
             <Activity className="w-3.5 h-3.5" />
-            <span>Executive Radar</span>
+            <span>Seat 4: Executive</span>
           </button>
         </nav>
+
+        {/* Global Sync Status */}
+        <div className="flex items-center space-x-3 text-xs font-mono">
+          <button
+            onClick={fetchData}
+            disabled={syncing}
+            className="flex items-center space-x-1.5 px-2.5 py-1 rounded bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] transition-all cursor-pointer"
+            title="Refresh ERP State"
+          >
+            <RefreshCw className={`w-3.5 h-3.5 text-blue-400 ${syncing ? "animate-spin" : ""}`} />
+            <span>{syncing ? "Syncing..." : "Sync Core"}</span>
+          </button>
+        </div>
       </header>
 
-      {/* Main View Area */}
+      {/* Main Viewport */}
       <main className="flex-1 overflow-y-auto p-6">
-        {/* ============================================================== */}
-        {/* TAB 1: COMMERCIAL SALES (FULL O2C LIFECYCLE)                   */}
-        {/* ============================================================== */}
-        {activeTab === "commercial" && (
-          <div className="max-w-7xl mx-auto space-y-6">
-            {/* Quick KPI Ribbon */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <div className="hairline-panel p-3.5 rounded-xl flex items-center justify-between">
-                <div>
-                  <span className="text-[11px] text-slate-400">Committed Orders</span>
-                  <div className="text-xl font-bold font-mono text-white mt-0.5">{salesOrders.length}</div>
-                </div>
-                <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
-                  <FileText className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="hairline-panel p-3.5 rounded-xl flex items-center justify-between">
-                <div>
-                  <span className="text-[11px] text-slate-400">Committed Pipeline</span>
-                  <div className="text-xl font-bold font-mono text-emerald-400 mt-0.5">
-                    ${totalPipeline.toLocaleString()}
-                  </div>
-                </div>
-                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
-                  <DollarSign className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="hairline-panel p-3.5 rounded-xl flex items-center justify-between">
-                <div>
-                  <span className="text-[11px] text-slate-400">Pending Outbound</span>
-                  <div className="text-xl font-bold font-mono text-amber-400 mt-0.5">{pendingShipmentsCount}</div>
-                </div>
-                <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
-                  <Truck className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="hairline-panel p-3.5 rounded-xl flex items-center justify-between">
-                <div>
-                  <span className="text-[11px] text-slate-400">Open Billing Invoices</span>
-                  <div className="text-xl font-bold font-mono text-indigo-400 mt-0.5">{openInvoicesCount}</div>
-                </div>
-                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
-                  <Receipt className="w-4 h-4" />
-                </div>
-              </div>
-            </div>
+        <div className="max-w-7xl mx-auto">
+          {/* SEAT 1: COMMERCIAL WORKSTATION */}
+          {activeTab === "commercial" && (
+            <CommercialStation
+              customers={customers}
+              salesOrders={salesOrders}
+              deliveries={deliveries}
+              invoices={invoices}
+              prompt={prompt}
+              setPrompt={setPrompt}
+              evaluating={evaluating}
+              proposal={proposal}
+              approving={approving}
+              orderConfirmation={orderConfirmation}
+              handleEvaluateRFQ={handleEvaluateRFQ}
+              handleApprove={handleApprove}
+              handleShipDelivery={handleShipDelivery}
+              handlePayInvoice={handlePayInvoice}
+              handleViewOrderFlow={handleViewOrderFlow}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              actionLoading={actionLoading}
+              filteredOrders={filteredOrders}
+              filteredDeliveries={filteredDeliveries}
+              filteredInvoices={filteredInvoices}
+              exportToCsv={exportToCsv}
+            />
+          )}
 
-            {/* Sub-workspace Navigation & Filter Bar */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-white/[0.08] pb-3">
-              <div className="flex flex-wrap gap-1.5 text-xs">
-                <button
-                  onClick={() => {
-                    setCommercialSubTab("intake");
-                    setSearchQuery("");
-                  }}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-                    commercialSubTab === "intake"
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
-                  }`}
-                >
-                  RFQ Intake & CTP
-                </button>
-                <button
-                  onClick={() => {
-                    setCommercialSubTab("orders");
-                    setSearchQuery("");
-                  }}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-                    commercialSubTab === "orders"
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
-                  }`}
-                >
-                  Sales Orders ({salesOrders.length})
-                </button>
-                <button
-                  onClick={() => {
-                    setCommercialSubTab("deliveries");
-                    setSearchQuery("");
-                  }}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-                    commercialSubTab === "deliveries"
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
-                  }`}
-                >
-                  Outbound Deliveries ({deliveries.length})
-                </button>
-                <button
-                  onClick={() => {
-                    setCommercialSubTab("invoices");
-                    setSearchQuery("");
-                  }}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-                    commercialSubTab === "invoices"
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
-                  }`}
-                >
-                  Billing Invoices ({invoices.length})
-                </button>
-                <button
-                  onClick={() => {
-                    setCommercialSubTab("inventory");
-                    setSearchQuery("");
-                  }}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-                    commercialSubTab === "inventory"
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
-                  }`}
-                >
-                  Inventory & Stock ({inventoryData?.total_sku_count || 6})
-                </button>
-                <button
-                  onClick={() => {
-                    setCommercialSubTab("audit");
-                    setSearchQuery("");
-                  }}
-                  className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
-                    commercialSubTab === "audit"
-                      ? "bg-blue-600 text-white shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
-                  }`}
-                >
-                  SOX Audit Trail
-                </button>
-              </div>
+          {/* SEAT 2: SCHEDULING & OPERATIONS WORKSTATION */}
+          {activeTab === "schedule" && (
+            <SchedulingStation
+              ganttData={ganttData}
+              materials={inventoryData?.items || []}
+              auditLogs={auditLogs}
+              selectedMachine={selectedMachine}
+              setSelectedMachine={setSelectedMachine}
+              downtimeHours={downtimeHours}
+              setDowntimeHours={setDowntimeHours}
+              simulating={simulating}
+              disruptionResult={disruptionResult}
+              selectedScenarioIndex={selectedScenarioIndex}
+              setSelectedScenarioIndex={setSelectedScenarioIndex}
+              applyingMitigation={applyingMitigation}
+              mitigationMessage={mitigationMessage}
+              setMitigationMessage={setMitigationMessage}
+              handleSimulateDisruption={handleSimulateDisruption}
+              handleApplyMitigation={handleApplyMitigation}
+              ganttWorkCenterFilter={ganttWorkCenterFilter}
+              setGanttWorkCenterFilter={setGanttWorkCenterFilter}
+              filteredGanttResources={filteredGanttResources}
+              inventoryHealthFilter={inventoryHealthFilter}
+              setInventoryHealthFilter={setInventoryHealthFilter}
+              filteredMaterials={filteredInventoryItems}
+              selectedOperation={selectedOperation}
+              setSelectedOperation={setSelectedOperation}
+              exportToCsv={exportToCsv}
+            />
+          )}
 
-              <div className="flex items-center space-x-2">
-                {commercialSubTab !== "intake" && (
-                  <div className="relative">
-                    <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" />
-                    <input
-                      type="text"
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                      placeholder="Filter records..."
-                      className="bg-[#0e1017] border border-white/[0.08] rounded-md pl-8 pr-3 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 w-44"
-                    />
-                    {searchQuery && (
-                      <button
-                        onClick={() => setSearchQuery("")}
-                        className="absolute right-2 top-2 text-slate-500 hover:text-slate-300"
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    )}
-                  </div>
-                )}
-                <button
-                  onClick={fetchData}
-                  disabled={syncing}
-                  className="px-3 py-1.5 text-xs text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-md flex items-center space-x-1.5 transition-all"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin text-blue-400" : ""}`} />
-                  <span>Sync ERP</span>
-                </button>
-              </div>
-            </div>
+          {/* SEAT 3: PROCUREMENT & SUPPLY PLANNING WORKSTATION */}
+          {activeTab === "mrp" && (
+            <SupplyPlanningStation
+              mrpData={mrpData}
+              runningMrp={runningMrp}
+              mrpMessage={mrpMessage}
+              setMrpMessage={setMrpMessage}
+              handleRunMrp={handleRunMrp}
+              mrpFilterStatus={mrpFilterStatus}
+              setMrpFilterStatus={setMrpFilterStatus}
+              filteredMrpItems={filteredMrpItems}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              handleApprovePo={handleApprovePo}
+              handleReceivePo={handleReceivePo}
+              actionLoading={actionLoading}
+              exportToCsv={exportToCsv}
+              salesOrdersCount={salesOrders.length}
+            />
+          )}
 
-            {/* Confetti Banner */}
-            {orderConfirmation && (
-              <div className="p-4 rounded-xl border border-emerald-500/40 bg-emerald-950/40 text-emerald-100 flex items-center justify-between shadow-xl">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold">
-                    ✓
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-sm">{orderConfirmation.message}</h3>
-                    <p className="text-xs text-emerald-300/80 font-mono mt-0.5">
-                      Order: <strong>{orderConfirmation.order_number}</strong> · Guaranteed CTP:{" "}
-                      <strong>{new Date(orderConfirmation.promised_date).toLocaleDateString()}</strong> · SOX Signature Verified
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <button
-                    onClick={() => handleViewOrderFlow(orderConfirmation.order_id)}
-                    className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center space-x-1"
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    <span>View Confirmation</span>
-                  </button>
-                  <button
-                    onClick={() => setOrderConfirmation(null)}
-                    className="text-xs text-emerald-300 hover:text-white px-2 py-1"
-                  >
-                    Dismiss
-                  </button>
-                </div>
-              </div>
-            )}
+          {/* DUAL-SEAT SPLIT SCREEN MONITOR */}
+          {activeTab === "dual" && (
+            <DualStationMonitor
+              customers={customers}
+              salesOrders={salesOrders}
+              prompt={prompt}
+              setPrompt={setPrompt}
+              evaluating={evaluating}
+              proposal={proposal}
+              approving={approving}
+              handleEvaluateRFQ={handleEvaluateRFQ}
+              handleApprove={handleApprove}
+              handleViewOrderFlow={handleViewOrderFlow}
+              ganttData={ganttData}
+              selectedMachine={selectedMachine}
+              setSelectedMachine={setSelectedMachine}
+              downtimeHours={downtimeHours}
+              setDowntimeHours={setDowntimeHours}
+              simulating={simulating}
+              disruptionResult={disruptionResult}
+              selectedScenarioIndex={selectedScenarioIndex}
+              setSelectedScenarioIndex={setSelectedScenarioIndex}
+              applyingMitigation={applyingMitigation}
+              mitigationMessage={mitigationMessage}
+              setMitigationMessage={setMitigationMessage}
+              handleSimulateDisruption={handleSimulateDisruption}
+              handleApplyMitigation={handleApplyMitigation}
+              selectedOperation={selectedOperation}
+              setSelectedOperation={setSelectedOperation}
+              actionLoading={actionLoading}
+            />
+          )}
 
-            {/* SUBTAB 1: INTAKE & CTP */}
-            {commercialSubTab === "intake" && (
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-5">
-                  {/* RFQ Intake Box */}
-                  <div className="hairline-panel rounded-xl p-5 space-y-4">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-blue-400 flex items-center space-x-1.5">
-                        <Sparkles className="w-3.5 h-3.5" />
-                        <span>Natural Language RFQ Intake & Deterministic CTP Solver</span>
-                      </span>
-                      <span className="text-[11px] text-slate-400 font-mono">Zero Hallucination Guaranteed</span>
-                    </div>
-
-                    <div className="space-y-3">
-                      <textarea
-                        value={prompt}
-                        onChange={(e) => setPrompt(e.target.value)}
-                        rows={3}
-                        className="w-full bg-[#0a0b0f] border border-white/[0.1] rounded-lg p-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors font-sans"
-                        placeholder="e.g. Boeing Aerospace requests 20 units of Turbine Housing TB-200 needed by next Friday"
-                      />
-
-                      <div className="flex flex-wrap justify-between items-center gap-2">
-                        <div className="flex flex-wrap gap-2 text-xs">
-                          <button
-                            type="button"
-                            onClick={() => setPrompt("Lockheed Martin requests 15 units of Aluminum Bracket AB-100 needed by next Wednesday")}
-                            className="text-[11px] bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 px-2.5 py-1 rounded border border-white/[0.08] transition-colors"
-                          >
-                            Sample 1: Lockheed (15 Brackets)
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPrompt("Orion Systems requests 30 Cable Management Kits needed urgently")}
-                            className="text-[11px] bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 px-2.5 py-1 rounded border border-white/[0.08] transition-colors"
-                          >
-                            Sample 2: Orion (30 Kits)
-                          </button>
-                        </div>
-
-                        <button
-                          onClick={handleEvaluateRFQ}
-                          disabled={evaluating}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center space-x-2 transition-all shadow-sm"
-                        >
-                          {evaluating ? (
-                            <>
-                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                              <span>Evaluating Capacity & Credit...</span>
-                            </>
-                          ) : (
-                            <>
-                              <span>Evaluate Proposal</span>
-                              <ArrowRight className="w-3.5 h-3.5" />
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Proposal & CAS Approval Card */}
-                  {proposal && (
-                    <div className="hairline-panel-elevated rounded-xl p-6 space-y-4 animate-in fade-in duration-200">
-                      <div className="flex justify-between items-start border-b border-white/[0.08] pb-4">
-                        <div>
-                          <div className="flex items-center space-x-2">
-                            <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                              Awaiting Executive Signature
-                            </span>
-                            <span className="text-xs font-mono text-slate-400">Token: {proposal.token}</span>
-                          </div>
-                          <h2 className="text-lg font-bold text-white mt-1">
-                            {proposal.customer_name} — {proposal.quantity} × {proposal.material_name}
-                          </h2>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-xs text-slate-400">Total Commitment</div>
-                          <div className="text-xl font-bold font-mono text-emerald-400">
-                            ${proposal.total_amount.toLocaleString()}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 3 Metrics Badges */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
-                        <div className="bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
-                          <div className="text-slate-400 flex items-center mb-1">
-                            <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 mr-1.5" />
-                            <span>Credit Verification</span>
-                          </div>
-                          <div className="font-semibold text-emerald-400">✓ Limit Verified</div>
-                          <div className="text-[11px] text-slate-400 mt-0.5 font-mono">
-                            Exposure: ${proposal.current_exposure.toLocaleString()} / ${proposal.credit_limit.toLocaleString()}
-                          </div>
-                        </div>
-
-                        <div className="bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
-                          <div className="text-slate-400 flex items-center mb-1">
-                            <Layers className="w-3.5 h-3.5 text-blue-400 mr-1.5" />
-                            <span>Fulfillment Strategy</span>
-                          </div>
-                          <div className="font-semibold text-blue-300">
-                            {proposal.fulfillment_strategy === "MTS" ? "Make-to-Stock (MTS)" : "Make-to-Order (MTO)"}
-                          </div>
-                          <div className="text-[11px] text-slate-400 mt-0.5 truncate">
-                            {proposal.lead_time_rationale}
-                          </div>
-                        </div>
-
-                        <div className="bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
-                          <div className="text-slate-400 flex items-center mb-1">
-                            <Clock className="w-3.5 h-3.5 text-indigo-400 mr-1.5" />
-                            <span>Guaranteed CTP Promise</span>
-                          </div>
-                          <div className="font-semibold text-indigo-300">
-                            {new Date(proposal.projected_delivery_date).toLocaleDateString()}
-                          </div>
-                          <div className="text-[11px] text-slate-400 mt-0.5">
-                            Finite capacity mathematically verified
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Action Buttons */}
-                      <div className="pt-2 flex justify-end space-x-3">
-                        <button
-                          onClick={() => setProposal(null)}
-                          className="px-4 py-2 bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded-lg text-xs font-semibold border border-white/[0.08] transition-colors"
-                        >
-                          Reject Proposal
-                        </button>
-                        <button
-                          onClick={handleApprove}
-                          disabled={approving}
-                          className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-lg text-xs shadow-lg shadow-emerald-600/20 flex items-center space-x-2 transition-all"
-                        >
-                          {approving ? (
-                            <>
-                              <RefreshCw className="w-4 h-4 animate-spin" />
-                              <span>Committing to Ledger...</span>
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle2 className="w-4 h-4" />
-                              <span>Sign & Commit to Ledger (Confetti)</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Recent Committed Orders */}
-                  <div className="hairline-panel rounded-xl overflow-hidden p-4 space-y-3">
-                    <div className="flex justify-between items-center">
-                      <span className="font-semibold text-xs text-slate-200">
-                        Recent Authoritative Orders
-                      </span>
-                      <button
-                        onClick={() => setCommercialSubTab("orders")}
-                        className="text-xs text-blue-400 hover:underline flex items-center space-x-1"
-                      >
-                        <span>View All ({salesOrders.length})</span>
-                        <ChevronRight className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-
-                    <div className="space-y-2">
-                      {salesOrders.slice(0, 3).map((ord) => (
-                        <div
-                          key={ord.id}
-                          onClick={() => handleViewOrderFlow(ord.id)}
-                          className="flex items-center justify-between p-3 bg-[#0a0b0e] hover:bg-white/[0.03] border border-white/[0.06] rounded-lg cursor-pointer transition-all"
-                        >
-                          <div className="flex items-center space-x-3">
-                            <span className="font-mono text-xs font-semibold text-blue-400">{ord.order_number}</span>
-                            <span className="text-xs font-medium text-slate-200">{ord.customer_name}</span>
-                          </div>
-                          <div className="flex items-center space-x-4">
-                            <span className="font-mono text-xs font-bold text-slate-100">
-                              ${ord.total_amount.toLocaleString()}
-                            </span>
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800/40">
-                              {ord.status}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Right Column: Customer Master & Exposure */}
-                <div className="space-y-4">
-                  <div className="hairline-panel rounded-xl p-5 space-y-4">
-                    <div className="flex justify-between items-center">
-                      <h2 className="font-bold text-xs text-slate-200 flex items-center space-x-1.5">
-                        <Building2 className="w-3.5 h-3.5 text-blue-400" />
-                        <span>Customer Credit Ledger</span>
-                      </h2>
-                      <span className="text-[10px] text-slate-400 font-mono">ERP Live</span>
-                    </div>
-
-                    <div className="space-y-3.5">
-                      {customers.map((c) => {
-                        const utilPct = Math.min(100, Math.round((c.current_exposure / c.credit_limit) * 100));
-                        return (
-                          <div key={c.id} className="p-3 bg-[#0a0b0e] rounded-lg border border-white/[0.06] space-y-2">
-                            <div className="flex justify-between text-xs">
-                              <span className="font-semibold text-slate-200">{c.name}</span>
-                              <span className="font-mono text-slate-400 text-[11px]">{c.payment_terms}</span>
-                            </div>
-                            <div className="flex justify-between text-[11px] text-slate-400 font-mono">
-                              <span>Exposure: ${c.current_exposure.toLocaleString()}</span>
-                              <span>Limit: ${c.credit_limit.toLocaleString()}</span>
-                            </div>
-                            <div className="w-full bg-white/[0.08] rounded-full h-1.5 overflow-hidden">
-                              <div
-                                className={`h-full rounded-full ${
-                                  utilPct > 80 ? "bg-amber-500" : "bg-blue-500"
-                                }`}
-                                style={{ width: `${utilPct}%` }}
-                              ></div>
-                            </div>
-                            <div className="flex justify-between text-[10px] text-slate-400 pt-0.5">
-                              <span>Available: ${(c.credit_limit - c.current_exposure).toLocaleString()}</span>
-                              <span>{utilPct}% Utilized</span>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* SUBTAB 2: ORDERS */}
-            {commercialSubTab === "orders" && (
-              <div className="hairline-panel rounded-xl overflow-hidden">
-                <div className="px-5 py-4 border-b border-white/[0.08] flex justify-between items-center">
-                  <div>
-                    <h2 className="font-bold text-sm text-slate-100">Committed Sales Orders Ledger (VBAK / VBAP)</h2>
-                    <p className="text-xs text-slate-400">Click any record to inspect the SAP S/4HANA document flow and printable acknowledgment.</p>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <button
-                      onClick={() => {
-                        const rows = filteredOrders.map((o) => ({
-                          Order_Number: o.order_number,
-                          Customer: o.customer_name,
-                          Status: o.status,
-                          Total_Amount: o.total_amount,
-                          Promised_Delivery_Date: o.promised_delivery_date || "",
-                          Delivery_Number: o.delivery_number || "",
-                          Invoice_Number: o.invoice_number || "",
-                        }));
-                        exportToCsv("sales_orders_pipeline.csv", rows);
-                      }}
-                      className="flex items-center space-x-1 px-2.5 py-1 text-xs bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded border border-white/[0.08] transition-colors"
-                      title="Download Sales Pipeline as CSV"
-                    >
-                      <Download className="w-3 h-3 text-blue-400" />
-                      <span>Export CSV</span>
-                    </button>
-                    <span className="text-xs text-slate-400 font-mono">{filteredOrders.length} records</span>
-                  </div>
-                </div>
-                {filteredOrders.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
-                        <tr>
-                          <th className="py-3 px-4">Order #</th>
-                          <th className="py-3 px-4">Customer</th>
-                          <th className="py-3 px-4">Status</th>
-                          <th className="py-3 px-4 text-right">Total Amount</th>
-                          <th className="py-3 px-4">Guaranteed CTP Date</th>
-                          <th className="py-3 px-4">Delivery Note</th>
-                          <th className="py-3 px-4">Invoice #</th>
-                          <th className="py-3 px-4 text-center">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/[0.04]">
-                        {filteredOrders.map((ord) => (
-                          <tr key={ord.id} className="hover:bg-white/[0.02] transition-colors">
-                            <td className="py-3.5 px-4 font-mono font-medium text-blue-400">{ord.order_number}</td>
-                            <td className="py-3.5 px-4 font-semibold text-slate-200">{ord.customer_name}</td>
-                            <td className="py-3.5 px-4">
-                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800/40">
-                                {ord.status}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-100">
-                              ${ord.total_amount.toLocaleString()}
-                            </td>
-                            <td className="py-3.5 px-4 font-mono text-slate-300">
-                              {ord.promised_delivery_date
-                                ? new Date(ord.promised_delivery_date).toLocaleDateString()
-                                : "Pending"}
-                            </td>
-                            <td className="py-3.5 px-4 font-mono text-slate-400">{ord.delivery_number || "—"}</td>
-                            <td className="py-3.5 px-4 font-mono text-slate-400">{ord.invoice_number || "—"}</td>
-                            <td className="py-3.5 px-4 text-center">
-                              <button
-                                onClick={() => handleViewOrderFlow(ord.id)}
-                                className="px-2.5 py-1 bg-white/[0.05] hover:bg-white/[0.1] text-blue-300 rounded font-semibold text-[11px] border border-white/[0.08] flex items-center space-x-1 mx-auto transition-colors"
-                              >
-                                <Eye className="w-3 h-3" />
-                                <span>Inspect Flow</span>
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="p-12 text-center text-slate-500">
-                    <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">No sales orders matching "{searchQuery}"</p>
-                    <button onClick={() => setSearchQuery("")} className="mt-2 text-xs text-blue-400 hover:underline">
-                      Reset filter
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* SUBTAB 3: OUTBOUND DELIVERIES */}
-            {commercialSubTab === "deliveries" && (
-              <div className="hairline-panel rounded-xl overflow-hidden">
-                <div className="px-5 py-4 border-b border-white/[0.08] flex justify-between items-center">
-                  <div>
-                    <h2 className="font-bold text-sm text-slate-100">Outbound Delivery Documents (LIKP / VL01N)</h2>
-                    <p className="text-xs text-slate-400">Warehouse fulfillment, carrier logistics, and Goods Issue dispatch.</p>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <button
-                      onClick={() => {
-                        const rows = filteredDeliveries.map((d) => ({
-                          Delivery_Number: d.delivery_number,
-                          Carrier: d.carrier,
-                          Tracking_Number: d.tracking_number || "",
-                          Status: d.status,
-                          Shipped_At: d.shipped_at || "",
-                        }));
-                        exportToCsv("outbound_deliveries.csv", rows);
-                      }}
-                      className="flex items-center space-x-1 px-2.5 py-1 text-xs bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded border border-white/[0.08] transition-colors"
-                      title="Download Deliveries as CSV"
-                    >
-                      <Download className="w-3 h-3 text-indigo-400" />
-                      <span>Export CSV</span>
-                    </button>
-                    <span className="text-xs text-slate-400 font-mono">{filteredDeliveries.length} delivery notes</span>
-                  </div>
-                </div>
-                {filteredDeliveries.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
-                        <tr>
-                          <th className="py-3 px-4">Delivery #</th>
-                          <th className="py-3 px-4">Carrier</th>
-                          <th className="py-3 px-4">Tracking Number</th>
-                          <th className="py-3 px-4">Fulfillment Status</th>
-                          <th className="py-3 px-4">Shipped Timestamp</th>
-                          <th className="py-3 px-4 text-center">Logistics Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/[0.04]">
-                        {filteredDeliveries.map((deliv) => (
-                          <tr key={deliv.id} className="hover:bg-white/[0.02] transition-colors">
-                            <td className="py-3.5 px-4 font-mono font-medium text-indigo-400">{deliv.delivery_number}</td>
-                            <td className="py-3.5 px-4 text-slate-200">{deliv.carrier}</td>
-                            <td className="py-3.5 px-4 font-mono text-slate-300">{deliv.tracking_number || "TRK-PENDING"}</td>
-                            <td className="py-3.5 px-4">
-                              <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                  deliv.status === "SHIPPED"
-                                    ? "bg-blue-950 text-blue-400 border-blue-800/40"
-                                    : "bg-amber-950 text-amber-400 border-amber-800/40"
-                                }`}
-                              >
-                                {deliv.status}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 font-mono text-slate-400">
-                              {deliv.shipped_at ? new Date(deliv.shipped_at).toLocaleString() : "Awaiting Dispatch"}
-                            </td>
-                            <td className="py-3.5 px-4 text-center">
-                              {deliv.status !== "SHIPPED" ? (
-                                <button
-                                  onClick={() => handleShipDelivery(deliv.id)}
-                                  disabled={actionLoading === deliv.id}
-                                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-semibold flex items-center space-x-1 mx-auto transition-all"
-                                >
-                                  {actionLoading === deliv.id ? (
-                                    <RefreshCw className="w-3 h-3 animate-spin" />
-                                  ) : (
-                                    <Truck className="w-3 h-3" />
-                                  )}
-                                  <span>Post Goods Issue</span>
-                                </button>
-                              ) : (
-                                <span className="text-[11px] text-emerald-400 font-mono flex items-center justify-center space-x-1">
-                                  <Check className="w-3 h-3" />
-                                  <span>Dispatched</span>
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="p-12 text-center text-slate-500">
-                    <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">No delivery documents matching "{searchQuery}"</p>
-                    <button onClick={() => setSearchQuery("")} className="mt-2 text-xs text-blue-400 hover:underline">
-                      Reset filter
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* SUBTAB 4: BILLING INVOICES */}
-            {commercialSubTab === "invoices" && (
-              <div className="hairline-panel rounded-xl overflow-hidden">
-                <div className="px-5 py-4 border-b border-white/[0.08] flex justify-between items-center">
-                  <div>
-                    <h2 className="font-bold text-sm text-slate-100">Customer Billing Documents (VBRK / VF01)</h2>
-                    <p className="text-xs text-slate-400">Accounts receivable, standard tax ledger, and cash clearing.</p>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <button
-                      onClick={() => {
-                        const rows = filteredInvoices.map((inv) => ({
-                          Invoice_Number: inv.invoice_number,
-                          Customer: inv.customer_name,
-                          Amount_Due: inv.total_amount,
-                          Payment_Status: inv.status,
-                          Due_Date: inv.due_date || "",
-                          Issued_At: inv.issued_at || "",
-                        }));
-                        exportToCsv("billing_invoices.csv", rows);
-                      }}
-                      className="flex items-center space-x-1 px-2.5 py-1 text-xs bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded border border-white/[0.08] transition-colors"
-                      title="Download Invoices as CSV"
-                    >
-                      <Download className="w-3 h-3 text-emerald-400" />
-                      <span>Export CSV</span>
-                    </button>
-                    <span className="text-xs text-slate-400 font-mono">{filteredInvoices.length} invoices</span>
-                  </div>
-                </div>
-                {filteredInvoices.length > 0 ? (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
-                        <tr>
-                          <th className="py-3 px-4">Invoice #</th>
-                          <th className="py-3 px-4">Customer</th>
-                          <th className="py-3 px-4 text-right">Amount Due</th>
-                          <th className="py-3 px-4">Payment Status</th>
-                          <th className="py-3 px-4">Payment Due Date</th>
-                          <th className="py-3 px-4">Issued Timestamp</th>
-                          <th className="py-3 px-4 text-center">Settlement Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/[0.04]">
-                        {filteredInvoices.map((inv) => (
-                          <tr key={inv.id} className="hover:bg-white/[0.02] transition-colors">
-                            <td className="py-3.5 px-4 font-mono font-medium text-emerald-400">{inv.invoice_number}</td>
-                            <td className="py-3.5 px-4 font-semibold text-slate-200">{inv.customer_name}</td>
-                            <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-100">
-                              ${inv.total_amount.toLocaleString()}
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                  inv.status === "PAID"
-                                    ? "bg-emerald-950 text-emerald-400 border-emerald-800/40"
-                                    : "bg-blue-950 text-blue-400 border-blue-800/40"
-                                }`}
-                              >
-                                {inv.status}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 font-mono text-slate-300">
-                              {inv.due_date ? new Date(inv.due_date).toLocaleDateString() : "Net 30"}
-                            </td>
-                            <td className="py-3.5 px-4 font-mono text-slate-400">
-                              {inv.issued_at ? new Date(inv.issued_at).toLocaleString() : "—"}
-                            </td>
-                            <td className="py-3.5 px-4 text-center">
-                              {inv.status !== "PAID" ? (
-                                <button
-                                  onClick={() => handlePayInvoice(inv.id)}
-                                  disabled={actionLoading === inv.id}
-                                  className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-[11px] font-semibold flex items-center space-x-1 mx-auto transition-all"
-                                >
-                                  {actionLoading === inv.id ? (
-                                    <RefreshCw className="w-3 h-3 animate-spin" />
-                                  ) : (
-                                    <DollarSign className="w-3 h-3" />
-                                  )}
-                                  <span>Record Payment</span>
-                                </button>
-                              ) : (
-                                <span className="text-[11px] text-emerald-400 font-mono flex items-center justify-center space-x-1">
-                                  <Check className="w-3 h-3" />
-                                  <span>Paid & Cleared</span>
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="p-12 text-center text-slate-500">
-                    <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
-                    <p className="text-sm">No billing invoices matching "{searchQuery}"</p>
-                    <button onClick={() => setSearchQuery("")} className="mt-2 text-xs text-blue-400 hover:underline">
-                      Reset filter
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* SUBTAB 4.5: INVENTORY & STOCK OVERVIEW (SAP MMBE) */}
-            {commercialSubTab === "inventory" && (
-              <div className="hairline-panel rounded-xl overflow-hidden space-y-4">
-                <div className="p-5 border-b border-white/[0.08] flex justify-between items-center">
-                  <div>
-                    <h2 className="font-bold text-sm text-slate-100 flex items-center space-x-2">
-                      <Layers className="w-4 h-4 text-blue-400" />
-                      <span>Enterprise Material & Inventory Stock (MMBE / MD04)</span>
-                    </h2>
-                    <p className="text-xs text-slate-400">Unrestricted physical inventory, safety stock thresholds, and live valuation.</p>
-                  </div>
-                  <div className="flex items-center space-x-4">
-                    <button
-                      onClick={() => {
-                        const rows = filteredInventoryItems.map((item: any) => ({
-                          SKU: item.sku,
-                          Material_Description: item.name,
-                          Type: item.type,
-                          On_Hand: item.on_hand,
-                          UOM: item.uom,
-                          Safety_Stock: item.safety_stock,
-                          Stock_Health: item.health,
-                          Unit_Standard_Cost: item.unit_cost,
-                          Total_Valuation: item.total_valuation,
-                        }));
-                        exportToCsv("material_inventory_stock.csv", rows);
-                      }}
-                      className="flex items-center space-x-1 px-2.5 py-1 text-xs bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded border border-white/[0.08] transition-colors"
-                      title="Download Inventory Stock Ledger as CSV"
-                    >
-                      <Download className="w-3 h-3 text-emerald-400" />
-                      <span>Export CSV</span>
-                    </button>
-                    <div className="text-right">
-                      <span className="text-[10px] text-slate-400 uppercase font-mono block">Total Stock Valuation</span>
-                      <span className="text-base font-bold font-mono text-emerald-400">
-                        ${inventoryData?.total_inventory_valuation?.toLocaleString()} USD
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Health Filter Pills */}
-                <div className="px-5 flex items-center space-x-2 text-xs">
-                  <span className="text-slate-400 font-mono text-[11px] mr-1">Filter Health:</span>
-                  {[
-                    { label: "All Items", val: "ALL" },
-                    { label: "Healthy", val: "HEALTHY" },
-                    { label: "Low Stock", val: "LOW" },
-                    { label: "Depleted", val: "CRITICAL" },
-                  ].map((f) => (
-                    <button
-                      key={f.val}
-                      onClick={() => setInventoryHealthFilter(f.val)}
-                      className={`px-2.5 py-0.5 rounded text-[11px] font-mono transition-colors ${
-                        inventoryHealthFilter === f.val
-                          ? "bg-blue-600 text-white font-semibold"
-                          : "bg-white/[0.04] text-slate-400 hover:text-slate-200"
-                      }`}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="overflow-x-auto px-5 pb-5">
-                  {filteredInventoryItems.length > 0 ? (
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
-                        <tr>
-                          <th className="py-3 px-4">SKU</th>
-                          <th className="py-3 px-4">Material Description</th>
-                          <th className="py-3 px-4">Type</th>
-                          <th className="py-3 px-4 text-right">On-Hand Stock</th>
-                          <th className="py-3 px-4 text-right">Safety Stock</th>
-                          <th className="py-3 px-4">Stock Health</th>
-                          <th className="py-3 px-4 text-right">Unit Standard Cost</th>
-                          <th className="py-3 px-4 text-right">Total Valuation</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/[0.04]">
-                        {filteredInventoryItems.map((item: any) => (
-                          <tr key={item.id} className="hover:bg-white/[0.02] transition-colors">
-                            <td className="py-3.5 px-4 font-mono font-medium text-blue-400">{item.sku}</td>
-                            <td className="py-3.5 px-4 font-semibold text-slate-200">{item.name}</td>
-                            <td className="py-3.5 px-4 font-mono text-[11px] text-slate-400">{item.type}</td>
-                            <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-100">
-                              {item.on_hand} {item.uom}
-                            </td>
-                            <td className="py-3.5 px-4 text-right font-mono text-slate-400">
-                              {item.safety_stock} {item.uom}
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                  item.health === "HEALTHY"
-                                    ? "bg-emerald-950 text-emerald-400 border-emerald-800/40"
-                                    : item.health === "LOW"
-                                    ? "bg-amber-950 text-amber-400 border-amber-800/40"
-                                    : "bg-rose-950 text-rose-400 border-rose-800/40"
-                                }`}
-                              >
-                                {item.health}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 text-right font-mono text-slate-300">
-                              ${item.unit_cost?.toFixed(2)}
-                            </td>
-                            <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-400">
-                              ${item.total_valuation?.toLocaleString()}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <div className="p-8 text-center text-slate-500 font-mono text-xs">
-                      No inventory records matching active filter "{inventoryHealthFilter}".
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* SUBTAB 5: SOX AUDIT */}
-            {commercialSubTab === "audit" && (
-              <div className="hairline-panel rounded-xl overflow-hidden">
-                <div className="px-5 py-4 border-b border-white/[0.08] flex justify-between items-center">
-                  <div>
-                    <h2 className="font-bold text-sm text-slate-100 flex items-center space-x-2">
-                      <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                      <span>SOX-Compliant Immutable Audit Trail</span>
-                    </h2>
-                    <p className="text-xs text-slate-400">Cryptographic tokens, human sign-offs, and ledger mutation events.</p>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <button
-                      onClick={() => {
-                        const rows = auditLogs.map((log) => ({
-                          Timestamp: log.timestamp,
-                          Action: log.action,
-                          Actor: log.actor,
-                          Entity_Type: log.entity_type,
-                          Details: JSON.stringify(log.details),
-                        }));
-                        exportToCsv("sox_audit_trail.csv", rows);
-                      }}
-                      className="flex items-center space-x-1 px-2.5 py-1 text-xs bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded border border-white/[0.08] transition-colors"
-                      title="Download SOX Audit Trail as CSV"
-                    >
-                      <Download className="w-3 h-3 text-emerald-400" />
-                      <span>Export CSV</span>
-                    </button>
-                    <span className="text-xs text-emerald-400 font-mono">Tamper-Proof Ledger</span>
-                  </div>
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
-                      <tr>
-                        <th className="py-3 px-4">Timestamp</th>
-                        <th className="py-3 px-4">Action</th>
-                        <th className="py-3 px-4">Actor</th>
-                        <th className="py-3 px-4">Entity Type</th>
-                        <th className="py-3 px-4">Audit Payload Details</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/[0.04] font-mono">
-                      {auditLogs.map((log) => (
-                        <tr key={log.id} className="hover:bg-white/[0.02] transition-colors">
-                          <td className="py-3 px-4 text-slate-400">{new Date(log.timestamp).toLocaleString()}</td>
-                          <td className="py-3 px-4 font-bold text-blue-400">{log.action}</td>
-                          <td className="py-3 px-4 text-slate-200">{log.actor}</td>
-                          <td className="py-3 px-4 text-indigo-300">{log.entity_type}</td>
-                          <td className="py-3 px-4 text-slate-400 text-[11px] truncate max-w-xs">
-                            {JSON.stringify(log.details)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ============================================================== */}
-        {/* TAB 2: MASTER SCHEDULER & FINITE CAPACITY GANTT               */}
-        {/* ============================================================== */}
-        {activeTab === "schedule" && (
-          <div className="max-w-7xl mx-auto space-y-6">
-            <div className="flex justify-between items-center">
-              <div>
-                <h1 className="text-lg font-bold text-white tracking-tight">Finite Capacity Master Scheduling</h1>
-                <p className="text-xs text-slate-400">
-                  Google OR-Tools CP-SAT engine. Sequence-dependent setup matrix minimization and machine non-overlap.
-                </p>
-              </div>
-              <div className="flex space-x-2 text-xs">
-                <span className="flex items-center space-x-1.5 px-3 py-1 bg-white/[0.04] border border-white/[0.08] rounded text-slate-300">
-                  <span className="w-2.5 h-2.5 rounded bg-blue-500"></span>
-                  <span>Active Operation</span>
-                </span>
-                <span className="flex items-center space-x-1.5 px-3 py-1 bg-white/[0.04] border border-white/[0.08] rounded text-slate-300">
-                  <span className="w-2.5 h-2.5 rounded bg-amber-500"></span>
-                  <span>Changeover Setup</span>
-                </span>
-              </div>
-            </div>
-
-            {/* Interactive Visual Gantt Board */}
-            <div className="hairline-panel rounded-xl p-5 space-y-4">
-              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-white/[0.08] pb-3">
-                <div>
-                  <span className="text-xs font-semibold text-slate-200 font-mono block">
-                    Shop-Floor Resource Timeline (9 Certified Machines Across 4 Work Centers)
-                  </span>
-                  <span className="text-[11px] text-slate-400 font-mono">
-                    Horizon: Next 24 Hours · Active Operations: {ganttData?.total_operations_scheduled || 0}
-                  </span>
-                </div>
-                <div className="flex items-center space-x-3">
-                  <button
-                    onClick={() => {
-                      const rows: any[] = [];
-                      filteredGanttResources.forEach((res: any) => {
-                        if (res.operations && res.operations.length > 0) {
-                          res.operations.forEach((op: any) => {
-                            rows.push({
-                              Machine_Code: res.machine_code,
-                              Machine_Name: res.machine_name,
-                              Work_Center: res.work_center_code,
-                              Operation_Name: op.operation_name,
-                              Operation_Number: op.operation_number,
-                              Duration_Minutes: op.duration_minutes,
-                              Planned_Start: op.planned_start || "",
-                              Planned_End: op.planned_end || "",
-                              Status: op.status,
-                            });
-                          });
-                        } else {
-                          rows.push({
-                            Machine_Code: res.machine_code,
-                            Machine_Name: res.machine_name,
-                            Work_Center: res.work_center_code,
-                            Operation_Name: "STANDBY / OPEN CAPACITY",
-                            Operation_Number: 0,
-                            Duration_Minutes: 0,
-                            Planned_Start: "",
-                            Planned_End: "",
-                            Status: "AVAILABLE",
-                          });
-                        }
-                      });
-                      exportToCsv("finite_production_schedule.csv", rows);
-                    }}
-                    className="flex items-center space-x-1 px-2.5 py-1 text-xs bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded border border-white/[0.08] transition-colors"
-                    title="Download Finite Production Schedule as CSV"
-                  >
-                    <Download className="w-3 h-3 text-blue-400" />
-                    <span>Export Schedule (CSV)</span>
-                  </button>
-                  <span className="text-xs text-slate-400 font-mono">
-                    Showing {filteredGanttResources.length} of {ganttData?.resources?.length || 9} machines
-                  </span>
-                </div>
-              </div>
-
-              {/* Work Center Filter Row */}
-              <div className="flex items-center space-x-2 text-xs">
-                <span className="text-slate-400 font-mono text-[11px] mr-1">Work Center:</span>
-                {[
-                  { label: "All Work Centers (9)", val: "ALL" },
-                  { label: "CNC Machining (WC-CNC)", val: "WC-CNC" },
-                  { label: "Laser & Sheet (WC-FAB)", val: "WC-FAB" },
-                  { label: "Assembly Lines (WC-ASY)", val: "WC-ASY" },
-                  { label: "Quality Inspection (WC-QC)", val: "WC-QC" },
-                ].map((wc) => (
-                  <button
-                    key={wc.val}
-                    onClick={() => setGanttWorkCenterFilter(wc.val)}
-                    className={`px-2.5 py-0.5 rounded text-[11px] font-mono transition-colors ${
-                      ganttWorkCenterFilter === wc.val
-                        ? "bg-blue-600 text-white font-semibold"
-                        : "bg-white/[0.04] text-slate-400 hover:text-slate-200"
-                    }`}
-                  >
-                    {wc.label}
-                  </button>
-                ))}
-              </div>
-
-              <div className="space-y-2.5 font-mono text-xs">
-                {filteredGanttResources.map((res: any) => (
-                  <div key={res.machine_id} className="grid grid-cols-12 gap-3 items-center p-2.5 rounded bg-[#0a0b0e] border border-white/[0.06]">
-                    <div className="col-span-3">
-                      <div className="font-bold text-slate-200">{res.machine_code}</div>
-                      <div className="text-[11px] text-slate-400 font-sans">{res.machine_name}</div>
-                      <span className="text-[9px] px-1.5 py-0.2 bg-white/[0.06] text-blue-300 rounded font-mono">
-                        {res.work_center_code}
-                      </span>
-                    </div>
-
-                    <div className="col-span-9 bg-[#0e1017] h-10 rounded border border-white/[0.06] relative flex items-center px-2 overflow-hidden">
-                      {res.operations?.length > 0 ? (
-                        res.operations.map((op: any, oidx: number) => (
-                          <div
-                            key={op.id}
-                            onClick={() => setSelectedOperation({ ...op, machine_code: res.machine_code })}
-                            className={`h-7 px-3 rounded text-[11px] font-semibold flex items-center justify-between text-white shadow-sm mx-1 cursor-pointer hover:brightness-110 transition-all ${
-                              selectedOperation?.id === op.id
-                                ? "ring-2 ring-white ring-offset-1 ring-offset-slate-900"
-                                : ""
-                            } ${
-                              oidx % 2 === 0
-                                ? "bg-blue-600 border border-blue-400/40"
-                                : "bg-indigo-600 border border-indigo-400/40"
-                            }`}
-                            style={{ width: `${Math.max(160, op.duration_minutes * 1.2)}px` }}
-                          >
-                            <span className="truncate">{op.operation_name}</span>
-                            <span className="text-[10px] opacity-80 ml-2">{op.duration_minutes}m</span>
-                          </div>
-                        ))
-                      ) : (
-                        <span className="text-[11px] text-slate-600 italic">Open Capacity (Standby)</span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Selected Operation Detail Card */}
-            {selectedOperation && (
-              <div className="hairline-panel-elevated p-4 rounded-xl flex items-center justify-between animate-in fade-in duration-200">
-                <div className="flex items-center space-x-3 text-xs">
-                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 font-bold">
-                    <Clock className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="font-semibold text-slate-100 text-sm">
-                      {selectedOperation.operation_name} (Op #{selectedOperation.operation_number})
-                    </div>
-                    <div className="text-slate-400 font-mono text-[11px]">
-                      Machine: <strong>{selectedOperation.machine_code}</strong> · Duration: <strong>{selectedOperation.duration_minutes} minutes</strong> · Status: <strong>{selectedOperation.status}</strong>
-                    </div>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setSelectedOperation(null)}
-                  className="text-xs text-slate-400 hover:text-white px-2.5 py-1 rounded bg-white/[0.04] border border-white/[0.08]"
-                >
-                  Close Detail
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ============================================================== */}
-        {/* TAB 2.5: AUTONOMOUS MRP & BOM SUPPLY RUN (SAP MD01N / ME21N)   */}
-        {/* ============================================================== */}
-        {activeTab === "mrp" && (
-          <div className="max-w-7xl mx-auto space-y-6">
-            {/* Header with Run MRP Action */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <div>
-                <h1 className="text-lg font-bold text-white tracking-tight flex items-center space-x-2">
-                  <Boxes className="w-5 h-5 text-blue-400" />
-                  <span>Autonomous Material Requirements Planning (MD01N / ME21N)</span>
-                </h1>
-                <p className="text-xs text-slate-400">
-                  Recursive multi-level BOM explosion across active demand, deterministic net requirement calculations, and automated Purchase Requisitions.
-                </p>
-              </div>
-              <button
-                onClick={handleRunMrp}
-                disabled={runningMrp}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-lg text-xs shadow-sm flex items-center space-x-2 transition-all cursor-pointer"
-              >
-                {runningMrp ? (
-                  <>
-                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                    <span>Exploding BOMs & Calculating Net Requirements...</span>
-                  </>
-                ) : (
-                  <>
-                    <Cpu className="w-3.5 h-3.5" />
-                    <span>Run Multi-Level MRP (MD01N)</span>
-                  </>
-                )}
-              </button>
-            </div>
-
-            {/* Notification Banner */}
-            {mrpMessage && (
-              <div className="p-4 rounded-xl border border-blue-500/40 bg-blue-950/40 text-blue-100 flex items-center justify-between shadow-xl animate-in fade-in duration-200">
-                <div className="flex items-center space-x-3 text-xs">
-                  <div className="w-7 h-7 rounded-full bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400 font-bold">
-                    ✓
-                  </div>
-                  <span className="font-mono text-slate-200">{mrpMessage}</span>
-                </div>
-                <button
-                  onClick={() => setMrpMessage(null)}
-                  className="text-xs text-blue-300 hover:text-white px-2 py-0.5 bg-blue-900/40 rounded border border-blue-700/50"
-                >
-                  Dismiss
-                </button>
-              </div>
-            )}
-
-            {/* Telemetry Summary Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div className="hairline-panel p-4 rounded-xl">
-                <span className="text-[11px] text-slate-400 font-mono block">DEMAND SIGNALS</span>
-                <div className="text-xl font-bold font-mono text-slate-100 mt-1">
-                  {mrpData?.demand_orders_count || salesOrders.length || 5} Orders
-                </div>
-                <span className="text-[10px] text-slate-400">Pegged Sales & Production</span>
-              </div>
-              <div className="hairline-panel p-4 rounded-xl">
-                <span className="text-[11px] text-slate-400 font-mono block">COMPONENTS ANALYZED</span>
-                <div className="text-xl font-bold font-mono text-blue-400 mt-1">
-                  {mrpData?.components_analyzed || 6} Items
-                </div>
-                <span className="text-[10px] text-slate-400">Multi-Level BOM Exploded</span>
-              </div>
-              <div className="hairline-panel p-4 rounded-xl">
-                <span className="text-[11px] text-slate-400 font-mono block">SHORTAGES DETECTED</span>
-                <div className={`text-xl font-bold font-mono mt-1 ${
-                  (mrpData?.shortages_detected_count || 0) > 0 ? "text-rose-400" : "text-emerald-400"
-                }`}>
-                  {mrpData?.shortages_detected_count || 0}
-                </div>
-                <span className="text-[10px] text-slate-400">Below Safety Stock</span>
-              </div>
-              <div className="hairline-panel p-4 rounded-xl">
-                <span className="text-[11px] text-slate-400 font-mono block">OPEN PURCHASE ORDERS</span>
-                <div className="text-xl font-bold font-mono text-indigo-400 mt-1">
-                  {purchaseOrders.filter((p: any) => p.status !== "RECEIVED").length} Orders
-                </div>
-                <span className="text-[10px] text-slate-400">Inbound Supply Pipeline</span>
-              </div>
-            </div>
-
-            {/* Sub-navigation */}
-            <div className="flex border-b border-white/[0.08] space-x-6 text-xs">
-              <button
-                onClick={() => setMrpSubTab("requirements")}
-                className={`pb-3 font-semibold transition-colors flex items-center space-x-1.5 ${
-                  mrpSubTab === "requirements"
-                    ? "text-blue-400 border-b-2 border-blue-500"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                <Boxes className="w-3.5 h-3.5" />
-                <span>Net Requirements & Shortages (MD01N)</span>
-              </button>
-              <button
-                onClick={() => setMrpSubTab("purchase_orders")}
-                className={`pb-3 font-semibold transition-colors flex items-center space-x-1.5 ${
-                  mrpSubTab === "purchase_orders"
-                    ? "text-blue-400 border-b-2 border-blue-500"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                <ShoppingCart className="w-3.5 h-3.5" />
-                <span>Purchase Orders & Dock Receiving ({purchaseOrders.length})</span>
-              </button>
-              <button
-                onClick={() => setMrpSubTab("boms")}
-                className={`pb-3 font-semibold transition-colors flex items-center space-x-1.5 ${
-                  mrpSubTab === "boms"
-                    ? "text-blue-400 border-b-2 border-blue-500"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                <GitFork className="w-3.5 h-3.5" />
-                <span>BOM Hierarchy Explorer ({mrpBoms.length})</span>
-              </button>
-              <button
-                onClick={() => setMrpSubTab("suppliers")}
-                className={`pb-3 font-semibold transition-colors flex items-center space-x-1.5 ${
-                  mrpSubTab === "suppliers"
-                    ? "text-blue-400 border-b-2 border-blue-500"
-                    : "text-slate-400 hover:text-slate-200"
-                }`}
-              >
-                <Building2 className="w-3.5 h-3.5" />
-                <span>Certified Suppliers ({suppliers.length})</span>
-              </button>
-            </div>
-
-            {/* SUBTAB 1: NET REQUIREMENTS & SHORTAGES */}
-            {mrpSubTab === "requirements" && (
-              <div className="hairline-panel rounded-xl overflow-hidden space-y-4">
-                <div className="p-5 border-b border-white/[0.08] flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
-                  <div>
-                    <h2 className="font-bold text-sm text-slate-100 flex items-center space-x-2">
-                      <Boxes className="w-4 h-4 text-blue-400" />
-                      <span>Net Material Requirements & Shortage Analysis (MD01N)</span>
-                    </h2>
-                    <p className="text-xs text-slate-400">
-                      Evaluates gross component demand against physical on-hand inventory, open purchase orders, and safety stock.
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <button
-                      onClick={() => {
-                        const rows = filteredMrpItems.map((item: any) => ({
-                          SKU: item.sku,
-                          Component_Name: item.name,
-                          Material_Type: item.material_type,
-                          BOM_Level: item.bom_level,
-                          Gross_Requirement: item.gross_requirement,
-                          On_Hand_Stock: item.on_hand_stock,
-                          Safety_Stock: item.safety_stock,
-                          Inbound_Pipeline: item.inbound_pipeline,
-                          Net_Requirement: item.net_requirement,
-                          Unit_Cost: item.unit_cost,
-                          Shortage_Value: item.total_shortage_value,
-                          Status: item.status,
-                        }));
-                        exportToCsv("mrp_net_requirements.csv", rows);
-                      }}
-                      className="flex items-center space-x-1 px-2.5 py-1 text-xs bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded border border-white/[0.08] transition-colors"
-                      title="Download MRP Requirements as CSV"
-                    >
-                      <Download className="w-3 h-3 text-blue-400" />
-                      <span>Export CSV</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Filter Pills */}
-                <div className="px-5 flex items-center space-x-2 text-xs">
-                  <span className="text-slate-400 font-mono text-[11px] mr-1">Filter View:</span>
-                  {[
-                    { label: "All Items", val: "ALL" },
-                    { label: "Shortages Only", val: "SHORTAGES" },
-                    { label: "Healthy Only", val: "HEALTHY" },
-                  ].map((f) => (
-                    <button
-                      key={f.val}
-                      onClick={() => setMrpFilterStatus(f.val)}
-                      className={`px-2.5 py-0.5 rounded text-[11px] font-mono transition-colors ${
-                        mrpFilterStatus === f.val
-                          ? "bg-blue-600 text-white font-semibold"
-                          : "bg-white/[0.04] text-slate-400 hover:text-slate-200"
-                      }`}
-                    >
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Table */}
-                <div className="overflow-x-auto px-5 pb-5">
-                  {filteredMrpItems.length > 0 ? (
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
-                        <tr>
-                          <th className="py-3 px-4">SKU</th>
-                          <th className="py-3 px-4">Component Description</th>
-                          <th className="py-3 px-4">Type</th>
-                          <th className="py-3 px-4 text-center">BOM Lvl</th>
-                          <th className="py-3 px-4 text-right">Gross Req</th>
-                          <th className="py-3 px-4 text-right">On-Hand</th>
-                          <th className="py-3 px-4 text-right">Safety Stock</th>
-                          <th className="py-3 px-4 text-right">Inbound Pipeline</th>
-                          <th className="py-3 px-4 text-right">Net Shortage</th>
-                          <th className="py-3 px-4">MRP Status</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/[0.04]">
-                        {filteredMrpItems.map((item: any, idx: number) => (
-                          <tr key={idx} className="hover:bg-white/[0.02] transition-colors">
-                            <td className="py-3.5 px-4 font-mono font-medium text-blue-400">{item.sku}</td>
-                            <td className="py-3.5 px-4 font-semibold text-slate-200">{item.name}</td>
-                            <td className="py-3.5 px-4 font-mono text-[11px] text-slate-400">{item.material_type}</td>
-                            <td className="py-3.5 px-4 text-center font-mono">
-                              <span className="px-1.5 py-0.5 rounded bg-white/[0.06] text-slate-300 text-[10px]">
-                                L{item.bom_level}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 text-right font-mono text-slate-100">
-                              {item.gross_requirement}
-                            </td>
-                            <td className="py-3.5 px-4 text-right font-mono text-slate-300">
-                              {item.on_hand_stock}
-                            </td>
-                            <td className="py-3.5 px-4 text-right font-mono text-slate-400">
-                              {item.safety_stock}
-                            </td>
-                            <td className="py-3.5 px-4 text-right font-mono text-indigo-300">
-                              {item.inbound_pipeline > 0 ? `+${item.inbound_pipeline}` : "0"}
-                            </td>
-                            <td className="py-3.5 px-4 text-right font-mono font-bold">
-                              {item.net_requirement > 0 ? (
-                                <span className="text-rose-400 font-bold">-{item.net_requirement}</span>
-                              ) : (
-                                <span className="text-slate-500">0</span>
-                              )}
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                  item.status === "HEALTHY"
-                                    ? "bg-emerald-950 text-emerald-400 border-emerald-800/40"
-                                    : "bg-rose-950 text-rose-400 border-rose-800/40"
-                                }`}
-                              >
-                                {item.status}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <div className="p-12 text-center text-slate-500 flex flex-col items-center justify-center">
-                      <Boxes className="w-10 h-10 mb-2 opacity-30" />
-                      <p className="text-sm font-medium">No MRP requirements calculated yet.</p>
-                      <p className="text-xs text-slate-600 max-w-sm mt-1">
-                        Click <strong>"Run Multi-Level MRP (MD01N)"</strong> in the top header to explode Bills of Materials and calculate component net requirements.
-                      </p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* SUBTAB 2: PURCHASE ORDERS & DOCK RECEIVING */}
-            {mrpSubTab === "purchase_orders" && (
-              <div className="hairline-panel rounded-xl overflow-hidden space-y-4">
-                <div className="p-5 border-b border-white/[0.08] flex justify-between items-center">
-                  <div>
-                    <h2 className="font-bold text-sm text-slate-100 flex items-center space-x-2">
-                      <ShoppingCart className="w-4 h-4 text-indigo-400" />
-                      <span>Purchase Requisitions & Supplier Orders (ME21N / MIGO)</span>
-                    </h2>
-                    <p className="text-xs text-slate-400">
-                      Autonomous procurement orders generated from MRP shortages. Approve and post physical dock goods receipt.
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <button
-                      onClick={() => {
-                        const rows = purchaseOrders.map((po: any) => ({
-                          PO_Number: po.po_number,
-                          Supplier_Name: po.supplier_name,
-                          Supplier_Code: po.supplier_code,
-                          Material_SKU: po.material_sku,
-                          Material_Name: po.material_name,
-                          Quantity: po.quantity,
-                          Unit_Cost: po.unit_cost,
-                          Total_Amount: po.total_amount,
-                          Dock_Due_Date: po.dock_due_date || "",
-                          Status: po.status,
-                        }));
-                        exportToCsv("purchase_orders.csv", rows);
-                      }}
-                      className="flex items-center space-x-1 px-2.5 py-1 text-xs bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded border border-white/[0.08] transition-colors"
-                      title="Download Purchase Orders as CSV"
-                    >
-                      <Download className="w-3 h-3 text-indigo-400" />
-                      <span>Export CSV</span>
-                    </button>
-                    <span className="text-xs text-slate-400 font-mono">{purchaseOrders.length} records</span>
-                  </div>
-                </div>
-
-                <div className="overflow-x-auto px-5 pb-5">
-                  {purchaseOrders.length > 0 ? (
-                    <table className="w-full text-left text-xs">
-                      <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
-                        <tr>
-                          <th className="py-3 px-4">PO / PR #</th>
-                          <th className="py-3 px-4">Supplier</th>
-                          <th className="py-3 px-4">Material SKU</th>
-                          <th className="py-3 px-4 text-right">Order Qty</th>
-                          <th className="py-3 px-4 text-right">Unit Cost</th>
-                          <th className="py-3 px-4 text-right">Total Amount</th>
-                          <th className="py-3 px-4">Dock Due Date</th>
-                          <th className="py-3 px-4">Procurement Status</th>
-                          <th className="py-3 px-4 text-center">Action</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-white/[0.04]">
-                        {purchaseOrders.map((po: any) => (
-                          <tr key={po.id} className="hover:bg-white/[0.02] transition-colors">
-                            <td className="py-3.5 px-4 font-mono font-medium text-indigo-400">{po.po_number}</td>
-                            <td className="py-3.5 px-4 font-semibold text-slate-200">{po.supplier_name}</td>
-                            <td className="py-3.5 px-4 font-mono text-blue-300">{po.material_sku}</td>
-                            <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-100">{po.quantity}</td>
-                            <td className="py-3.5 px-4 text-right font-mono text-slate-300">${po.unit_cost?.toFixed(2)}</td>
-                            <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-400">
-                              ${po.total_amount?.toLocaleString()}
-                            </td>
-                            <td className="py-3.5 px-4 font-mono text-slate-400">
-                              {po.dock_due_date ? new Date(po.dock_due_date).toLocaleDateString() : "TBD"}
-                            </td>
-                            <td className="py-3.5 px-4">
-                              <span
-                                className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                  po.status === "RECEIVED"
-                                    ? "bg-emerald-950 text-emerald-400 border-emerald-800/40"
-                                    : po.status === "RELEASED"
-                                    ? "bg-blue-950 text-blue-400 border-blue-800/40"
-                                    : "bg-amber-950 text-amber-400 border-amber-800/40"
-                                }`}
-                              >
-                                {po.status}
-                              </span>
-                            </td>
-                            <td className="py-3.5 px-4 text-center">
-                              {po.status === "DRAFT_PR" && (
-                                <button
-                                  onClick={() => handleApprovePo(po.id)}
-                                  disabled={actionLoading === po.id}
-                                  className="px-3 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded text-[11px] font-semibold flex items-center space-x-1 mx-auto transition-all cursor-pointer"
-                                >
-                                  {actionLoading === po.id ? (
-                                    <RefreshCw className="w-3 h-3 animate-spin" />
-                                  ) : (
-                                    <PackageCheck className="w-3 h-3" />
-                                  )}
-                                  <span>Release PO (ME21N)</span>
-                                </button>
-                              )}
-                              {po.status === "RELEASED" && (
-                                <button
-                                  onClick={() => handleReceivePo(po.id)}
-                                  disabled={actionLoading === po.id}
-                                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-semibold flex items-center space-x-1 mx-auto transition-all cursor-pointer"
-                                >
-                                  {actionLoading === po.id ? (
-                                    <RefreshCw className="w-3 h-3 animate-spin" />
-                                  ) : (
-                                    <Truck className="w-3 h-3" />
-                                  )}
-                                  <span>Receive Dock (MIGO)</span>
-                                </button>
-                              )}
-                              {po.status === "RECEIVED" && (
-                                <span className="text-[11px] text-emerald-400 font-mono flex items-center justify-center space-x-1">
-                                  <Check className="w-3 h-3" />
-                                  <span>Dock Received</span>
-                                </span>
-                              )}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <div className="p-8 text-center text-slate-500 font-mono text-xs">
-                      No purchase orders recorded in ledger.
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* SUBTAB 3: MULTI-LEVEL BOM HIERARCHY EXPLORER */}
-            {mrpSubTab === "boms" && (
-              <div className="space-y-4">
-                {/* Product Selector */}
-                <div className="flex items-center space-x-3">
-                  <span className="text-xs font-mono text-slate-400">Select Finished Product:</span>
-                  {mrpBoms.map((bom: any, idx: number) => (
-                    <button
-                      key={bom.bom_id}
-                      onClick={() => setSelectedBomIndex(idx)}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
-                        selectedBomIndex === idx
-                          ? "bg-blue-600/30 border-blue-500/50 text-blue-200"
-                          : "bg-[#0a0b0e] border-white/[0.08] text-slate-400 hover:text-slate-200"
-                      }`}
-                    >
-                      {bom.sku} ({bom.name})
-                    </button>
-                  ))}
-                </div>
-
-                {/* Active BOM Card */}
-                {mrpBoms[selectedBomIndex] && (
-                  <div className="hairline-panel rounded-xl p-5 space-y-4">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-white/[0.08] pb-4">
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                            Version {mrpBoms[selectedBomIndex].version}
-                          </span>
-                          <h2 className="text-base font-bold text-white">
-                            {mrpBoms[selectedBomIndex].sku} — {mrpBoms[selectedBomIndex].name}
-                          </h2>
-                        </div>
-                        <p className="text-xs text-slate-400 mt-0.5">
-                          Multi-tier engineering Bill of Materials with scrap rate allowances and unit standard costs.
-                        </p>
-                      </div>
-                      <div className="flex items-center space-x-6 text-right font-mono">
-                        <div>
-                          <span className="text-[10px] text-slate-400 block">Finished Good Price</span>
-                          <span className="text-sm font-bold text-slate-200">
-                            ${mrpBoms[selectedBomIndex].finished_good_unit_cost?.toLocaleString()}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-400 block">Rolled-Up BOM Cost</span>
-                          <span className="text-sm font-bold text-amber-400">
-                            ${mrpBoms[selectedBomIndex].bom_standard_cost?.toLocaleString()}
-                          </span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-400 block">Gross Margin</span>
-                          <span className="text-sm font-bold text-emerald-400">
-                            {mrpBoms[selectedBomIndex].margin_pct}%
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="overflow-x-auto">
-                      <table className="w-full text-left text-xs">
-                        <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
-                          <tr>
-                            <th className="py-3 px-4">Component SKU</th>
-                            <th className="py-3 px-4">Description</th>
-                            <th className="py-3 px-4">Type</th>
-                            <th className="py-3 px-4 text-right">Qty Per Unit</th>
-                            <th className="py-3 px-4 text-right">Scrap %</th>
-                            <th className="py-3 px-4 text-right">Unit Cost</th>
-                            <th className="py-3 px-4 text-right">Extended Cost</th>
-                            <th className="py-3 px-4 text-right">On-Hand Stock</th>
-                            <th className="py-3 px-4">Inventory Status</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-white/[0.04]">
-                          {mrpBoms[selectedBomIndex].components?.map((comp: any) => (
-                            <tr key={comp.id} className="hover:bg-white/[0.02] transition-colors">
-                              <td className="py-3.5 px-4 font-mono font-medium text-blue-400">{comp.sku}</td>
-                              <td className="py-3.5 px-4 font-semibold text-slate-200">{comp.name}</td>
-                              <td className="py-3.5 px-4 font-mono text-[11px] text-slate-400">{comp.material_type}</td>
-                              <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-100">
-                                {comp.quantity_per} {comp.unit_of_measure}
-                              </td>
-                              <td className="py-3.5 px-4 text-right font-mono text-slate-400">
-                                {comp.scrap_factor_pct}%
-                              </td>
-                              <td className="py-3.5 px-4 text-right font-mono text-slate-300">
-                                ${comp.unit_cost?.toFixed(2)}
-                              </td>
-                              <td className="py-3.5 px-4 text-right font-mono font-bold text-amber-400">
-                                ${comp.extended_cost?.toFixed(2)}
-                              </td>
-                              <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-200">
-                                {comp.on_hand_stock}
-                              </td>
-                              <td className="py-3.5 px-4">
-                                <span
-                                  className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                    comp.stock_status === "HEALTHY"
-                                      ? "bg-emerald-950 text-emerald-400 border-emerald-800/40"
-                                      : "bg-rose-950 text-rose-400 border-rose-800/40"
-                                  }`}
-                                >
-                                  {comp.stock_status}
-                                </span>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
-            {/* SUBTAB 4: CERTIFIED SUPPLIER DIRECTORY */}
-            {mrpSubTab === "suppliers" && (
-              <div className="space-y-4">
-                <div className="hairline-panel p-5 rounded-xl">
-                  <h2 className="font-bold text-sm text-slate-100 flex items-center space-x-2">
-                    <Building2 className="w-4 h-4 text-blue-400" />
-                    <span>Certified Aerospace & Defense Supplier Roster</span>
-                  </h2>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Direct-contracted vendors supplying raw Inconel, aerospace fasteners, and hydraulic seals with guaranteed lead times.
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {suppliers.map((supp: any) => (
-                    <div key={supp.id} className="hairline-panel p-5 rounded-xl space-y-3">
-                      <div className="flex justify-between items-start">
-                        <div>
-                          <span className="font-mono text-xs text-blue-400 font-bold">{supp.code}</span>
-                          <h3 className="font-bold text-slate-100 text-sm mt-0.5">{supp.name}</h3>
-                          <span className="text-[11px] text-slate-400">{supp.country} · ISO 9001 / AS9100 Certified</span>
-                        </div>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                          {supp.rating}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-3 pt-2 border-t border-white/[0.06] text-xs font-mono">
-                        <div>
-                          <span className="text-[10px] text-slate-400 block">Contract Lead Time</span>
-                          <span className="font-bold text-slate-200">{supp.lead_time_days} Business Days</span>
-                        </div>
-                        <div>
-                          <span className="text-[10px] text-slate-400 block">Historical OTIF</span>
-                          <span className="font-bold text-emerald-400">{supp.on_time_delivery_pct}%</span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* ============================================================== */}
-        {/* TAB 3: AUTONOMOUS DISRUPTION COPILOT                          */}
-        {/* ============================================================== */}
-        {activeTab === "copilot" && (
-          <div className="max-w-7xl mx-auto space-y-6">
-            <div>
-              <h1 className="text-lg font-bold text-white tracking-tight flex items-center space-x-2">
-                <Sparkles className="w-5 h-5 text-indigo-400" />
-                <span>Autonomous Disruption & What-If Copilot</span>
-              </h1>
-              <p className="text-xs text-slate-400">
-                When breakdowns or supply shocks happen, the AI solver formulates trade-offs without manual guesswork.
-              </p>
-            </div>
-
-            {mitigationMessage && (
-              <div className="p-4 rounded-xl border border-emerald-500/40 bg-emerald-950/50 text-emerald-100 flex items-center justify-between shadow-xl animate-in fade-in duration-200">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold">
-                    ✓
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-sm text-emerald-200">Disruption Mitigation Plan Applied</h3>
-                    <p className="text-xs text-emerald-300/90 font-mono mt-0.5">{mitigationMessage}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setMitigationMessage(null)}
-                  className="text-xs text-emerald-300 hover:text-white px-2.5 py-1 bg-emerald-900/40 rounded border border-emerald-700/50"
-                >
-                  Dismiss
-                </button>
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-              {/* Incident Injection Control */}
-              <div className="hairline-panel rounded-xl p-5 space-y-4">
-                <h3 className="font-bold text-xs text-slate-300 flex items-center space-x-2">
-                  <AlertTriangle className="w-4 h-4 text-amber-400" />
-                  <span>Simulate Shop-Floor Incident</span>
-                </h3>
-
-                <div className="space-y-3 text-xs">
-                  <div>
-                    <label className="text-slate-400 block mb-1">Target Machine Failure</label>
-                    <select
-                      value={selectedMachine}
-                      onChange={(e) => setSelectedMachine(e.target.value)}
-                      className="w-full bg-[#0a0b0e] border border-white/[0.1] rounded p-2 text-slate-200"
-                    >
-                      <option value="CNC-01">CNC-01 (Haas 5-Axis)</option>
-                      <option value="LASER-01">LASER-01 (Amada Fiber Laser)</option>
-                      <option value="ASY-01">ASY-01 (Automated Assembly)</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <label className="text-slate-400 block mb-1">Unscheduled Downtime (Hours)</label>
-                    <input
-                      type="number"
-                      value={downtimeHours}
-                      onChange={(e) => setDowntimeHours(Number(e.target.value))}
-                      className="w-full bg-[#0a0b0e] border border-white/[0.1] rounded p-2 text-slate-200 font-mono"
-                    />
-                  </div>
-
-                  <button
-                    onClick={handleSimulateDisruption}
-                    disabled={simulating}
-                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs flex items-center justify-center space-x-2 shadow-sm transition-all"
-                  >
-                    {simulating ? (
-                      <>
-                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        <span>Solving Multi-Scenario What-If...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Cpu className="w-3.5 h-3.5" />
-                        <span>Run What-If Solver</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Simulation Result */}
-              <div className="lg:col-span-2 space-y-4">
-                {disruptionResult && activeScenario ? (
-                  <div className="hairline-panel-elevated rounded-xl p-6 space-y-5 animate-in fade-in duration-200">
-                    {/* Multi-Scenario Switcher Tabs */}
-                    <div>
-                      <div className="flex justify-between items-center mb-2">
-                        <span className="text-xs font-mono text-slate-400 uppercase tracking-wider font-semibold">
-                          What-If Trade-Off Scenarios ({allScenarios.length} Evaluated)
-                        </span>
-                        <span className="text-[11px] font-mono text-emerald-400 font-bold">
-                          Feasibility: {activeScenario.feasibility}
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {allScenarios.map((sc: any, idx: number) => {
-                          const isSelected = selectedScenarioIndex === idx;
-                          return (
-                            <button
-                              key={sc.scenario_id || idx}
-                              onClick={() => setSelectedScenarioIndex(idx)}
-                              className={`p-3.5 rounded-lg text-left border transition-all flex flex-col justify-between ${
-                                isSelected
-                                  ? "bg-indigo-950/40 border-indigo-500/60 ring-1 ring-indigo-500/40"
-                                  : "bg-[#0a0b0e] border-white/[0.06] hover:border-white/[0.12] text-slate-400"
-                              }`}
-                            >
-                              <div>
-                                <div className="flex justify-between items-center mb-1">
-                                  <span
-                                    className={`text-[10px] font-mono font-bold uppercase tracking-wider ${
-                                      idx === 0 ? "text-indigo-300" : "text-amber-400"
-                                    }`}
-                                  >
-                                    {idx === 0 ? "★ Rank #1: Recommended" : "⚡ Rank #2: Alternative"}
-                                  </span>
-                                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-slate-300">
-                                    {sc.feasibility}
-                                  </span>
-                                </div>
-                                <div className="font-semibold text-xs text-slate-100">{sc.name}</div>
-                              </div>
-                              <div className="text-[11px] text-slate-400 font-mono mt-2 pt-2 border-t border-white/[0.06] flex justify-between">
-                                <span>
-                                  Makespan: <strong className="text-slate-200">+{sc.projected_makespan_delta_hours}h</strong>
-                                </span>
-                                <span>
-                                  Cost: <strong className="text-amber-400">+${sc.estimated_cost_delta}</strong>
-                                </span>
-                                <span>
-                                  Delay:{" "}
-                                  <strong className={sc.orders_delayed > 0 ? "text-rose-400" : "text-emerald-400"}>
-                                    {sc.orders_delayed}
-                                  </strong>
-                                </span>
-                              </div>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Active Scenario Detailed View */}
-                    <div className="pt-2 border-t border-white/[0.08] space-y-3">
-                      <div>
-                        <div className="flex items-center space-x-2">
-                          <span className="text-xs font-mono font-bold uppercase px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                            Active Scenario
-                          </span>
-                          <h2 className="text-base font-bold text-white">{activeScenario.name}</h2>
-                        </div>
-                        <p className="text-xs text-slate-300 mt-1">{activeScenario.action}</p>
-                      </div>
-
-                      <div className="grid grid-cols-3 gap-3 my-3">
-                        <div className="bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
-                          <span className="text-[10px] text-slate-400 block font-mono">Makespan Delta</span>
-                          <span className="text-sm font-bold font-mono text-slate-200">
-                            +{activeScenario.projected_makespan_delta_hours}h
-                          </span>
-                        </div>
-                        <div className="bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
-                          <span className="text-[10px] text-slate-400 block font-mono">Cost Delta</span>
-                          <span className="text-sm font-bold font-mono text-amber-400">
-                            +${activeScenario.estimated_cost_delta}
-                          </span>
-                        </div>
-                        <div className="bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
-                          <span className="text-[10px] text-slate-400 block font-mono">Customer Delays</span>
-                          <span
-                            className={`text-sm font-bold font-mono ${
-                              activeScenario.orders_delayed > 0 ? "text-rose-400" : "text-emerald-400"
-                            }`}
-                          >
-                            {activeScenario.orders_delayed} order(s)
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="text-xs text-slate-400 italic bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
-                        "{activeScenario.rationale}"
-                      </div>
-
-                      <div className="mt-4 flex justify-end">
-                        <button
-                          onClick={() => handleApplyMitigation(activeScenario)}
-                          disabled={applyingMitigation}
-                          className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-lg text-xs shadow-sm flex items-center space-x-1.5 transition-all"
-                        >
-                          {applyingMitigation ? (
-                            <>
-                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                              <span>Executing Mitigation Protocol...</span>
-                            </>
-                          ) : (
-                            <>
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>Commit & Execute: {activeScenario.name}</span>
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="hairline-panel rounded-xl p-12 text-center text-slate-500 flex flex-col items-center justify-center h-full">
-                    <Sliders className="w-10 h-10 mb-2 opacity-30" />
-                    <p className="text-sm font-medium">Select a machine and trigger an incident simulation.</p>
-                    <p className="text-xs text-slate-600 max-w-sm mt-1">
-                      The Copilot runs multi-objective What-If solvers to protect customer delivery commitments.
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ============================================================== */}
-        {/* TAB 4: EXECUTIVE RADAR                                         */}
-        {/* ============================================================== */}
-        {activeTab === "executive" && (
-          <div className="max-w-7xl mx-auto space-y-6">
-            <div>
-              <h1 className="text-lg font-bold text-white tracking-tight">Executive Supply Chain Radar</h1>
-              <p className="text-xs text-slate-400">
-                Enterprise telemetry: On-Time In-Full (OTIF), plant OEE, active customer promise risk.
-              </p>
-            </div>
-
-            {/* KPI Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="hairline-panel p-5 rounded-xl">
-                <span className="text-xs text-slate-400 font-mono">ON-TIME IN-FULL (OTIF)</span>
-                <div className="text-2xl font-bold font-mono text-emerald-400 mt-1">98.4%</div>
-                <span className="text-[11px] text-emerald-500 font-medium">↑ +2.1% this quarter</span>
-              </div>
-              <div className="hairline-panel p-5 rounded-xl">
-                <span className="text-xs text-slate-400 font-mono">PLANT OEE AVERAGE</span>
-                <div className="text-2xl font-bold font-mono text-blue-400 mt-1">87.2%</div>
-                <span className="text-[11px] text-slate-400">9 Active Work Centers</span>
-              </div>
-              <div className="hairline-panel p-5 rounded-xl">
-                <span className="text-xs text-slate-400 font-mono">PROMISE BREACHES</span>
-                <div className="text-2xl font-bold font-mono text-emerald-400 mt-1">0</div>
-                <span className="text-[11px] text-slate-400">100% On-Track</span>
-              </div>
-              <div className="hairline-panel p-5 rounded-xl">
-                <span className="text-xs text-slate-400 font-mono">ACTIVE PIPELINE VALUE</span>
-                <div className="text-2xl font-bold font-mono text-slate-100 mt-1">${totalPipeline.toLocaleString()}</div>
-                <span className="text-[11px] text-indigo-400">Contracted Commitments</span>
-              </div>
-            </div>
-          </div>
-        )}
+          {/* SEAT 4: EXECUTIVE RADAR */}
+          {activeTab === "executive" && (
+            <ExecutiveStation
+              salesOrders={salesOrders}
+              materials={inventoryData?.items || []}
+              ganttData={ganttData}
+              invoices={invoices}
+              exportToCsv={exportToCsv}
+            />
+          )}
+        </div>
       </main>
 
       {/* ============================================================== */}
-      {/* ENTERPRISE SALES ORDER CONFIRMATION & DOCUMENT FLOW MODAL      */}
+      {/* AUTHORITATIVE DOCUMENT FLOW & PRINTABLE ORDER MODAL            */}
       {/* ============================================================== */}
       {selectedOrderFlow && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="hairline-panel-elevated rounded-2xl max-w-4xl w-full p-6 space-y-6 max-h-[92vh] overflow-y-auto">
-            {/* Modal Header */}
-            <div className="flex justify-between items-start border-b border-white/[0.08] pb-4">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-400 font-bold">
-                  <FileText className="w-5 h-5" />
-                </div>
-                <div>
-                  <h2 className="text-base font-bold text-white flex items-center space-x-2">
-                    <span>Order Confirmation: {selectedOrderFlow.order.order_number}</span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800/40">
-                      {selectedOrderFlow.order.status}
-                    </span>
-                  </h2>
-                  <p className="text-xs text-slate-400">
-                    Customer: <strong>{selectedOrderFlow.order.customer_name}</strong> ({selectedOrderFlow.order.customer_code})
-                  </p>
-                </div>
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white text-slate-900 rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto shadow-2xl border border-slate-200">
+            {/* Modal Header Controls */}
+            <div className="sticky top-0 bg-white/95 backdrop-blur px-6 py-4 border-b border-slate-200 flex justify-between items-center z-10">
+              <div className="flex items-center space-x-2">
+                <span className="font-mono text-xs px-2 py-0.5 bg-blue-100 text-blue-800 rounded font-bold">
+                  SAP VBFA / ORACLE FUSION
+                </span>
+                <span className="text-xs text-slate-500">Document Flow & Live Production Thread</span>
               </div>
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => window.print()}
-                  className="px-3 py-1.5 bg-white/[0.05] hover:bg-white/[0.1] text-slate-200 rounded-lg text-xs font-semibold flex items-center space-x-1.5 border border-white/[0.08] transition-colors"
+                  className="flex items-center space-x-1.5 px-3 py-1.5 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors cursor-pointer"
                 >
                   <Printer className="w-3.5 h-3.5" />
                   <span>Print Document</span>
                 </button>
                 <button
                   onClick={() => setSelectedOrderFlow(null)}
-                  className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-white/[0.08] rounded-lg transition-colors"
+                  className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
               </div>
             </div>
 
-            {/* Document Flow Progression (SAP VBFA Style) */}
-            <div className="bg-[#0a0b0e] p-4 rounded-xl border border-white/[0.06] space-y-2">
-              <span className="text-[11px] font-semibold text-blue-400 font-mono tracking-wider block">
-                SAP S/4HANA Document Flow (VBFA)
-              </span>
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-2 pt-1">
-                {selectedOrderFlow.document_flow.map((doc: any, idx: number) => (
-                  <div
-                    key={doc.stage}
-                    className="p-2.5 rounded-lg bg-[#0e1017] border border-white/[0.06] text-xs space-y-1 relative"
-                  >
-                    <div className="flex justify-between items-center text-[10px] text-slate-400 font-mono">
-                      <span>Step 0{idx + 1}</span>
-                      <span className="px-1.5 py-0.2 rounded bg-white/[0.06] text-slate-300 font-bold">
-                        {doc.status}
-                      </span>
+            {/* Document Flow Progression Tracker */}
+            <div className="p-6 bg-slate-50 border-b border-slate-200">
+              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-4 font-mono">
+                Authoritative Audit Thread (SOX 404 Compliant)
+              </div>
+              <div className="flex items-center justify-between">
+                {[
+                  { label: "1. Quotation / RFQ", status: "COMPLETE", desc: "AI Parsed & CTP Solved" },
+                  { label: "2. Sales Order", status: "COMPLETE", desc: selectedOrderFlow.order.order_number },
+                  {
+                    label: "3. Plant Dispatch",
+                    status: selectedOrderFlow.production_run ? "COMPLETE" : "IN_PROGRESS",
+                    desc: selectedOrderFlow.production_run?.run_number || "Finite Routing",
+                  },
+                  {
+                    label: "4. Outbound Delivery",
+                    status: selectedOrderFlow.delivery ? "COMPLETE" : "PENDING",
+                    desc: selectedOrderFlow.delivery?.delivery_number || "Staged at Dock",
+                  },
+                  {
+                    label: "5. Customer Invoice",
+                    status: selectedOrderFlow.invoice ? "COMPLETE" : "PENDING",
+                    desc: selectedOrderFlow.invoice?.invoice_number || "AR Clearing",
+                  },
+                ].map((step, idx) => (
+                  <div key={idx} className="flex-1 text-center relative">
+                    <div
+                      className={`w-8 h-8 mx-auto rounded-full flex items-center justify-center font-bold text-xs mb-1.5 ${
+                        step.status === "COMPLETE"
+                          ? "bg-emerald-600 text-white shadow-sm"
+                          : step.status === "IN_PROGRESS"
+                          ? "bg-blue-600 text-white animate-pulse"
+                          : "bg-slate-200 text-slate-500"
+                      }`}
+                    >
+                      {step.status === "COMPLETE" ? "✓" : idx + 1}
                     </div>
-                    <div className="font-semibold text-slate-200 truncate">{doc.doc_type}</div>
-                    <div className="font-mono text-[11px] text-blue-400 font-bold">{doc.reference}</div>
-                    <div className="text-[10px] text-slate-400 truncate">{doc.details}</div>
+                    <div className="font-semibold text-xs text-slate-800">{step.label}</div>
+                    <div className="text-[10px] text-slate-500 font-mono mt-0.5">{step.desc}</div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Formal Document Body */}
-            <div className="bg-white text-slate-900 p-6 rounded-xl space-y-6 shadow-sm font-sans">
-              {/* Company & Billing Info */}
-              <div className="flex justify-between items-start border-b border-slate-200 pb-4">
+            {/* Printable Commercial Order Document */}
+            <div className="p-8 space-y-6">
+              {/* Document Header */}
+              <div className="flex justify-between items-start border-b border-slate-200 pb-6">
                 <div>
-                  <h3 className="font-bold text-base text-slate-900">GAIC Advanced Industrial Components LLC</h3>
-                  <p className="text-xs text-slate-500">100 Enterprise Way, Chicago Plant, IL 60601</p>
-                  <p className="text-xs text-slate-500">System of Record: SAP S/4HANA Certified</p>
+                  <div className="text-xl font-bold tracking-tight text-slate-900">GAIC MANUFACTURING CORP</div>
+                  <div className="text-xs text-slate-500 mt-1">
+                    Plant #1 Operations · Industrial Automation & Aerospace Division
+                  </div>
+                  <div className="text-xs text-slate-500 font-mono">1000 Assembly Way, Chicago, IL 60601</div>
                 </div>
                 <div className="text-right text-xs">
                   <div className="font-bold text-slate-800">SALES ORDER ACKNOWLEDGMENT</div>
