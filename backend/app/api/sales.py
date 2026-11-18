@@ -6,7 +6,7 @@ from sqlalchemy.future import select
 from typing import Dict, Any, List
 
 from app.core.database import get_db
-from app.models.master_data import Material, BillOfMaterial, Routing, RoutingOperation
+from app.models.master_data import Material, BillOfMaterial, Routing, RoutingOperation, Machine
 from app.models.sales import Customer, CustomerQuote, SalesOrder, SalesOrderLine, DeliveryPromise, DeliveryNote, Invoice
 from app.models.manufacturing import ProductionOrder, ScheduledOperation
 from app.models.audit import ApprovalRequest, AuditLog
@@ -269,7 +269,40 @@ async def decide_approval(payload: Dict[str, Any], db: AsyncSession = Depends(ge
     )
     db.add(promise)
 
-    # 4. Generate Initial Outbound Delivery Document (Goods Issue)
+    # 4. Generate Production Order & Allocate Shop-Floor Slot
+    po_num = f"PO-{datetime.utcnow().strftime('%Y%m')}-{uuid.uuid4().hex[:4].upper()}"
+    prod_order = ProductionOrder(
+        order_number=po_num,
+        sales_order_id=sales_order.id,
+        material_id=proposal["material_id"],
+        target_quantity=proposal["quantity"],
+        status="SCHEDULED",
+        scheduled_start=datetime.utcnow() + timedelta(hours=2),
+        scheduled_end=datetime.fromisoformat(proposal["projected_delivery_date"]),
+    )
+    db.add(prod_order)
+    await db.flush()
+
+    # Find available machine to schedule operation
+    m_res = await db.execute(select(Machine))
+    all_machines = m_res.scalars().all()
+    target_machine = all_machines[0] if all_machines else None
+    if target_machine:
+        op = ScheduledOperation(
+            production_order_id=prod_order.id,
+            machine_id=target_machine.id,
+            work_center_id=target_machine.work_center_id,
+            sequence=10,
+            operation_name=f"Fulfill {proposal['material_name']} ({proposal['quantity']} units)",
+            duration_minutes=max(45.0, proposal["quantity"] * 4.0),
+            setup_minutes=15.0,
+            planned_start=datetime.utcnow() + timedelta(hours=2),
+            planned_end=datetime.utcnow() + timedelta(hours=2, minutes=max(45.0, proposal["quantity"] * 4.0) + 15),
+            status="SCHEDULED",
+        )
+        db.add(op)
+
+    # 5. Generate Initial Outbound Delivery Document (Goods Issue)
     deliv_num = f"DN-{datetime.utcnow().strftime('%Y%m')}-{uuid.uuid4().hex[:4].upper()}"
     delivery = DeliveryNote(
         delivery_number=deliv_num,
@@ -401,6 +434,9 @@ async def get_order_document_flow(order_id: str, db: AsyncSession = Depends(get_
     audit_res = await db.execute(select(AuditLog).where(AuditLog.entity_id == order.id))
     audit = audit_res.scalar_one_or_none()
 
+    po_res = await db.execute(select(ProductionOrder).where(ProductionOrder.sales_order_id == order.id))
+    prod_order = po_res.scalar_one_or_none()
+
     line_details = []
     for l in lines:
         m_res = await db.execute(select(Material).where(Material.id == l.material_id))
@@ -439,6 +475,14 @@ async def get_order_document_flow(order_id: str, db: AsyncSession = Depends(get_
             "status": "COMMITTED",
             "date": promise.projected_date.isoformat() if promise else None,
             "details": f"Risk Level: {promise.risk_level if promise else 'SAFE'} (Confidence 99%)"
+        },
+        {
+            "stage": "PRODUCTION_ORDER",
+            "doc_type": "Planned / Production Order (AFKO)",
+            "reference": prod_order.order_number if prod_order else f"PO-{order.order_number.replace('SO-', '')}",
+            "status": prod_order.status if prod_order else "SCHEDULED",
+            "date": prod_order.scheduled_start.isoformat() if (prod_order and prod_order.scheduled_start) else (order.created_at.isoformat() if order.created_at else None),
+            "details": f"Target Qty: {prod_order.target_quantity if prod_order else (lines[0].quantity if lines else 0)} units · Work Center Allocated"
         },
         {
             "stage": "OUTBOUND_DELIVERY",

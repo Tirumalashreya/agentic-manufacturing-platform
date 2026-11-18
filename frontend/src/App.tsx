@@ -36,7 +36,7 @@ const API_BASE = "http://localhost:8080/api/v1";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<"commercial" | "schedule" | "copilot" | "executive">("commercial");
-  const [commercialSubTab, setCommercialSubTab] = useState<"intake" | "orders" | "deliveries" | "invoices" | "audit">("intake");
+  const [commercialSubTab, setCommercialSubTab] = useState<"intake" | "orders" | "deliveries" | "invoices" | "inventory" | "audit">("intake");
 
   // Search and Filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -56,6 +56,9 @@ export default function App() {
   const [deliveries, setDeliveries] = useState<any[]>([]);
   const [invoices, setInvoices] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [inventoryData, setInventoryData] = useState<any>(null);
+  const [applyingMitigation, setApplyingMitigation] = useState(false);
+  const [mitigationMessage, setMitigationMessage] = useState<string | null>(null);
   const [ganttData, setGanttData] = useState<any>(null);
 
   // Gantt interactive inspection
@@ -76,7 +79,7 @@ export default function App() {
   const fetchData = async () => {
     setSyncing(true);
     try {
-      const [custRes, ordRes, delivRes, invRes, auditRes, ganttRes] = await Promise.all([
+      const [custRes, ordRes, delivRes, invRes, auditRes, ganttRes, invenRes] = await Promise.all([
         fetch(`${API_BASE}/sales/customers`).then((r) => (r.ok ? r.json() : [])),
         fetch(`${API_BASE}/sales/orders`).then((r) => (r.ok ? r.json() : [])),
         fetch(`${API_BASE}/sales/deliveries`).then((r) => (r.ok ? r.json() : [])),
@@ -90,6 +93,7 @@ export default function App() {
       setInvoices(invRes);
       setAuditLogs(auditRes);
       setGanttData(ganttRes);
+      setInventoryData(invenRes);
     } catch (e) {
       console.error("API sync error:", e);
     } finally {
@@ -199,6 +203,31 @@ export default function App() {
       alert("Failed to post goods issue.");
     } finally {
       setActionLoading(null);
+    }
+  };
+
+  // Apply Disruption Mitigation Plan
+  const handleApplyMitigation = async () => {
+    if (!disruptionResult) return;
+    setApplyingMitigation(true);
+    try {
+      const res = await fetch(`${API_BASE}/scheduling/disruption/apply`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          machine_code: selectedMachine,
+          downtime_hours: downtimeHours,
+          action_type: "DYNAMIC_REROUTE",
+        }),
+      });
+      const data = await res.json();
+      setMitigationMessage(data.message);
+      setDisruptionResult(null);
+      await fetchData();
+    } catch (e) {
+      alert("Failed to apply mitigation.");
+    } finally {
+      setApplyingMitigation(false);
     }
   };
 
@@ -456,6 +485,19 @@ export default function App() {
                   }`}
                 >
                   Billing Invoices ({invoices.length})
+                </button>
+                <button
+                  onClick={() => {
+                    setCommercialSubTab("inventory");
+                    setSearchQuery("");
+                  }}
+                  className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
+                    commercialSubTab === "inventory"
+                      ? "bg-blue-600 text-white shadow-sm"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
+                  }`}
+                >
+                  Inventory & Stock (${inventoryData?.total_sku_count || 6})
                 </button>
                 <button
                   onClick={() => {
@@ -1015,6 +1057,78 @@ export default function App() {
               </div>
             )}
 
+            {/* SUBTAB 4.5: INVENTORY & STOCK OVERVIEW (SAP MMBE) */}
+            {commercialSubTab === "inventory" && (
+              <div className="hairline-panel rounded-xl overflow-hidden space-y-4">
+                <div className="p-5 border-b border-white/[0.08] flex justify-between items-center">
+                  <div>
+                    <h2 className="font-bold text-sm text-slate-100 flex items-center space-x-2">
+                      <Layers className="w-4 h-4 text-blue-400" />
+                      <span>Enterprise Material & Inventory Stock (MMBE / MD04)</span>
+                    </h2>
+                    <p className="text-xs text-slate-400">Unrestricted physical inventory, safety stock thresholds, and live valuation.</p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-[10px] text-slate-400 uppercase font-mono block">Total Stock Valuation</span>
+                    <span className="text-base font-bold font-mono text-emerald-400">
+                      ${inventoryData?.total_inventory_valuation?.toLocaleString()} USD
+                    </span>
+                  </div>
+                </div>
+
+                <div className="overflow-x-auto px-5 pb-5">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
+                      <tr>
+                        <th className="py-3 px-4">SKU</th>
+                        <th className="py-3 px-4">Material Description</th>
+                        <th className="py-3 px-4">Type</th>
+                        <th className="py-3 px-4 text-right">On-Hand Stock</th>
+                        <th className="py-3 px-4 text-right">Safety Stock</th>
+                        <th className="py-3 px-4">Stock Health</th>
+                        <th className="py-3 px-4 text-right">Unit Standard Cost</th>
+                        <th className="py-3 px-4 text-right">Total Valuation</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-white/[0.04]">
+                      {inventoryData?.items?.map((item: any) => (
+                        <tr key={item.id} className="hover:bg-white/[0.02] transition-colors">
+                          <td className="py-3.5 px-4 font-mono font-medium text-blue-400">{item.sku}</td>
+                          <td className="py-3.5 px-4 font-semibold text-slate-200">{item.name}</td>
+                          <td className="py-3.5 px-4 font-mono text-[11px] text-slate-400">{item.type}</td>
+                          <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-100">
+                            {item.on_hand} {item.uom}
+                          </td>
+                          <td className="py-3.5 px-4 text-right font-mono text-slate-400">
+                            {item.safety_stock} {item.uom}
+                          </td>
+                          <td className="py-3.5 px-4">
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                item.health === "HEALTHY"
+                                  ? "bg-emerald-950 text-emerald-400 border-emerald-800/40"
+                                  : item.health === "LOW"
+                                  ? "bg-amber-950 text-amber-400 border-amber-800/40"
+                                  : "bg-rose-950 text-rose-400 border-rose-800/40"
+                              }`}
+                            >
+                              {item.health}
+                            </span>
+                          </td>
+                          <td className="py-3.5 px-4 text-right font-mono text-slate-300">
+                            ${item.unit_cost?.toFixed(2)}
+                          </td>
+                          <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-400">
+                            ${item.total_valuation?.toLocaleString()}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
             {/* SUBTAB 5: SOX AUDIT */}
             {commercialSubTab === "audit" && (
               <div className="hairline-panel rounded-xl overflow-hidden">
@@ -1274,14 +1388,21 @@ export default function App() {
 
                     <div className="mt-4 flex justify-end">
                       <button
-                        onClick={() => {
-                          alert("Mitigation plan applied! Schedule recalculated with zero customer delay.");
-                          setDisruptionResult(null);
-                        }}
-                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs shadow-sm flex items-center space-x-1.5 transition-all"
+                        onClick={handleApplyMitigation}
+                        disabled={applyingMitigation}
+                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-lg text-xs shadow-sm flex items-center space-x-1.5 transition-all"
                       >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>Approve & Re-Optimize Schedule</span>
+                        {applyingMitigation ? (
+                          <>
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                            <span>Reallocating Operations...</span>
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            <span>Approve & Re-Optimize Schedule</span>
+                          </>
+                        )}
                       </button>
                     </div>
                   </div>

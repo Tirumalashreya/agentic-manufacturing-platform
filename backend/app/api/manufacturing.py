@@ -1,3 +1,4 @@
+from datetime import datetime
 # enterprise-aps-platform/backend/app/api/manufacturing.py
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -81,3 +82,40 @@ async def list_production_orders(db: AsyncSession = Depends(get_db)):
             "scheduled_end": po.scheduled_end.isoformat() if po.scheduled_end else None,
         })
     return response
+
+
+@router.get("/inventory")
+async def get_inventory_status(db: AsyncSession = Depends(get_db)):
+    """
+    Returns enterprise inventory stock status (SAP MMBE equivalent):
+    Unrestricted on-hand stock, safety stock thresholds, valuation, and stock health.
+    """
+    m_res = await db.execute(select(Material))
+    materials = m_res.scalars().all()
+
+    inventory_items = []
+    for m in materials:
+        stock_ratio = m.current_stock / max(1.0, m.safety_stock)
+        health = "HEALTHY" if stock_ratio >= 1.2 else ("LOW" if stock_ratio >= 1.0 else "CRITICAL")
+        total_val = m.current_stock * m.standard_cost
+
+        inventory_items.append({
+            "id": m.id,
+            "sku": m.sku,
+            "name": m.name,
+            "type": m.material_type,
+            "uom": m.unit_of_measure,
+            "on_hand": m.current_stock,
+            "safety_stock": m.safety_stock,
+            "lead_time_days": m.lead_time_days,
+            "unit_cost": m.standard_cost,
+            "total_valuation": round(total_val, 2),
+            "health": health
+        })
+
+    return {
+        "as_of": datetime.utcnow().isoformat(),
+        "total_sku_count": len(inventory_items),
+        "total_inventory_valuation": round(sum(i["total_valuation"] for i in inventory_items), 2),
+        "items": inventory_items
+    }
