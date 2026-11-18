@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import confetti from "canvas-confetti";
 import {
   Building2,
@@ -23,9 +23,13 @@ import {
   ChevronRight,
   Eye,
   Check,
-  Zap,
-  Server,
+  Search,
+  Filter,
   ArrowUpRight,
+  Sparkle,
+  Radio,
+  BarChart3,
+  Flame,
 } from "lucide-react";
 
 const API_BASE = "http://localhost:8080/api/v1";
@@ -33,6 +37,9 @@ const API_BASE = "http://localhost:8080/api/v1";
 export default function App() {
   const [activeTab, setActiveTab] = useState<"commercial" | "schedule" | "copilot" | "executive">("commercial");
   const [commercialSubTab, setCommercialSubTab] = useState<"intake" | "orders" | "deliveries" | "invoices" | "audit">("intake");
+
+  // Search and Filter state
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Commercial state
   const [prompt, setPrompt] = useState("Boeing Aerospace requests 20 units of Turbine Housing TB-200 needed by next Friday");
@@ -51,17 +58,23 @@ export default function App() {
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [ganttData, setGanttData] = useState<any>(null);
 
+  // Gantt interactive inspection
+  const [selectedOperation, setSelectedOperation] = useState<any>(null);
+
   // Copilot state
   const [selectedMachine, setSelectedMachine] = useState("CNC-01");
   const [downtimeHours, setDowntimeHours] = useState(4);
   const [disruptionResult, setDisruptionResult] = useState<any>(null);
   const [simulating, setSimulating] = useState(false);
+  const [selectedScenarioIndex, setSelectedScenarioIndex] = useState<number>(0);
 
   // Action states
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [syncing, setSyncing] = useState(false);
 
   // Load authoritative ERP data
   const fetchData = async () => {
+    setSyncing(true);
     try {
       const [custRes, ordRes, delivRes, invRes, auditRes, ganttRes] = await Promise.all([
         fetch(`${API_BASE}/sales/customers`).then((r) => (r.ok ? r.json() : [])),
@@ -79,16 +92,30 @@ export default function App() {
       setGanttData(ganttRes);
     } catch (e) {
       console.error("API sync error:", e);
+    } finally {
+      setSyncing(false);
     }
   };
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 8000);
+    const interval = setInterval(fetchData, 10000);
     return () => clearInterval(interval);
   }, []);
 
-  // RFQ Evaluation (AI + Deterministic CTP)
+  // Global Keyboard Shortcuts (Operate Mode Standard)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setSelectedOrderFlow(null);
+        setSelectedOperation(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // RFQ Evaluation (AI Cognitive Parser + Deterministic CTP)
   const handleEvaluateRFQ = async () => {
     setEvaluating(true);
     setOrderConfirmation(null);
@@ -107,7 +134,7 @@ export default function App() {
     }
   };
 
-  // Human Approval with Confetti
+  // Human Approval with Confetti Celebration
   const handleApprove = async () => {
     if (!proposal?.token) return;
     setApproving(true);
@@ -121,10 +148,10 @@ export default function App() {
       setOrderConfirmation(data);
       setProposal(null);
 
-      // Trigger celebratory confetti
+      // Trigger high-velocity celebration
       confetti({
-        particleCount: 160,
-        spread: 100,
+        particleCount: 180,
+        spread: 110,
         origin: { y: 0.6 },
         colors: ["#3b82f6", "#10b981", "#f59e0b", "#6366f1"],
       });
@@ -204,6 +231,7 @@ export default function App() {
       });
       const data = await res.json();
       setDisruptionResult(data);
+      setSelectedScenarioIndex(0);
     } catch (e) {
       alert("Simulation failed.");
     } finally {
@@ -211,16 +239,49 @@ export default function App() {
     }
   };
 
-  // Calculate quick metrics
+  // Filtered Collections
+  const filteredOrders = useMemo(() => {
+    if (!searchQuery.trim()) return salesOrders;
+    const q = searchQuery.toLowerCase();
+    return salesOrders.filter(
+      (o) =>
+        o.order_number?.toLowerCase().includes(q) ||
+        o.customer_name?.toLowerCase().includes(q) ||
+        o.status?.toLowerCase().includes(q)
+    );
+  }, [salesOrders, searchQuery]);
+
+  const filteredDeliveries = useMemo(() => {
+    if (!searchQuery.trim()) return deliveries;
+    const q = searchQuery.toLowerCase();
+    return deliveries.filter(
+      (d) =>
+        d.delivery_number?.toLowerCase().includes(q) ||
+        d.carrier?.toLowerCase().includes(q) ||
+        d.tracking_number?.toLowerCase().includes(q)
+    );
+  }, [deliveries, searchQuery]);
+
+  const filteredInvoices = useMemo(() => {
+    if (!searchQuery.trim()) return invoices;
+    const q = searchQuery.toLowerCase();
+    return invoices.filter(
+      (i) =>
+        i.invoice_number?.toLowerCase().includes(q) ||
+        i.customer_name?.toLowerCase().includes(q) ||
+        i.status?.toLowerCase().includes(q)
+    );
+  }, [invoices, searchQuery]);
+
   const totalPipeline = salesOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
   const openInvoicesCount = invoices.filter((i) => i.status !== "PAID").length;
   const pendingShipmentsCount = deliveries.filter((d) => d.status !== "SHIPPED").length;
 
   return (
-    <div className="flex flex-col h-screen bg-[#090a0d] text-slate-100 overflow-hidden font-sans technical-grid">
-      {/* Precision Master Header */}
+    <div className="flex flex-col h-screen bg-[#090a0d] text-slate-100 overflow-hidden font-sans technical-grid selection:bg-blue-600/30">
+      {/* Precision Master Cockpit Header */}
       <header className="h-13 border-b border-white/[0.08] bg-[#0c0e14]/90 px-6 flex items-center justify-between backdrop-blur-md z-30">
-        <div className="flex items-center space-x-5">
+        <div className="flex items-center space-x-6">
           <div className="flex items-center space-x-3">
             <div className="w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center font-bold text-white text-xs shadow-sm">
               APS
@@ -236,10 +297,10 @@ export default function App() {
           <div className="hidden lg:flex items-center text-xs text-slate-400 space-x-3 border-l border-white/[0.08] pl-5 font-mono">
             <span className="flex items-center">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2 animate-pulse"></span>
-              GAIC Chicago (PLANT-01)
+              Plant: <strong>GAIC Chicago (PLANT-01)</strong>
             </span>
             <span>·</span>
-            <span className="text-slate-400">OR-Tools CP-SAT (Deterministic)</span>
+            <span className="text-slate-400">Solver: Google OR-Tools CP-SAT (Deterministic)</span>
           </div>
         </div>
 
@@ -265,7 +326,7 @@ export default function App() {
             }`}
           >
             <Calendar className="w-3.5 h-3.5" />
-            <span>Finite Gantt</span>
+            <span>Master Gantt</span>
           </button>
           <button
             onClick={() => setActiveTab("copilot")}
@@ -303,7 +364,7 @@ export default function App() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               <div className="hairline-panel p-3.5 rounded-xl flex items-center justify-between">
                 <div>
-                  <span className="text-[11px] text-slate-400">Committed Sales Orders</span>
+                  <span className="text-[11px] text-slate-400">Committed Orders</span>
                   <div className="text-xl font-bold font-mono text-white mt-0.5">{salesOrders.length}</div>
                 </div>
                 <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
@@ -323,7 +384,7 @@ export default function App() {
               </div>
               <div className="hairline-panel p-3.5 rounded-xl flex items-center justify-between">
                 <div>
-                  <span className="text-[11px] text-slate-400">Pending Outbound Deliveries</span>
+                  <span className="text-[11px] text-slate-400">Pending Outbound</span>
                   <div className="text-xl font-bold font-mono text-amber-400 mt-0.5">{pendingShipmentsCount}</div>
                 </div>
                 <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
@@ -341,11 +402,14 @@ export default function App() {
               </div>
             </div>
 
-            {/* Sub-workspace Navigation */}
+            {/* Sub-workspace Navigation & Filter Bar */}
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-white/[0.08] pb-3">
-              <div className="flex space-x-2 text-xs">
+              <div className="flex flex-wrap gap-1.5 text-xs">
                 <button
-                  onClick={() => setCommercialSubTab("intake")}
+                  onClick={() => {
+                    setCommercialSubTab("intake");
+                    setSearchQuery("");
+                  }}
                   className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
                     commercialSubTab === "intake"
                       ? "bg-blue-600 text-white shadow-sm"
@@ -355,7 +419,10 @@ export default function App() {
                   RFQ Intake & CTP
                 </button>
                 <button
-                  onClick={() => setCommercialSubTab("orders")}
+                  onClick={() => {
+                    setCommercialSubTab("orders");
+                    setSearchQuery("");
+                  }}
                   className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
                     commercialSubTab === "orders"
                       ? "bg-blue-600 text-white shadow-sm"
@@ -365,7 +432,10 @@ export default function App() {
                   Sales Orders ({salesOrders.length})
                 </button>
                 <button
-                  onClick={() => setCommercialSubTab("deliveries")}
+                  onClick={() => {
+                    setCommercialSubTab("deliveries");
+                    setSearchQuery("");
+                  }}
                   className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
                     commercialSubTab === "deliveries"
                       ? "bg-blue-600 text-white shadow-sm"
@@ -375,7 +445,10 @@ export default function App() {
                   Outbound Deliveries ({deliveries.length})
                 </button>
                 <button
-                  onClick={() => setCommercialSubTab("invoices")}
+                  onClick={() => {
+                    setCommercialSubTab("invoices");
+                    setSearchQuery("");
+                  }}
                   className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
                     commercialSubTab === "invoices"
                       ? "bg-blue-600 text-white shadow-sm"
@@ -385,7 +458,10 @@ export default function App() {
                   Billing Invoices ({invoices.length})
                 </button>
                 <button
-                  onClick={() => setCommercialSubTab("audit")}
+                  onClick={() => {
+                    setCommercialSubTab("audit");
+                    setSearchQuery("");
+                  }}
                   className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
                     commercialSubTab === "audit"
                       ? "bg-blue-600 text-white shadow-sm"
@@ -396,13 +472,36 @@ export default function App() {
                 </button>
               </div>
 
-              <button
-                onClick={fetchData}
-                className="px-3 py-1.5 text-xs text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-md flex items-center space-x-1.5 transition-all"
-              >
-                <RefreshCw className="w-3.5 h-3.5" />
-                <span>Sync ERP Ledger</span>
-              </button>
+              <div className="flex items-center space-x-2">
+                {commercialSubTab !== "intake" && (
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 text-slate-500 absolute left-2.5 top-2.5" />
+                    <input
+                      type="text"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder="Filter records..."
+                      className="bg-[#0e1017] border border-white/[0.08] rounded-md pl-8 pr-3 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-blue-500 w-44"
+                    />
+                    {searchQuery && (
+                      <button
+                        onClick={() => setSearchQuery("")}
+                        className="absolute right-2 top-2 text-slate-500 hover:text-slate-300"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
+                )}
+                <button
+                  onClick={fetchData}
+                  disabled={syncing}
+                  className="px-3 py-1.5 text-xs text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-md flex items-center space-x-1.5 transition-all"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${syncing ? "animate-spin text-blue-400" : ""}`} />
+                  <span>Sync ERP</span>
+                </button>
+              </div>
             </div>
 
             {/* Confetti Banner */}
@@ -438,7 +537,7 @@ export default function App() {
               </div>
             )}
 
-            {/* SUBTAB: INTAKE & CTP */}
+            {/* SUBTAB 1: INTAKE & CTP */}
             {commercialSubTab === "intake" && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-5">
@@ -677,7 +776,7 @@ export default function App() {
               </div>
             )}
 
-            {/* SUBTAB: ORDERS */}
+            {/* SUBTAB 2: ORDERS */}
             {commercialSubTab === "orders" && (
               <div className="hairline-panel rounded-xl overflow-hidden">
                 <div className="px-5 py-4 border-b border-white/[0.08] flex justify-between items-center">
@@ -685,60 +784,70 @@ export default function App() {
                     <h2 className="font-bold text-sm text-slate-100">Committed Sales Orders Ledger (VBAK / VBAP)</h2>
                     <p className="text-xs text-slate-400">Click any record to inspect the SAP S/4HANA document flow and printable acknowledgment.</p>
                   </div>
-                  <span className="text-xs text-slate-400 font-mono">{salesOrders.length} records</span>
+                  <span className="text-xs text-slate-400 font-mono">{filteredOrders.length} records</span>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
-                      <tr>
-                        <th className="py-3 px-4">Order #</th>
-                        <th className="py-3 px-4">Customer</th>
-                        <th className="py-3 px-4">Status</th>
-                        <th className="py-3 px-4 text-right">Total Amount</th>
-                        <th className="py-3 px-4">Guaranteed CTP Date</th>
-                        <th className="py-3 px-4">Delivery Note</th>
-                        <th className="py-3 px-4">Invoice #</th>
-                        <th className="py-3 px-4 text-center">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/[0.04]">
-                      {salesOrders.map((ord) => (
-                        <tr key={ord.id} className="hover:bg-white/[0.02] transition-colors">
-                          <td className="py-3.5 px-4 font-mono font-medium text-blue-400">{ord.order_number}</td>
-                          <td className="py-3.5 px-4 font-semibold text-slate-200">{ord.customer_name}</td>
-                          <td className="py-3.5 px-4">
-                            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800/40">
-                              {ord.status}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-100">
-                            ${ord.total_amount.toLocaleString()}
-                          </td>
-                          <td className="py-3.5 px-4 font-mono text-slate-300">
-                            {ord.promised_delivery_date
-                              ? new Date(ord.promised_delivery_date).toLocaleDateString()
-                              : "Pending"}
-                          </td>
-                          <td className="py-3.5 px-4 font-mono text-slate-400">{ord.delivery_number || "—"}</td>
-                          <td className="py-3.5 px-4 font-mono text-slate-400">{ord.invoice_number || "—"}</td>
-                          <td className="py-3.5 px-4 text-center">
-                            <button
-                              onClick={() => handleViewOrderFlow(ord.id)}
-                              className="px-2.5 py-1 bg-white/[0.05] hover:bg-white/[0.1] text-blue-300 rounded font-semibold text-[11px] border border-white/[0.08] flex items-center space-x-1 mx-auto transition-colors"
-                            >
-                              <Eye className="w-3 h-3" />
-                              <span>Inspect Flow</span>
-                            </button>
-                          </td>
+                {filteredOrders.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
+                        <tr>
+                          <th className="py-3 px-4">Order #</th>
+                          <th className="py-3 px-4">Customer</th>
+                          <th className="py-3 px-4">Status</th>
+                          <th className="py-3 px-4 text-right">Total Amount</th>
+                          <th className="py-3 px-4">Guaranteed CTP Date</th>
+                          <th className="py-3 px-4">Delivery Note</th>
+                          <th className="py-3 px-4">Invoice #</th>
+                          <th className="py-3 px-4 text-center">Action</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="divide-y divide-white/[0.04]">
+                        {filteredOrders.map((ord) => (
+                          <tr key={ord.id} className="hover:bg-white/[0.02] transition-colors">
+                            <td className="py-3.5 px-4 font-mono font-medium text-blue-400">{ord.order_number}</td>
+                            <td className="py-3.5 px-4 font-semibold text-slate-200">{ord.customer_name}</td>
+                            <td className="py-3.5 px-4">
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800/40">
+                                {ord.status}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-100">
+                              ${ord.total_amount.toLocaleString()}
+                            </td>
+                            <td className="py-3.5 px-4 font-mono text-slate-300">
+                              {ord.promised_delivery_date
+                                ? new Date(ord.promised_delivery_date).toLocaleDateString()
+                                : "Pending"}
+                            </td>
+                            <td className="py-3.5 px-4 font-mono text-slate-400">{ord.delivery_number || "—"}</td>
+                            <td className="py-3.5 px-4 font-mono text-slate-400">{ord.invoice_number || "—"}</td>
+                            <td className="py-3.5 px-4 text-center">
+                              <button
+                                onClick={() => handleViewOrderFlow(ord.id)}
+                                className="px-2.5 py-1 bg-white/[0.05] hover:bg-white/[0.1] text-blue-300 rounded font-semibold text-[11px] border border-white/[0.08] flex items-center space-x-1 mx-auto transition-colors"
+                              >
+                                <Eye className="w-3 h-3" />
+                                <span>Inspect Flow</span>
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="p-12 text-center text-slate-500">
+                    <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">No sales orders matching "{searchQuery}"</p>
+                    <button onClick={() => setSearchQuery("")} className="mt-2 text-xs text-blue-400 hover:underline">
+                      Reset filter
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* SUBTAB: OUTBOUND DELIVERIES */}
+            {/* SUBTAB 3: OUTBOUND DELIVERIES */}
             {commercialSubTab === "deliveries" && (
               <div className="hairline-panel rounded-xl overflow-hidden">
                 <div className="px-5 py-4 border-b border-white/[0.08] flex justify-between items-center">
@@ -746,70 +855,80 @@ export default function App() {
                     <h2 className="font-bold text-sm text-slate-100">Outbound Delivery Documents (LIKP / VL01N)</h2>
                     <p className="text-xs text-slate-400">Warehouse fulfillment, carrier logistics, and Goods Issue dispatch.</p>
                   </div>
-                  <span className="text-xs text-slate-400 font-mono">{deliveries.length} delivery notes</span>
+                  <span className="text-xs text-slate-400 font-mono">{filteredDeliveries.length} delivery notes</span>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
-                      <tr>
-                        <th className="py-3 px-4">Delivery #</th>
-                        <th className="py-3 px-4">Carrier</th>
-                        <th className="py-3 px-4">Tracking Number</th>
-                        <th className="py-3 px-4">Fulfillment Status</th>
-                        <th className="py-3 px-4">Shipped Timestamp</th>
-                        <th className="py-3 px-4 text-center">Logistics Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/[0.04]">
-                      {deliveries.map((deliv) => (
-                        <tr key={deliv.id} className="hover:bg-white/[0.02] transition-colors">
-                          <td className="py-3.5 px-4 font-mono font-medium text-indigo-400">{deliv.delivery_number}</td>
-                          <td className="py-3.5 px-4 text-slate-200">{deliv.carrier}</td>
-                          <td className="py-3.5 px-4 font-mono text-slate-300">{deliv.tracking_number || "TRK-PENDING"}</td>
-                          <td className="py-3.5 px-4">
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                deliv.status === "SHIPPED"
-                                  ? "bg-blue-950 text-blue-400 border-blue-800/40"
-                                  : "bg-amber-950 text-amber-400 border-amber-800/40"
-                              }`}
-                            >
-                              {deliv.status}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 font-mono text-slate-400">
-                            {deliv.shipped_at ? new Date(deliv.shipped_at).toLocaleString() : "Awaiting Dispatch"}
-                          </td>
-                          <td className="py-3.5 px-4 text-center">
-                            {deliv.status !== "SHIPPED" ? (
-                              <button
-                                onClick={() => handleShipDelivery(deliv.id)}
-                                disabled={actionLoading === deliv.id}
-                                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-semibold flex items-center space-x-1 mx-auto transition-all"
-                              >
-                                {actionLoading === deliv.id ? (
-                                  <RefreshCw className="w-3 h-3 animate-spin" />
-                                ) : (
-                                  <Truck className="w-3 h-3" />
-                                )}
-                                <span>Post Goods Issue</span>
-                              </button>
-                            ) : (
-                              <span className="text-[11px] text-emerald-400 font-mono flex items-center justify-center space-x-1">
-                                <Check className="w-3 h-3" />
-                                <span>Dispatched</span>
-                              </span>
-                            )}
-                          </td>
+                {filteredDeliveries.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
+                        <tr>
+                          <th className="py-3 px-4">Delivery #</th>
+                          <th className="py-3 px-4">Carrier</th>
+                          <th className="py-3 px-4">Tracking Number</th>
+                          <th className="py-3 px-4">Fulfillment Status</th>
+                          <th className="py-3 px-4">Shipped Timestamp</th>
+                          <th className="py-3 px-4 text-center">Logistics Action</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="divide-y divide-white/[0.04]">
+                        {filteredDeliveries.map((deliv) => (
+                          <tr key={deliv.id} className="hover:bg-white/[0.02] transition-colors">
+                            <td className="py-3.5 px-4 font-mono font-medium text-indigo-400">{deliv.delivery_number}</td>
+                            <td className="py-3.5 px-4 text-slate-200">{deliv.carrier}</td>
+                            <td className="py-3.5 px-4 font-mono text-slate-300">{deliv.tracking_number || "TRK-PENDING"}</td>
+                            <td className="py-3.5 px-4">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                  deliv.status === "SHIPPED"
+                                    ? "bg-blue-950 text-blue-400 border-blue-800/40"
+                                    : "bg-amber-950 text-amber-400 border-amber-800/40"
+                                }`}
+                              >
+                                {deliv.status}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 font-mono text-slate-400">
+                              {deliv.shipped_at ? new Date(deliv.shipped_at).toLocaleString() : "Awaiting Dispatch"}
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              {deliv.status !== "SHIPPED" ? (
+                                <button
+                                  onClick={() => handleShipDelivery(deliv.id)}
+                                  disabled={actionLoading === deliv.id}
+                                  className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-semibold flex items-center space-x-1 mx-auto transition-all"
+                                >
+                                  {actionLoading === deliv.id ? (
+                                    <RefreshCw className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    <Truck className="w-3 h-3" />
+                                  )}
+                                  <span>Post Goods Issue</span>
+                                </button>
+                              ) : (
+                                <span className="text-[11px] text-emerald-400 font-mono flex items-center justify-center space-x-1">
+                                  <Check className="w-3 h-3" />
+                                  <span>Dispatched</span>
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="p-12 text-center text-slate-500">
+                    <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">No delivery documents matching "{searchQuery}"</p>
+                    <button onClick={() => setSearchQuery("")} className="mt-2 text-xs text-blue-400 hover:underline">
+                      Reset filter
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* SUBTAB: BILLING INVOICES */}
+            {/* SUBTAB 4: BILLING INVOICES */}
             {commercialSubTab === "invoices" && (
               <div className="hairline-panel rounded-xl overflow-hidden">
                 <div className="px-5 py-4 border-b border-white/[0.08] flex justify-between items-center">
@@ -817,76 +936,86 @@ export default function App() {
                     <h2 className="font-bold text-sm text-slate-100">Customer Billing Documents (VBRK / VF01)</h2>
                     <p className="text-xs text-slate-400">Accounts receivable, standard tax ledger, and cash clearing.</p>
                   </div>
-                  <span className="text-xs text-slate-400 font-mono">{invoices.length} invoices</span>
+                  <span className="text-xs text-slate-400 font-mono">{filteredInvoices.length} invoices</span>
                 </div>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
-                      <tr>
-                        <th className="py-3 px-4">Invoice #</th>
-                        <th className="py-3 px-4">Customer</th>
-                        <th className="py-3 px-4 text-right">Amount Due</th>
-                        <th className="py-3 px-4">Payment Status</th>
-                        <th className="py-3 px-4">Payment Due Date</th>
-                        <th className="py-3 px-4">Issued Timestamp</th>
-                        <th className="py-3 px-4 text-center">Settlement Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/[0.04]">
-                      {invoices.map((inv) => (
-                        <tr key={inv.id} className="hover:bg-white/[0.02] transition-colors">
-                          <td className="py-3.5 px-4 font-mono font-medium text-emerald-400">{inv.invoice_number}</td>
-                          <td className="py-3.5 px-4 font-semibold text-slate-200">{inv.customer_name}</td>
-                          <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-100">
-                            ${inv.total_amount.toLocaleString()}
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                inv.status === "PAID"
-                                  ? "bg-emerald-950 text-emerald-400 border-emerald-800/40"
-                                  : "bg-blue-950 text-blue-400 border-blue-800/40"
-                              }`}
-                            >
-                              {inv.status}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 font-mono text-slate-300">
-                            {inv.due_date ? new Date(inv.due_date).toLocaleDateString() : "Net 30"}
-                          </td>
-                          <td className="py-3.5 px-4 font-mono text-slate-400">
-                            {inv.issued_at ? new Date(inv.issued_at).toLocaleString() : "—"}
-                          </td>
-                          <td className="py-3.5 px-4 text-center">
-                            {inv.status !== "PAID" ? (
-                              <button
-                                onClick={() => handlePayInvoice(inv.id)}
-                                disabled={actionLoading === inv.id}
-                                className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-[11px] font-semibold flex items-center space-x-1 mx-auto transition-all"
-                              >
-                                {actionLoading === inv.id ? (
-                                  <RefreshCw className="w-3 h-3 animate-spin" />
-                                ) : (
-                                  <DollarSign className="w-3 h-3" />
-                                )}
-                                <span>Record Payment</span>
-                              </button>
-                            ) : (
-                              <span className="text-[11px] text-emerald-400 font-mono flex items-center justify-center space-x-1">
-                                <Check className="w-3 h-3" />
-                                <span>Paid & Cleared</span>
-                              </span>
-                            )}
-                          </td>
+                {filteredInvoices.length > 0 ? (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
+                        <tr>
+                          <th className="py-3 px-4">Invoice #</th>
+                          <th className="py-3 px-4">Customer</th>
+                          <th className="py-3 px-4 text-right">Amount Due</th>
+                          <th className="py-3 px-4">Payment Status</th>
+                          <th className="py-3 px-4">Payment Due Date</th>
+                          <th className="py-3 px-4">Issued Timestamp</th>
+                          <th className="py-3 px-4 text-center">Settlement Action</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody className="divide-y divide-white/[0.04]">
+                        {filteredInvoices.map((inv) => (
+                          <tr key={inv.id} className="hover:bg-white/[0.02] transition-colors">
+                            <td className="py-3.5 px-4 font-mono font-medium text-emerald-400">{inv.invoice_number}</td>
+                            <td className="py-3.5 px-4 font-semibold text-slate-200">{inv.customer_name}</td>
+                            <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-100">
+                              ${inv.total_amount.toLocaleString()}
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                  inv.status === "PAID"
+                                    ? "bg-emerald-950 text-emerald-400 border-emerald-800/40"
+                                    : "bg-blue-950 text-blue-400 border-blue-800/40"
+                                }`}
+                              >
+                                {inv.status}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 font-mono text-slate-300">
+                              {inv.due_date ? new Date(inv.due_date).toLocaleDateString() : "Net 30"}
+                            </td>
+                            <td className="py-3.5 px-4 font-mono text-slate-400">
+                              {inv.issued_at ? new Date(inv.issued_at).toLocaleString() : "—"}
+                            </td>
+                            <td className="py-3.5 px-4 text-center">
+                              {inv.status !== "PAID" ? (
+                                <button
+                                  onClick={() => handlePayInvoice(inv.id)}
+                                  disabled={actionLoading === inv.id}
+                                  className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-[11px] font-semibold flex items-center space-x-1 mx-auto transition-all"
+                                >
+                                  {actionLoading === inv.id ? (
+                                    <RefreshCw className="w-3 h-3 animate-spin" />
+                                  ) : (
+                                    <DollarSign className="w-3 h-3" />
+                                  )}
+                                  <span>Record Payment</span>
+                                </button>
+                              ) : (
+                                <span className="text-[11px] text-emerald-400 font-mono flex items-center justify-center space-x-1">
+                                  <Check className="w-3 h-3" />
+                                  <span>Paid & Cleared</span>
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <div className="p-12 text-center text-slate-500">
+                    <Search className="w-8 h-8 mx-auto mb-2 opacity-30" />
+                    <p className="text-sm">No billing invoices matching "{searchQuery}"</p>
+                    <button onClick={() => setSearchQuery("")} className="mt-2 text-xs text-blue-400 hover:underline">
+                      Reset filter
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
-            {/* SUBTAB: SOX AUDIT */}
+            {/* SUBTAB 5: SOX AUDIT */}
             {commercialSubTab === "audit" && (
               <div className="hairline-panel rounded-xl overflow-hidden">
                 <div className="px-5 py-4 border-b border-white/[0.08] flex justify-between items-center">
@@ -960,14 +1089,12 @@ export default function App() {
                 <span className="text-xs font-semibold text-slate-300 font-mono">
                   Shop-Floor Resource Timeline (9 Certified Machines Across 4 Work Centers)
                 </span>
-                <span className="text-xs text-slate-400 font-mono">
-                  Horizon: Next 24 Hours
-                </span>
+                <span className="text-xs text-slate-400 font-mono">Horizon: Next 24 Hours</span>
               </div>
 
               <div className="space-y-2.5 font-mono text-xs">
                 {ganttData?.resources?.map((res: any) => (
-                  <div key={res.machine_id} className="grid grid-cols-12 gap-3 items-center p-2 rounded bg-[#0a0b0e] border border-white/[0.06]">
+                  <div key={res.machine_id} className="grid grid-cols-12 gap-3 items-center p-2.5 rounded bg-[#0a0b0e] border border-white/[0.06]">
                     <div className="col-span-3">
                       <div className="font-bold text-slate-200">{res.machine_code}</div>
                       <div className="text-[11px] text-slate-400 font-sans">{res.machine_name}</div>
@@ -981,7 +1108,12 @@ export default function App() {
                         res.operations.map((op: any, oidx: number) => (
                           <div
                             key={op.id}
-                            className={`h-7 px-3 rounded text-[11px] font-semibold flex items-center justify-between text-white shadow-sm mx-1 ${
+                            onClick={() => setSelectedOperation({ ...op, machine_code: res.machine_code })}
+                            className={`h-7 px-3 rounded text-[11px] font-semibold flex items-center justify-between text-white shadow-sm mx-1 cursor-pointer hover:brightness-110 transition-all ${
+                              selectedOperation?.id === op.id
+                                ? "ring-2 ring-white ring-offset-1 ring-offset-slate-900"
+                                : ""
+                            } ${
                               oidx % 2 === 0
                                 ? "bg-blue-600 border border-blue-400/40"
                                 : "bg-indigo-600 border border-indigo-400/40"
@@ -1000,6 +1132,31 @@ export default function App() {
                 ))}
               </div>
             </div>
+
+            {/* Selected Operation Detail Card */}
+            {selectedOperation && (
+              <div className="hairline-panel-elevated p-4 rounded-xl flex items-center justify-between animate-in fade-in duration-200">
+                <div className="flex items-center space-x-3 text-xs">
+                  <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 font-bold">
+                    <Clock className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-slate-100 text-sm">
+                      {selectedOperation.operation_name} (Op #{selectedOperation.operation_number})
+                    </div>
+                    <div className="text-slate-400 font-mono text-[11px]">
+                      Machine: <strong>{selectedOperation.machine_code}</strong> · Duration: <strong>{selectedOperation.duration_minutes} minutes</strong> · Status: <strong>{selectedOperation.status}</strong>
+                    </div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedOperation(null)}
+                  className="text-xs text-slate-400 hover:text-white px-2.5 py-1 rounded bg-white/[0.04] border border-white/[0.08]"
+                >
+                  Close Detail
+                </button>
+              </div>
+            )}
           </div>
         )}
 
