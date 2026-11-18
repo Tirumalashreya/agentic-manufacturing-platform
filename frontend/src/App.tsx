@@ -21,10 +21,11 @@ import {
   Printer,
   X,
   ChevronRight,
-  UserCheck,
-  PackageCheck,
   Eye,
   Check,
+  Zap,
+  Server,
+  ArrowUpRight,
 } from "lucide-react";
 
 const API_BASE = "http://localhost:8080/api/v1";
@@ -59,7 +60,7 @@ export default function App() {
   // Action states
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // Load authoritative data
+  // Load authoritative ERP data
   const fetchData = async () => {
     try {
       const [custRes, ordRes, delivRes, invRes, auditRes, ganttRes] = await Promise.all([
@@ -120,17 +121,16 @@ export default function App() {
       setOrderConfirmation(data);
       setProposal(null);
 
-      // Trigger Confetti Celebration!
+      // Trigger celebratory confetti
       confetti({
-        particleCount: 140,
-        spread: 90,
+        particleCount: 160,
+        spread: 100,
         origin: { y: 0.6 },
-        colors: ["#10b981", "#3b82f6", "#f59e0b", "#6366f1"],
+        colors: ["#3b82f6", "#10b981", "#f59e0b", "#6366f1"],
       });
 
       await fetchData();
 
-      // Automatically show order document modal
       if (data.order_id) {
         handleViewOrderFlow(data.order_id);
       }
@@ -211,72 +211,78 @@ export default function App() {
     }
   };
 
+  // Calculate quick metrics
+  const totalPipeline = salesOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
+  const openInvoicesCount = invoices.filter((i) => i.status !== "PAID").length;
+  const pendingShipmentsCount = deliveries.filter((d) => d.status !== "SHIPPED").length;
+
   return (
-    <div className="flex flex-col h-screen bg-slate-950 text-slate-100 overflow-hidden font-sans">
-      {/* Top Enterprise Bar */}
-      <header className="h-14 border-b border-slate-800 bg-slate-900/90 px-6 flex items-center justify-between backdrop-blur z-20">
-        <div className="flex items-center space-x-4">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center font-bold text-white shadow-lg shadow-blue-500/20">
-              E
+    <div className="flex flex-col h-screen bg-[#090a0d] text-slate-100 overflow-hidden font-sans technical-grid">
+      {/* Precision Master Header */}
+      <header className="h-13 border-b border-white/[0.08] bg-[#0c0e14]/90 px-6 flex items-center justify-between backdrop-blur-md z-30">
+        <div className="flex items-center space-x-5">
+          <div className="flex items-center space-x-3">
+            <div className="w-7 h-7 rounded-md bg-blue-600 flex items-center justify-center font-bold text-white text-xs shadow-sm">
+              APS
             </div>
-            <div>
-              <span className="font-bold tracking-tight text-white">Enterprise APS & O2C</span>
-              <span className="text-xs text-blue-400 ml-2 font-mono uppercase bg-blue-950/70 border border-blue-800/40 px-1.5 py-0.5 rounded">
+            <div className="flex items-baseline space-x-2">
+              <span className="font-semibold text-sm tracking-tight text-white">Enterprise APS & O2C</span>
+              <span className="text-[10px] font-mono text-slate-400 border border-white/[0.08] px-1.5 py-0.5 rounded bg-white/[0.03]">
                 Tier-1 Architecture
               </span>
             </div>
           </div>
-          <div className="hidden lg:flex items-center text-xs text-slate-400 space-x-3 border-l border-slate-800 pl-4 font-mono">
-            <span>Plant: <strong className="text-slate-200">GAIC Chicago (PLANT-01)</strong></span>
-            <span>•</span>
-            <span className="flex items-center text-emerald-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse mr-1.5"></span>
-              PostgreSQL / SQLite Ledger
+
+          <div className="hidden lg:flex items-center text-xs text-slate-400 space-x-3 border-l border-white/[0.08] pl-5 font-mono">
+            <span className="flex items-center">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 mr-2 animate-pulse"></span>
+              GAIC Chicago (PLANT-01)
             </span>
+            <span>·</span>
+            <span className="text-slate-400">OR-Tools CP-SAT (Deterministic)</span>
           </div>
         </div>
 
-        {/* Unified Role Switcher (SAP Fiori / Oracle Fusion Style) */}
-        <nav className="flex space-x-1 bg-slate-950/80 p-1 rounded-lg border border-slate-800 text-xs">
+        {/* Primary Role Switcher */}
+        <nav className="flex space-x-1 bg-black/40 p-1 rounded-lg border border-white/[0.06] text-xs">
           <button
             onClick={() => setActiveTab("commercial")}
-            className={`px-3 py-1.5 rounded-md font-medium transition-all flex items-center space-x-1.5 ${
+            className={`px-3 py-1.5 rounded-md font-medium transition-all flex items-center space-x-2 ${
               activeTab === "commercial"
-                ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+                ? "bg-white/[0.1] text-white shadow-sm border border-white/[0.12]"
                 : "text-slate-400 hover:text-slate-200"
             }`}
           >
             <Building2 className="w-3.5 h-3.5" />
-            <span>Commercial (O2C & CTP)</span>
+            <span>Commercial (O2C)</span>
           </button>
           <button
             onClick={() => setActiveTab("schedule")}
-            className={`px-3 py-1.5 rounded-md font-medium transition-all flex items-center space-x-1.5 ${
+            className={`px-3 py-1.5 rounded-md font-medium transition-all flex items-center space-x-2 ${
               activeTab === "schedule"
-                ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+                ? "bg-white/[0.1] text-white shadow-sm border border-white/[0.12]"
                 : "text-slate-400 hover:text-slate-200"
             }`}
           >
             <Calendar className="w-3.5 h-3.5" />
-            <span>Master Gantt & Finite Capacity</span>
+            <span>Finite Gantt</span>
           </button>
           <button
             onClick={() => setActiveTab("copilot")}
-            className={`px-3 py-1.5 rounded-md font-medium transition-all flex items-center space-x-1.5 ${
+            className={`px-3 py-1.5 rounded-md font-medium transition-all flex items-center space-x-2 ${
               activeTab === "copilot"
-                ? "bg-indigo-600 text-white shadow-md shadow-indigo-600/30"
+                ? "bg-indigo-600/30 text-indigo-300 shadow-sm border border-indigo-500/30"
                 : "text-slate-400 hover:text-slate-200"
             }`}
           >
-            <Sparkles className="w-3.5 h-3.5 text-indigo-300" />
+            <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
             <span>Disruption Copilot</span>
           </button>
           <button
             onClick={() => setActiveTab("executive")}
-            className={`px-3 py-1.5 rounded-md font-medium transition-all flex items-center space-x-1.5 ${
+            className={`px-3 py-1.5 rounded-md font-medium transition-all flex items-center space-x-2 ${
               activeTab === "executive"
-                ? "bg-blue-600 text-white shadow-md shadow-blue-600/30"
+                ? "bg-white/[0.1] text-white shadow-sm border border-white/[0.12]"
                 : "text-slate-400 hover:text-slate-200"
             }`}
           >
@@ -286,110 +292,145 @@ export default function App() {
         </nav>
       </header>
 
-      {/* Main Content Area */}
-      <main className="flex-1 overflow-y-auto p-6 bg-gradient-to-b from-slate-950 to-slate-900">
+      {/* Main View Area */}
+      <main className="flex-1 overflow-y-auto p-6">
         {/* ============================================================== */}
         {/* TAB 1: COMMERCIAL SALES (FULL O2C LIFECYCLE)                   */}
         {/* ============================================================== */}
         {activeTab === "commercial" && (
           <div className="max-w-7xl mx-auto space-y-6">
-            {/* O2C Subnavigation Bar */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-slate-900/60 p-3 rounded-xl border border-slate-800">
-              <div className="flex flex-wrap gap-1">
+            {/* Quick KPI Ribbon */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <div className="hairline-panel p-3.5 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] text-slate-400">Committed Sales Orders</span>
+                  <div className="text-xl font-bold font-mono text-white mt-0.5">{salesOrders.length}</div>
+                </div>
+                <div className="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+                  <FileText className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="hairline-panel p-3.5 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] text-slate-400">Committed Pipeline</span>
+                  <div className="text-xl font-bold font-mono text-emerald-400 mt-0.5">
+                    ${totalPipeline.toLocaleString()}
+                  </div>
+                </div>
+                <div className="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+                  <DollarSign className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="hairline-panel p-3.5 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] text-slate-400">Pending Outbound Deliveries</span>
+                  <div className="text-xl font-bold font-mono text-amber-400 mt-0.5">{pendingShipmentsCount}</div>
+                </div>
+                <div className="w-8 h-8 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+                  <Truck className="w-4 h-4" />
+                </div>
+              </div>
+              <div className="hairline-panel p-3.5 rounded-xl flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] text-slate-400">Open Billing Invoices</span>
+                  <div className="text-xl font-bold font-mono text-indigo-400 mt-0.5">{openInvoicesCount}</div>
+                </div>
+                <div className="w-8 h-8 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+                  <Receipt className="w-4 h-4" />
+                </div>
+              </div>
+            </div>
+
+            {/* Sub-workspace Navigation */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-white/[0.08] pb-3">
+              <div className="flex space-x-2 text-xs">
                 <button
                   onClick={() => setCommercialSubTab("intake")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+                  className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
                     commercialSubTab === "intake"
                       ? "bg-blue-600 text-white shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
                   }`}
                 >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>RFQ Intake & CTP</span>
+                  RFQ Intake & CTP
                 </button>
                 <button
                   onClick={() => setCommercialSubTab("orders")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+                  className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
                     commercialSubTab === "orders"
                       ? "bg-blue-600 text-white shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
                   }`}
                 >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>Sales Orders ({salesOrders.length})</span>
+                  Sales Orders ({salesOrders.length})
                 </button>
                 <button
                   onClick={() => setCommercialSubTab("deliveries")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+                  className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
                     commercialSubTab === "deliveries"
                       ? "bg-blue-600 text-white shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
                   }`}
                 >
-                  <Truck className="w-3.5 h-3.5" />
-                  <span>Outbound Deliveries ({deliveries.length})</span>
+                  Outbound Deliveries ({deliveries.length})
                 </button>
                 <button
                   onClick={() => setCommercialSubTab("invoices")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+                  className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
                     commercialSubTab === "invoices"
                       ? "bg-blue-600 text-white shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
                   }`}
                 >
-                  <Receipt className="w-3.5 h-3.5" />
-                  <span>Billing Invoices ({invoices.length})</span>
+                  Billing Invoices ({invoices.length})
                 </button>
                 <button
                   onClick={() => setCommercialSubTab("audit")}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all ${
+                  className={`px-3 py-1.5 rounded-lg font-medium transition-all ${
                     commercialSubTab === "audit"
                       ? "bg-blue-600 text-white shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/50"
+                      : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
                   }`}
                 >
-                  <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>SOX Audit Trail</span>
+                  SOX Audit Trail
                 </button>
               </div>
 
               <button
                 onClick={fetchData}
-                className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 border border-slate-700/60 rounded-md text-xs text-slate-300 flex items-center space-x-1 transition-all"
+                className="px-3 py-1.5 text-xs text-slate-300 hover:text-white bg-white/[0.04] hover:bg-white/[0.08] border border-white/[0.08] rounded-md flex items-center space-x-1.5 transition-all"
               >
-                <RefreshCw className="w-3 h-3" />
-                <span>Sync O2C Ledger</span>
+                <RefreshCw className="w-3.5 h-3.5" />
+                <span>Sync ERP Ledger</span>
               </button>
             </div>
 
             {/* Confetti Banner */}
             {orderConfirmation && (
-              <div className="bg-emerald-950/70 border border-emerald-500/50 p-4 rounded-xl flex items-center justify-between text-emerald-200 animate-in fade-in slide-in-from-top-4 duration-300 shadow-xl shadow-emerald-950/50">
+              <div className="p-4 rounded-xl border border-emerald-500/40 bg-emerald-950/40 text-emerald-100 flex items-center justify-between shadow-xl">
                 <div className="flex items-center space-x-3">
-                  <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 font-bold">
+                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold">
                     ✓
                   </div>
                   <div>
-                    <h3 className="font-semibold text-emerald-100">{orderConfirmation.message}</h3>
-                    <p className="text-xs text-emerald-300 font-mono mt-0.5">
-                      Order: <strong>{orderConfirmation.order_number}</strong> · Delivery:{" "}
-                      <strong>{orderConfirmation.delivery_number}</strong> · Invoice:{" "}
-                      <strong>{orderConfirmation.invoice_number}</strong> · Promised:{" "}
-                      <strong>{new Date(orderConfirmation.promised_date).toLocaleDateString()}</strong>
+                    <h3 className="font-semibold text-sm">{orderConfirmation.message}</h3>
+                    <p className="text-xs text-emerald-300/80 font-mono mt-0.5">
+                      Order: <strong>{orderConfirmation.order_number}</strong> · Guaranteed CTP:{" "}
+                      <strong>{new Date(orderConfirmation.promised_date).toLocaleDateString()}</strong> · SOX Signature Verified
                     </p>
                   </div>
                 </div>
-                <div className="flex space-x-2">
+                <div className="flex items-center space-x-2">
                   <button
                     onClick={() => handleViewOrderFlow(orderConfirmation.order_id)}
-                    className="text-xs bg-emerald-700 hover:bg-emerald-600 text-white px-3 py-1 rounded font-semibold transition-all flex items-center space-x-1"
+                    className="text-xs bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-semibold transition-all flex items-center space-x-1"
                   >
                     <Eye className="w-3.5 h-3.5" />
                     <span>View Confirmation</span>
                   </button>
                   <button
                     onClick={() => setOrderConfirmation(null)}
-                    className="text-xs text-emerald-400 hover:text-emerald-200 px-3 py-1 bg-emerald-900/40 rounded border border-emerald-700/50"
+                    className="text-xs text-emerald-300 hover:text-white px-2 py-1"
                   >
                     Dismiss
                   </button>
@@ -397,48 +438,51 @@ export default function App() {
               </div>
             )}
 
-            {/* SUB-TAB 1: INTAKE & PROPOSAL */}
+            {/* SUBTAB: INTAKE & CTP */}
             {commercialSubTab === "intake" && (
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 space-y-5">
-                  {/* Cognitive Order Promising Intake */}
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-lg">
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-xs font-semibold uppercase tracking-wider text-blue-400 flex items-center space-x-1.5">
-                        <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-                        <span>Cognitive RFQ Parser & Finite-Capacity CTP Promiser</span>
+                  {/* RFQ Intake Box */}
+                  <div className="hairline-panel rounded-xl p-5 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-semibold text-blue-400 flex items-center space-x-1.5">
+                        <Sparkles className="w-3.5 h-3.5" />
+                        <span>Natural Language RFQ Intake & Deterministic CTP Solver</span>
                       </span>
                       <span className="text-[11px] text-slate-400 font-mono">Zero Hallucination Guaranteed</span>
                     </div>
-                    <div className="relative">
+
+                    <div className="space-y-3">
                       <textarea
                         value={prompt}
                         onChange={(e) => setPrompt(e.target.value)}
                         rows={3}
-                        className="w-full bg-slate-950 border border-slate-700/70 rounded-lg p-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-blue-500 font-sans"
+                        className="w-full bg-[#0a0b0f] border border-white/[0.1] rounded-lg p-3 text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:border-blue-500 transition-colors font-sans"
                         placeholder="e.g. Boeing Aerospace requests 20 units of Turbine Housing TB-200 needed by next Friday"
                       />
-                      <div className="flex flex-wrap justify-between items-center gap-2 mt-2.5">
-                        <div className="flex flex-wrap gap-2">
+
+                      <div className="flex flex-wrap justify-between items-center gap-2">
+                        <div className="flex flex-wrap gap-2 text-xs">
                           <button
                             type="button"
                             onClick={() => setPrompt("Lockheed Martin requests 15 units of Aluminum Bracket AB-100 needed by next Wednesday")}
-                            className="text-[11px] bg-slate-800/60 hover:bg-slate-800 text-slate-300 px-2.5 py-1 rounded border border-slate-700/50"
+                            className="text-[11px] bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 px-2.5 py-1 rounded border border-white/[0.08] transition-colors"
                           >
                             Sample 1: Lockheed (15 Brackets)
                           </button>
                           <button
                             type="button"
                             onClick={() => setPrompt("Orion Systems requests 30 Cable Management Kits needed urgently")}
-                            className="text-[11px] bg-slate-800/60 hover:bg-slate-800 text-slate-300 px-2.5 py-1 rounded border border-slate-700/50"
+                            className="text-[11px] bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 px-2.5 py-1 rounded border border-white/[0.08] transition-colors"
                           >
                             Sample 2: Orion (30 Kits)
                           </button>
                         </div>
+
                         <button
                           onClick={handleEvaluateRFQ}
                           disabled={evaluating}
-                          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center space-x-2 transition-all shadow-md shadow-blue-600/30"
+                          className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white rounded-lg text-xs font-semibold flex items-center space-x-2 transition-all shadow-sm"
                         >
                           {evaluating ? (
                             <>
@@ -447,7 +491,7 @@ export default function App() {
                             </>
                           ) : (
                             <>
-                              <span>Evaluate Order Proposal</span>
+                              <span>Evaluate Proposal</span>
                               <ArrowRight className="w-3.5 h-3.5" />
                             </>
                           )}
@@ -456,14 +500,14 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Staged Proposal Card (CAS Human Governance) */}
+                  {/* Proposal & CAS Approval Card */}
                   {proposal && (
-                    <div className="bg-gradient-to-b from-slate-900 to-slate-950 border-2 border-blue-500/50 rounded-xl p-6 shadow-2xl space-y-4 animate-in fade-in duration-300">
-                      <div className="flex justify-between items-start border-b border-slate-800 pb-3">
+                    <div className="hairline-panel-elevated rounded-xl p-6 space-y-4 animate-in fade-in duration-200">
+                      <div className="flex justify-between items-start border-b border-white/[0.08] pb-4">
                         <div>
                           <div className="flex items-center space-x-2">
-                            <span className="px-2 py-0.5 text-[10px] font-bold uppercase rounded bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                              Awaiting Digital Signature
+                            <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                              Awaiting Executive Signature
                             </span>
                             <span className="text-xs font-mono text-slate-400">Token: {proposal.token}</span>
                           </div>
@@ -479,65 +523,63 @@ export default function App() {
                         </div>
                       </div>
 
-                      {/* Verification Badges */}
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-                        <div className="bg-slate-950/70 p-3 rounded-lg border border-slate-800">
-                          <div className="flex items-center text-xs text-slate-400 mb-1">
+                      {/* 3 Metrics Badges */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
+                        <div className="bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
+                          <div className="text-slate-400 flex items-center mb-1">
                             <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 mr-1.5" />
-                            <span>Credit Standing</span>
+                            <span>Credit Verification</span>
                           </div>
-                          <div className="text-sm font-semibold text-emerald-300">
-                            ✓ Pre-Approved
-                          </div>
-                          <div className="text-[11px] text-slate-400 mt-0.5">
+                          <div className="font-semibold text-emerald-400">✓ Limit Verified</div>
+                          <div className="text-[11px] text-slate-400 mt-0.5 font-mono">
                             Exposure: ${proposal.current_exposure.toLocaleString()} / ${proposal.credit_limit.toLocaleString()}
                           </div>
                         </div>
 
-                        <div className="bg-slate-950/70 p-3 rounded-lg border border-slate-800">
-                          <div className="flex items-center text-xs text-slate-400 mb-1">
+                        <div className="bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
+                          <div className="text-slate-400 flex items-center mb-1">
                             <Layers className="w-3.5 h-3.5 text-blue-400 mr-1.5" />
                             <span>Fulfillment Strategy</span>
                           </div>
-                          <div className="text-sm font-semibold text-blue-300">
+                          <div className="font-semibold text-blue-300">
                             {proposal.fulfillment_strategy === "MTS" ? "Make-to-Stock (MTS)" : "Make-to-Order (MTO)"}
                           </div>
-                          <div className="text-[11px] text-slate-400 mt-0.5">
+                          <div className="text-[11px] text-slate-400 mt-0.5 truncate">
                             {proposal.lead_time_rationale}
                           </div>
                         </div>
 
-                        <div className="bg-slate-950/70 p-3 rounded-lg border border-slate-800">
-                          <div className="flex items-center text-xs text-slate-400 mb-1">
+                        <div className="bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
+                          <div className="text-slate-400 flex items-center mb-1">
                             <Clock className="w-3.5 h-3.5 text-indigo-400 mr-1.5" />
                             <span>Guaranteed CTP Promise</span>
                           </div>
-                          <div className="text-sm font-semibold text-indigo-300">
+                          <div className="font-semibold text-indigo-300">
                             {new Date(proposal.projected_delivery_date).toLocaleDateString()}
                           </div>
                           <div className="text-[11px] text-slate-400 mt-0.5">
-                            Finite capacity verified
+                            Finite capacity mathematically verified
                           </div>
                         </div>
                       </div>
 
-                      {/* Human Sign-Off Action */}
+                      {/* Action Buttons */}
                       <div className="pt-2 flex justify-end space-x-3">
                         <button
                           onClick={() => setProposal(null)}
-                          className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg text-xs font-semibold"
+                          className="px-4 py-2 bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded-lg text-xs font-semibold border border-white/[0.08] transition-colors"
                         >
                           Reject Proposal
                         </button>
                         <button
                           onClick={handleApprove}
                           disabled={approving}
-                          className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-lg text-xs shadow-lg shadow-emerald-600/30 flex items-center space-x-2 transition-all"
+                          className="px-6 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold rounded-lg text-xs shadow-lg shadow-emerald-600/20 flex items-center space-x-2 transition-all"
                         >
                           {approving ? (
                             <>
                               <RefreshCw className="w-4 h-4 animate-spin" />
-                              <span>Committing to Enterprise Ledger...</span>
+                              <span>Committing to Ledger...</span>
                             </>
                           ) : (
                             <>
@@ -550,11 +592,11 @@ export default function App() {
                     </div>
                   )}
 
-                  {/* Quick Recent Orders */}
-                  <div className="bg-slate-900/80 border border-slate-800 rounded-xl overflow-hidden shadow-lg p-4">
-                    <div className="flex justify-between items-center mb-3">
-                      <span className="font-semibold text-xs text-slate-200 uppercase tracking-wider">
-                        Recent Committed Sales Orders
+                  {/* Recent Committed Orders */}
+                  <div className="hairline-panel rounded-xl overflow-hidden p-4 space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="font-semibold text-xs text-slate-200">
+                        Recent Authoritative Orders
                       </span>
                       <button
                         onClick={() => setCommercialSubTab("orders")}
@@ -564,16 +606,17 @@ export default function App() {
                         <ChevronRight className="w-3.5 h-3.5" />
                       </button>
                     </div>
+
                     <div className="space-y-2">
                       {salesOrders.slice(0, 3).map((ord) => (
                         <div
                           key={ord.id}
                           onClick={() => handleViewOrderFlow(ord.id)}
-                          className="flex items-center justify-between p-3 bg-slate-950/60 hover:bg-slate-800/40 border border-slate-800 rounded-lg cursor-pointer transition-all"
+                          className="flex items-center justify-between p-3 bg-[#0a0b0e] hover:bg-white/[0.03] border border-white/[0.06] rounded-lg cursor-pointer transition-all"
                         >
                           <div className="flex items-center space-x-3">
-                            <span className="font-mono text-xs font-bold text-blue-400">{ord.order_number}</span>
-                            <span className="text-xs font-semibold text-slate-200">{ord.customer_name}</span>
+                            <span className="font-mono text-xs font-semibold text-blue-400">{ord.order_number}</span>
+                            <span className="text-xs font-medium text-slate-200">{ord.customer_name}</span>
                           </div>
                           <div className="flex items-center space-x-4">
                             <span className="font-mono text-xs font-bold text-slate-100">
@@ -589,30 +632,31 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Right Column: Customer Master & Credit Limits */}
+                {/* Right Column: Customer Master & Exposure */}
                 <div className="space-y-4">
-                  <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 shadow-lg">
-                    <div className="flex justify-between items-center mb-4">
-                      <h2 className="font-bold text-xs uppercase tracking-wider text-slate-300 flex items-center space-x-1.5">
+                  <div className="hairline-panel rounded-xl p-5 space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h2 className="font-bold text-xs text-slate-200 flex items-center space-x-1.5">
                         <Building2 className="w-3.5 h-3.5 text-blue-400" />
-                        <span>Customer Credit Master</span>
+                        <span>Customer Credit Ledger</span>
                       </h2>
-                      <span className="text-[10px] text-slate-400 font-mono">ERP Synced</span>
+                      <span className="text-[10px] text-slate-400 font-mono">ERP Live</span>
                     </div>
-                    <div className="space-y-4">
+
+                    <div className="space-y-3.5">
                       {customers.map((c) => {
                         const utilPct = Math.min(100, Math.round((c.current_exposure / c.credit_limit) * 100));
                         return (
-                          <div key={c.id} className="p-3 bg-slate-950/60 rounded-lg border border-slate-800/70 space-y-1.5">
+                          <div key={c.id} className="p-3 bg-[#0a0b0e] rounded-lg border border-white/[0.06] space-y-2">
                             <div className="flex justify-between text-xs">
                               <span className="font-semibold text-slate-200">{c.name}</span>
-                              <span className="font-mono text-slate-400">{c.payment_terms}</span>
+                              <span className="font-mono text-slate-400 text-[11px]">{c.payment_terms}</span>
                             </div>
                             <div className="flex justify-between text-[11px] text-slate-400 font-mono">
                               <span>Exposure: ${c.current_exposure.toLocaleString()}</span>
                               <span>Limit: ${c.credit_limit.toLocaleString()}</span>
                             </div>
-                            <div className="w-full bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                            <div className="w-full bg-white/[0.08] rounded-full h-1.5 overflow-hidden">
                               <div
                                 className={`h-full rounded-full ${
                                   utilPct > 80 ? "bg-amber-500" : "bg-blue-500"
@@ -633,19 +677,19 @@ export default function App() {
               </div>
             )}
 
-            {/* SUB-TAB 2: ALL SALES ORDERS */}
+            {/* SUBTAB: ORDERS */}
             {commercialSubTab === "orders" && (
-              <div className="bg-slate-900/80 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
-                <div className="px-5 py-4 border-b border-slate-800 flex justify-between items-center">
+              <div className="hairline-panel rounded-xl overflow-hidden">
+                <div className="px-5 py-4 border-b border-white/[0.08] flex justify-between items-center">
                   <div>
-                    <h2 className="font-bold text-sm text-slate-100">Committed Sales Orders Ledger (VBAK/VBAP)</h2>
-                    <p className="text-xs text-slate-400">Click any order to view the full Document Flow and printable Confirmation.</p>
+                    <h2 className="font-bold text-sm text-slate-100">Committed Sales Orders Ledger (VBAK / VBAP)</h2>
+                    <p className="text-xs text-slate-400">Click any record to inspect the SAP S/4HANA document flow and printable acknowledgment.</p>
                   </div>
                   <span className="text-xs text-slate-400 font-mono">{salesOrders.length} records</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-950/70 text-slate-400 uppercase font-mono border-b border-slate-800 text-[11px]">
+                    <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
                       <tr>
                         <th className="py-3 px-4">Order #</th>
                         <th className="py-3 px-4">Customer</th>
@@ -657,9 +701,9 @@ export default function App() {
                         <th className="py-3 px-4 text-center">Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/60">
+                    <tbody className="divide-y divide-white/[0.04]">
                       {salesOrders.map((ord) => (
-                        <tr key={ord.id} className="hover:bg-slate-800/40 transition-colors">
+                        <tr key={ord.id} className="hover:bg-white/[0.02] transition-colors">
                           <td className="py-3.5 px-4 font-mono font-medium text-blue-400">{ord.order_number}</td>
                           <td className="py-3.5 px-4 font-semibold text-slate-200">{ord.customer_name}</td>
                           <td className="py-3.5 px-4">
@@ -675,19 +719,15 @@ export default function App() {
                               ? new Date(ord.promised_delivery_date).toLocaleDateString()
                               : "Pending"}
                           </td>
-                          <td className="py-3.5 px-4 font-mono text-slate-400">
-                            {ord.delivery_number || "—"}
-                          </td>
-                          <td className="py-3.5 px-4 font-mono text-slate-400">
-                            {ord.invoice_number || "—"}
-                          </td>
+                          <td className="py-3.5 px-4 font-mono text-slate-400">{ord.delivery_number || "—"}</td>
+                          <td className="py-3.5 px-4 font-mono text-slate-400">{ord.invoice_number || "—"}</td>
                           <td className="py-3.5 px-4 text-center">
                             <button
                               onClick={() => handleViewOrderFlow(ord.id)}
-                              className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-blue-300 rounded font-semibold text-[11px] border border-slate-700 flex items-center space-x-1 mx-auto"
+                              className="px-2.5 py-1 bg-white/[0.05] hover:bg-white/[0.1] text-blue-300 rounded font-semibold text-[11px] border border-white/[0.08] flex items-center space-x-1 mx-auto transition-colors"
                             >
                               <Eye className="w-3 h-3" />
-                              <span>View Flow</span>
+                              <span>Inspect Flow</span>
                             </button>
                           </td>
                         </tr>
@@ -698,10 +738,10 @@ export default function App() {
               </div>
             )}
 
-            {/* SUB-TAB 3: OUTBOUND DELIVERIES (GOODS ISSUE) */}
+            {/* SUBTAB: OUTBOUND DELIVERIES */}
             {commercialSubTab === "deliveries" && (
-              <div className="bg-slate-900/80 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
-                <div className="px-5 py-4 border-b border-slate-800 flex justify-between items-center">
+              <div className="hairline-panel rounded-xl overflow-hidden">
+                <div className="px-5 py-4 border-b border-white/[0.08] flex justify-between items-center">
                   <div>
                     <h2 className="font-bold text-sm text-slate-100">Outbound Delivery Documents (LIKP / VL01N)</h2>
                     <p className="text-xs text-slate-400">Warehouse fulfillment, carrier logistics, and Goods Issue dispatch.</p>
@@ -710,7 +750,7 @@ export default function App() {
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-950/70 text-slate-400 uppercase font-mono border-b border-slate-800 text-[11px]">
+                    <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
                       <tr>
                         <th className="py-3 px-4">Delivery #</th>
                         <th className="py-3 px-4">Carrier</th>
@@ -720,9 +760,9 @@ export default function App() {
                         <th className="py-3 px-4 text-center">Logistics Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/60">
+                    <tbody className="divide-y divide-white/[0.04]">
                       {deliveries.map((deliv) => (
-                        <tr key={deliv.id} className="hover:bg-slate-800/40 transition-colors">
+                        <tr key={deliv.id} className="hover:bg-white/[0.02] transition-colors">
                           <td className="py-3.5 px-4 font-mono font-medium text-indigo-400">{deliv.delivery_number}</td>
                           <td className="py-3.5 px-4 text-slate-200">{deliv.carrier}</td>
                           <td className="py-3.5 px-4 font-mono text-slate-300">{deliv.tracking_number || "TRK-PENDING"}</td>
@@ -745,7 +785,7 @@ export default function App() {
                               <button
                                 onClick={() => handleShipDelivery(deliv.id)}
                                 disabled={actionLoading === deliv.id}
-                                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-semibold flex items-center space-x-1 mx-auto shadow-sm transition-all"
+                                className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded text-[11px] font-semibold flex items-center space-x-1 mx-auto transition-all"
                               >
                                 {actionLoading === deliv.id ? (
                                   <RefreshCw className="w-3 h-3 animate-spin" />
@@ -769,10 +809,10 @@ export default function App() {
               </div>
             )}
 
-            {/* SUB-TAB 4: BILLING INVOICES */}
+            {/* SUBTAB: BILLING INVOICES */}
             {commercialSubTab === "invoices" && (
-              <div className="bg-slate-900/80 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
-                <div className="px-5 py-4 border-b border-slate-800 flex justify-between items-center">
+              <div className="hairline-panel rounded-xl overflow-hidden">
+                <div className="px-5 py-4 border-b border-white/[0.08] flex justify-between items-center">
                   <div>
                     <h2 className="font-bold text-sm text-slate-100">Customer Billing Documents (VBRK / VF01)</h2>
                     <p className="text-xs text-slate-400">Accounts receivable, standard tax ledger, and cash clearing.</p>
@@ -781,7 +821,7 @@ export default function App() {
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-950/70 text-slate-400 uppercase font-mono border-b border-slate-800 text-[11px]">
+                    <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
                       <tr>
                         <th className="py-3 px-4">Invoice #</th>
                         <th className="py-3 px-4">Customer</th>
@@ -792,9 +832,9 @@ export default function App() {
                         <th className="py-3 px-4 text-center">Settlement Action</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/60">
+                    <tbody className="divide-y divide-white/[0.04]">
                       {invoices.map((inv) => (
-                        <tr key={inv.id} className="hover:bg-slate-800/40 transition-colors">
+                        <tr key={inv.id} className="hover:bg-white/[0.02] transition-colors">
                           <td className="py-3.5 px-4 font-mono font-medium text-emerald-400">{inv.invoice_number}</td>
                           <td className="py-3.5 px-4 font-semibold text-slate-200">{inv.customer_name}</td>
                           <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-100">
@@ -822,7 +862,7 @@ export default function App() {
                               <button
                                 onClick={() => handlePayInvoice(inv.id)}
                                 disabled={actionLoading === inv.id}
-                                className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-[11px] font-semibold flex items-center space-x-1 mx-auto shadow-sm transition-all"
+                                className="px-3 py-1 bg-blue-600 hover:bg-blue-500 text-white rounded text-[11px] font-semibold flex items-center space-x-1 mx-auto transition-all"
                               >
                                 {actionLoading === inv.id ? (
                                   <RefreshCw className="w-3 h-3 animate-spin" />
@@ -846,10 +886,10 @@ export default function App() {
               </div>
             )}
 
-            {/* SUB-TAB 5: SOX AUDIT TRAIL */}
+            {/* SUBTAB: SOX AUDIT */}
             {commercialSubTab === "audit" && (
-              <div className="bg-slate-900/80 border border-slate-800 rounded-xl overflow-hidden shadow-lg">
-                <div className="px-5 py-4 border-b border-slate-800 flex justify-between items-center">
+              <div className="hairline-panel rounded-xl overflow-hidden">
+                <div className="px-5 py-4 border-b border-white/[0.08] flex justify-between items-center">
                   <div>
                     <h2 className="font-bold text-sm text-slate-100 flex items-center space-x-2">
                       <ShieldCheck className="w-4 h-4 text-emerald-400" />
@@ -857,11 +897,11 @@ export default function App() {
                     </h2>
                     <p className="text-xs text-slate-400">Cryptographic tokens, human sign-offs, and ledger mutation events.</p>
                   </div>
-                  <span className="text-xs text-emerald-400 font-mono">Tamper-Proof Guarantee</span>
+                  <span className="text-xs text-emerald-400 font-mono">Tamper-Proof Ledger</span>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-slate-950/70 text-slate-400 uppercase font-mono border-b border-slate-800 text-[11px]">
+                    <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
                       <tr>
                         <th className="py-3 px-4">Timestamp</th>
                         <th className="py-3 px-4">Action</th>
@@ -870,9 +910,9 @@ export default function App() {
                         <th className="py-3 px-4">Audit Payload Details</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-800/60 font-mono">
+                    <tbody className="divide-y divide-white/[0.04] font-mono">
                       {auditLogs.map((log) => (
-                        <tr key={log.id} className="hover:bg-slate-800/40 transition-colors">
+                        <tr key={log.id} className="hover:bg-white/[0.02] transition-colors">
                           <td className="py-3 px-4 text-slate-400">{new Date(log.timestamp).toLocaleString()}</td>
                           <td className="py-3 px-4 font-bold text-blue-400">{log.action}</td>
                           <td className="py-3 px-4 text-slate-200">{log.actor}</td>
@@ -897,17 +937,17 @@ export default function App() {
           <div className="max-w-7xl mx-auto space-y-6">
             <div className="flex justify-between items-center">
               <div>
-                <h1 className="text-xl font-bold text-white tracking-tight">Finite Capacity Master Scheduling</h1>
+                <h1 className="text-lg font-bold text-white tracking-tight">Finite Capacity Master Scheduling</h1>
                 <p className="text-xs text-slate-400">
-                  Mathematical OR-Tools CP-SAT scheduler. Zero double-booking, sequence setup minimization.
+                  Google OR-Tools CP-SAT engine. Sequence-dependent setup matrix minimization and machine non-overlap.
                 </p>
               </div>
               <div className="flex space-x-2 text-xs">
-                <span className="flex items-center space-x-1.5 px-3 py-1 bg-slate-900 border border-slate-800 rounded text-slate-300">
+                <span className="flex items-center space-x-1.5 px-3 py-1 bg-white/[0.04] border border-white/[0.08] rounded text-slate-300">
                   <span className="w-2.5 h-2.5 rounded bg-blue-500"></span>
                   <span>Active Operation</span>
                 </span>
-                <span className="flex items-center space-x-1.5 px-3 py-1 bg-slate-900 border border-slate-800 rounded text-slate-300">
+                <span className="flex items-center space-x-1.5 px-3 py-1 bg-white/[0.04] border border-white/[0.08] rounded text-slate-300">
                   <span className="w-2.5 h-2.5 rounded bg-amber-500"></span>
                   <span>Changeover Setup</span>
                 </span>
@@ -915,9 +955,9 @@ export default function App() {
             </div>
 
             {/* Interactive Visual Gantt Board */}
-            <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 shadow-xl space-y-4">
-              <div className="flex justify-between items-center border-b border-slate-800 pb-3">
-                <span className="text-xs font-semibold text-slate-300 uppercase font-mono">
+            <div className="hairline-panel rounded-xl p-5 space-y-4">
+              <div className="flex justify-between items-center border-b border-white/[0.08] pb-3">
+                <span className="text-xs font-semibold text-slate-300 font-mono">
                   Shop-Floor Resource Timeline (9 Certified Machines Across 4 Work Centers)
                 </span>
                 <span className="text-xs text-slate-400 font-mono">
@@ -925,24 +965,23 @@ export default function App() {
                 </span>
               </div>
 
-              <div className="space-y-3 font-mono text-xs">
+              <div className="space-y-2.5 font-mono text-xs">
                 {ganttData?.resources?.map((res: any) => (
-                  <div key={res.machine_id} className="grid grid-cols-12 gap-3 items-center p-2 rounded bg-slate-950/60 border border-slate-800/40">
+                  <div key={res.machine_id} className="grid grid-cols-12 gap-3 items-center p-2 rounded bg-[#0a0b0e] border border-white/[0.06]">
                     <div className="col-span-3">
                       <div className="font-bold text-slate-200">{res.machine_code}</div>
                       <div className="text-[11px] text-slate-400 font-sans">{res.machine_name}</div>
-                      <span className="text-[9px] px-1.5 py-0.2 bg-slate-800 text-blue-300 rounded font-mono">
+                      <span className="text-[9px] px-1.5 py-0.2 bg-white/[0.06] text-blue-300 rounded font-mono">
                         {res.work_center_code}
                       </span>
                     </div>
 
-                    {/* Timeline visualization track */}
-                    <div className="col-span-9 bg-slate-900/90 h-10 rounded border border-slate-800 relative flex items-center px-2 overflow-hidden">
+                    <div className="col-span-9 bg-[#0e1017] h-10 rounded border border-white/[0.06] relative flex items-center px-2 overflow-hidden">
                       {res.operations?.length > 0 ? (
                         res.operations.map((op: any, oidx: number) => (
                           <div
                             key={op.id}
-                            className={`h-7 px-3 rounded text-[11px] font-semibold flex items-center justify-between text-white shadow-md mx-1 ${
+                            className={`h-7 px-3 rounded text-[11px] font-semibold flex items-center justify-between text-white shadow-sm mx-1 ${
                               oidx % 2 === 0
                                 ? "bg-blue-600 border border-blue-400/40"
                                 : "bg-indigo-600 border border-indigo-400/40"
@@ -970,7 +1009,7 @@ export default function App() {
         {activeTab === "copilot" && (
           <div className="max-w-7xl mx-auto space-y-6">
             <div>
-              <h1 className="text-xl font-bold text-white tracking-tight flex items-center space-x-2">
+              <h1 className="text-lg font-bold text-white tracking-tight flex items-center space-x-2">
                 <Sparkles className="w-5 h-5 text-indigo-400" />
                 <span>Autonomous Disruption & What-If Copilot</span>
               </h1>
@@ -981,8 +1020,8 @@ export default function App() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Incident Injection Control */}
-              <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-5 space-y-4">
-                <h3 className="font-bold text-xs uppercase text-slate-300 tracking-wider flex items-center space-x-2">
+              <div className="hairline-panel rounded-xl p-5 space-y-4">
+                <h3 className="font-bold text-xs text-slate-300 flex items-center space-x-2">
                   <AlertTriangle className="w-4 h-4 text-amber-400" />
                   <span>Simulate Shop-Floor Incident</span>
                 </h3>
@@ -993,7 +1032,7 @@ export default function App() {
                     <select
                       value={selectedMachine}
                       onChange={(e) => setSelectedMachine(e.target.value)}
-                      className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-200"
+                      className="w-full bg-[#0a0b0e] border border-white/[0.1] rounded p-2 text-slate-200"
                     >
                       <option value="CNC-01">CNC-01 (Haas 5-Axis)</option>
                       <option value="LASER-01">LASER-01 (Amada Fiber Laser)</option>
@@ -1007,14 +1046,14 @@ export default function App() {
                       type="number"
                       value={downtimeHours}
                       onChange={(e) => setDowntimeHours(Number(e.target.value))}
-                      className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-200 font-mono"
+                      className="w-full bg-[#0a0b0e] border border-white/[0.1] rounded p-2 text-slate-200 font-mono"
                     />
                   </div>
 
                   <button
                     onClick={handleSimulateDisruption}
                     disabled={simulating}
-                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs flex items-center justify-center space-x-2 shadow-lg shadow-indigo-600/30 transition-all"
+                    className="w-full py-2.5 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold rounded-lg text-xs flex items-center justify-center space-x-2 shadow-sm transition-all"
                   >
                     {simulating ? (
                       <>
@@ -1024,78 +1063,77 @@ export default function App() {
                     ) : (
                       <>
                         <Cpu className="w-3.5 h-3.5" />
-                        <span>Run Autonomous What-If Solver</span>
+                        <span>Run What-If Solver</span>
                       </>
                     )}
                   </button>
                 </div>
               </div>
 
-              {/* Simulation Result & Scenarios */}
+              {/* Simulation Result */}
               <div className="lg:col-span-2 space-y-4">
                 {disruptionResult ? (
-                  <div className="space-y-4 animate-in fade-in duration-300">
-                    <div className="bg-gradient-to-b from-indigo-950/80 to-slate-900 border-2 border-indigo-500/60 rounded-xl p-6 shadow-2xl">
-                      <div className="flex justify-between items-start mb-3">
-                        <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
-                          Rank #1: Recommended Mitigation Action
+                  <div className="hairline-panel-elevated rounded-xl p-6 space-y-4 animate-in fade-in duration-200">
+                    <div className="flex justify-between items-start">
+                      <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                        Rank #1: Recommended Mitigation Action
+                      </span>
+                      <span className="text-xs font-mono text-emerald-400 font-bold">
+                        Feasibility: {disruptionResult.recommended_scenario.feasibility}
+                      </span>
+                    </div>
+
+                    <h2 className="text-lg font-bold text-white">
+                      {disruptionResult.recommended_scenario.name}
+                    </h2>
+                    <p className="text-xs text-slate-300">
+                      {disruptionResult.recommended_scenario.action}
+                    </p>
+
+                    <div className="grid grid-cols-3 gap-3 my-4">
+                      <div className="bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
+                        <span className="text-[10px] text-slate-400 block">Makespan Delta</span>
+                        <span className="text-sm font-bold font-mono text-slate-200">
+                          +{disruptionResult.recommended_scenario.projected_makespan_delta_hours}h
                         </span>
-                        <span className="text-xs font-mono text-emerald-400 font-bold">
-                          Feasibility: {disruptionResult.recommended_scenario.feasibility}
+                      </div>
+                      <div className="bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
+                        <span className="text-[10px] text-slate-400 block">Estimated Cost</span>
+                        <span className="text-sm font-bold font-mono text-amber-400">
+                          +${disruptionResult.recommended_scenario.estimated_cost_delta}
                         </span>
                       </div>
-                      <h2 className="text-lg font-bold text-white">
-                        {disruptionResult.recommended_scenario.name}
-                      </h2>
-                      <p className="text-xs text-slate-300 mt-1">
-                        {disruptionResult.recommended_scenario.action}
-                      </p>
-
-                      <div className="grid grid-cols-3 gap-3 my-4">
-                        <div className="bg-slate-950/60 p-2.5 rounded border border-slate-800">
-                          <span className="text-[10px] text-slate-400 block">Makespan Delta</span>
-                          <span className="text-sm font-bold font-mono text-slate-200">
-                            +{disruptionResult.recommended_scenario.projected_makespan_delta_hours}h
-                          </span>
-                        </div>
-                        <div className="bg-slate-950/60 p-2.5 rounded border border-slate-800">
-                          <span className="text-[10px] text-slate-400 block">Estimated Cost</span>
-                          <span className="text-sm font-bold font-mono text-amber-400">
-                            +${disruptionResult.recommended_scenario.estimated_cost_delta}
-                          </span>
-                        </div>
-                        <div className="bg-slate-950/60 p-2.5 rounded border border-slate-800">
-                          <span className="text-[10px] text-slate-400 block">Customer Orders Delayed</span>
-                          <span className="text-sm font-bold font-mono text-emerald-400">
-                            {disruptionResult.recommended_scenario.orders_delayed}
-                          </span>
-                        </div>
+                      <div className="bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
+                        <span className="text-[10px] text-slate-400 block">Customer Orders Delayed</span>
+                        <span className="text-sm font-bold font-mono text-emerald-400">
+                          {disruptionResult.recommended_scenario.orders_delayed}
+                        </span>
                       </div>
+                    </div>
 
-                      <div className="text-xs text-slate-400 italic bg-slate-950/40 p-2.5 rounded border border-slate-800/60">
-                        "{disruptionResult.recommended_scenario.rationale}"
-                      </div>
+                    <div className="text-xs text-slate-400 italic bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
+                      "{disruptionResult.recommended_scenario.rationale}"
+                    </div>
 
-                      <div className="mt-4 flex justify-end">
-                        <button
-                          onClick={() => {
-                            alert("Mitigation plan applied! Schedule recalculated with zero customer delay.");
-                            setDisruptionResult(null);
-                          }}
-                          className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs shadow-lg shadow-emerald-600/30 flex items-center space-x-1.5"
-                        >
-                          <CheckCircle2 className="w-3.5 h-3.5" />
-                          <span>Approve & Re-Optimize Schedule</span>
-                        </button>
-                      </div>
+                    <div className="mt-4 flex justify-end">
+                      <button
+                        onClick={() => {
+                          alert("Mitigation plan applied! Schedule recalculated with zero customer delay.");
+                          setDisruptionResult(null);
+                        }}
+                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-lg text-xs shadow-sm flex items-center space-x-1.5 transition-all"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Approve & Re-Optimize Schedule</span>
+                      </button>
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-slate-900/60 border border-slate-800/80 rounded-xl p-12 text-center text-slate-500 flex flex-col items-center justify-center h-full">
-                    <Sliders className="w-10 h-10 mb-2 opacity-40" />
+                  <div className="hairline-panel rounded-xl p-12 text-center text-slate-500 flex flex-col items-center justify-center h-full">
+                    <Sliders className="w-10 h-10 mb-2 opacity-30" />
                     <p className="text-sm font-medium">Select a machine and trigger an incident simulation.</p>
                     <p className="text-xs text-slate-600 max-w-sm mt-1">
-                      The Copilot runs multi-objective What-If solvers to protect customer commitments.
+                      The Copilot runs multi-objective What-If solvers to protect customer delivery commitments.
                     </p>
                   </div>
                 )}
@@ -1110,7 +1148,7 @@ export default function App() {
         {activeTab === "executive" && (
           <div className="max-w-7xl mx-auto space-y-6">
             <div>
-              <h1 className="text-xl font-bold text-white tracking-tight">Executive Supply Chain Radar</h1>
+              <h1 className="text-lg font-bold text-white tracking-tight">Executive Supply Chain Radar</h1>
               <p className="text-xs text-slate-400">
                 Enterprise telemetry: On-Time In-Full (OTIF), plant OEE, active customer promise risk.
               </p>
@@ -1118,24 +1156,24 @@ export default function App() {
 
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-lg">
+              <div className="hairline-panel p-5 rounded-xl">
                 <span className="text-xs text-slate-400 font-mono">ON-TIME IN-FULL (OTIF)</span>
                 <div className="text-2xl font-bold font-mono text-emerald-400 mt-1">98.4%</div>
                 <span className="text-[11px] text-emerald-500 font-medium">↑ +2.1% this quarter</span>
               </div>
-              <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-lg">
+              <div className="hairline-panel p-5 rounded-xl">
                 <span className="text-xs text-slate-400 font-mono">PLANT OEE AVERAGE</span>
                 <div className="text-2xl font-bold font-mono text-blue-400 mt-1">87.2%</div>
                 <span className="text-[11px] text-slate-400">9 Active Work Centers</span>
               </div>
-              <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-lg">
+              <div className="hairline-panel p-5 rounded-xl">
                 <span className="text-xs text-slate-400 font-mono">PROMISE BREACHES</span>
                 <div className="text-2xl font-bold font-mono text-emerald-400 mt-1">0</div>
                 <span className="text-[11px] text-slate-400">100% On-Track</span>
               </div>
-              <div className="bg-slate-900 border border-slate-800 p-5 rounded-xl shadow-lg">
+              <div className="hairline-panel p-5 rounded-xl">
                 <span className="text-xs text-slate-400 font-mono">ACTIVE PIPELINE VALUE</span>
-                <div className="text-2xl font-bold font-mono text-slate-100 mt-1">$3,585,000</div>
+                <div className="text-2xl font-bold font-mono text-slate-100 mt-1">${totalPipeline.toLocaleString()}</div>
                 <span className="text-[11px] text-indigo-400">Contracted Commitments</span>
               </div>
             </div>
@@ -1147,37 +1185,37 @@ export default function App() {
       {/* ENTERPRISE SALES ORDER CONFIRMATION & DOCUMENT FLOW MODAL      */}
       {/* ============================================================== */}
       {selectedOrderFlow && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-slate-900 border border-slate-700/80 rounded-2xl max-w-4xl w-full p-6 shadow-2xl space-y-6 max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="hairline-panel-elevated rounded-2xl max-w-4xl w-full p-6 space-y-6 max-h-[92vh] overflow-y-auto">
             {/* Modal Header */}
-            <div className="flex justify-between items-start border-b border-slate-800 pb-4">
+            <div className="flex justify-between items-start border-b border-white/[0.08] pb-4">
               <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 rounded-lg bg-blue-600/20 border border-blue-500/40 flex items-center justify-center text-blue-400 font-bold">
+                <div className="w-10 h-10 rounded-lg bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-400 font-bold">
                   <FileText className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-white flex items-center space-x-2">
+                  <h2 className="text-base font-bold text-white flex items-center space-x-2">
                     <span>Order Confirmation: {selectedOrderFlow.order.order_number}</span>
                     <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-950 text-emerald-400 border border-emerald-800/40">
                       {selectedOrderFlow.order.status}
                     </span>
                   </h2>
                   <p className="text-xs text-slate-400">
-                    Authoritative Document · Customer: <strong>{selectedOrderFlow.order.customer_name}</strong> ({selectedOrderFlow.order.customer_code})
+                    Customer: <strong>{selectedOrderFlow.order.customer_name}</strong> ({selectedOrderFlow.order.customer_code})
                   </p>
                 </div>
               </div>
               <div className="flex items-center space-x-2">
                 <button
                   onClick={() => window.print()}
-                  className="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-semibold flex items-center space-x-1.5 transition-all border border-slate-700"
+                  className="px-3 py-1.5 bg-white/[0.05] hover:bg-white/[0.1] text-slate-200 rounded-lg text-xs font-semibold flex items-center space-x-1.5 border border-white/[0.08] transition-colors"
                 >
                   <Printer className="w-3.5 h-3.5" />
                   <span>Print Document</span>
                 </button>
                 <button
                   onClick={() => setSelectedOrderFlow(null)}
-                  className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-slate-800 rounded-lg transition-all"
+                  className="p-1.5 text-slate-400 hover:text-slate-100 hover:bg-white/[0.08] rounded-lg transition-colors"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -1185,19 +1223,19 @@ export default function App() {
             </div>
 
             {/* Document Flow Progression (SAP VBFA Style) */}
-            <div className="bg-slate-950/70 p-4 rounded-xl border border-slate-800/80 space-y-2">
-              <span className="text-[11px] font-semibold uppercase text-blue-400 font-mono tracking-wider block">
+            <div className="bg-[#0a0b0e] p-4 rounded-xl border border-white/[0.06] space-y-2">
+              <span className="text-[11px] font-semibold text-blue-400 font-mono tracking-wider block">
                 SAP S/4HANA Document Flow (VBFA)
               </span>
               <div className="grid grid-cols-1 md:grid-cols-5 gap-2 pt-1">
                 {selectedOrderFlow.document_flow.map((doc: any, idx: number) => (
                   <div
                     key={doc.stage}
-                    className="p-2.5 rounded-lg bg-slate-900 border border-slate-800 text-xs space-y-1 relative"
+                    className="p-2.5 rounded-lg bg-[#0e1017] border border-white/[0.06] text-xs space-y-1 relative"
                   >
                     <div className="flex justify-between items-center text-[10px] text-slate-400 font-mono">
                       <span>Step 0{idx + 1}</span>
-                      <span className="px-1.5 py-0.2 rounded bg-slate-800 text-slate-300 font-bold">
+                      <span className="px-1.5 py-0.2 rounded bg-white/[0.06] text-slate-300 font-bold">
                         {doc.status}
                       </span>
                     </div>
@@ -1210,13 +1248,13 @@ export default function App() {
             </div>
 
             {/* Formal Document Body */}
-            <div className="bg-white text-slate-900 p-6 rounded-xl space-y-6 shadow-inner font-sans">
+            <div className="bg-white text-slate-900 p-6 rounded-xl space-y-6 shadow-sm font-sans">
               {/* Company & Billing Info */}
               <div className="flex justify-between items-start border-b border-slate-200 pb-4">
                 <div>
-                  <h3 className="font-bold text-lg text-slate-900">GAIC Advanced Industrial Components LLC</h3>
+                  <h3 className="font-bold text-base text-slate-900">GAIC Advanced Industrial Components LLC</h3>
                   <p className="text-xs text-slate-500">100 Enterprise Way, Chicago Plant, IL 60601</p>
-                  <p className="text-xs text-slate-500">System of Record: SAP / Tier-1 Certified SCM</p>
+                  <p className="text-xs text-slate-500">System of Record: SAP S/4HANA Certified</p>
                 </div>
                 <div className="text-right text-xs">
                   <div className="font-bold text-slate-800">SALES ORDER ACKNOWLEDGMENT</div>
