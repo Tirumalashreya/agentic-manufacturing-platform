@@ -86,6 +86,7 @@ export default function App() {
         fetch(`${API_BASE}/sales/invoices`).then((r) => (r.ok ? r.json() : [])),
         fetch(`${API_BASE}/sales/audit-logs`).then((r) => (r.ok ? r.json() : [])),
         fetch(`${API_BASE}/scheduling/gantt`).then((r) => (r.ok ? r.json() : null)),
+        fetch(`${API_BASE}/manufacturing/inventory`).then((r) => (r.ok ? r.json() : null)),
       ]);
       setCustomers(custRes);
       setSalesOrders(ordRes);
@@ -497,7 +498,7 @@ export default function App() {
                       : "text-slate-400 hover:text-slate-200 hover:bg-white/[0.04]"
                   }`}
                 >
-                  Inventory & Stock (${inventoryData?.total_sku_count || 6})
+                  Inventory & Stock ({inventoryData?.total_sku_count || 6})
                 </button>
                 <button
                   onClick={() => {
@@ -1288,6 +1289,26 @@ export default function App() {
                 When breakdowns or supply shocks happen, the AI solver formulates trade-offs without manual guesswork.
               </p>
             </div>
+
+            {mitigationMessage && (
+              <div className="p-4 rounded-xl border border-emerald-500/40 bg-emerald-950/50 text-emerald-100 flex items-center justify-between shadow-xl animate-in fade-in duration-200">
+                <div className="flex items-center space-x-3">
+                  <div className="w-8 h-8 rounded-full bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400 font-bold">
+                    ✓
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-sm text-emerald-200">Disruption Mitigation Plan Applied</h3>
+                    <p className="text-xs text-emerald-300/90 font-mono mt-0.5">{mitigationMessage}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setMitigationMessage(null)}
+                  className="text-xs text-emerald-300 hover:text-white px-2.5 py-1 bg-emerald-900/40 rounded border border-emerald-700/50"
+                >
+                  Dismiss
+                </button>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Incident Injection Control */}
