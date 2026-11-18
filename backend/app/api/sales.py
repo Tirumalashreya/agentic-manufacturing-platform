@@ -1,19 +1,18 @@
-# enterprise-aps-platform/backend/app/api/sales.py
 import uuid
 from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 from app.core.database import get_db
 from app.models.master_data import Material, BillOfMaterial, Routing, RoutingOperation
-from app.models.sales import Customer, SalesOrder, SalesOrderLine, DeliveryPromise
+from app.models.sales import Customer, CustomerQuote, SalesOrder, SalesOrderLine, DeliveryPromise, DeliveryNote, Invoice
 from app.models.manufacturing import ProductionOrder, ScheduledOperation
 from app.models.audit import ApprovalRequest, AuditLog
 from app.agents.rfq_agent import RFQAgent
 
-router = APIRouter(prefix="/sales", tags=["Sales & Commercial"])
+router = APIRouter(prefix="/sales", tags=["Sales & Commercial Order-to-Cash"])
 
 
 @router.get("/customers")
@@ -48,6 +47,12 @@ async def list_sales_orders(db: AsyncSession = Depends(get_db)):
         p_res = await db.execute(select(DeliveryPromise).where(DeliveryPromise.sales_order_id == o.id))
         promise = p_res.scalar_one_or_none()
 
+        d_res = await db.execute(select(DeliveryNote).where(DeliveryNote.sales_order_id == o.id))
+        delivery = d_res.scalar_one_or_none()
+
+        i_res = await db.execute(select(Invoice).where(Invoice.sales_order_id == o.id))
+        invoice = i_res.scalar_one_or_none()
+
         response.append({
             "id": o.id,
             "order_number": o.order_number,
@@ -58,20 +63,70 @@ async def list_sales_orders(db: AsyncSession = Depends(get_db)):
             "requested_delivery_date": o.requested_delivery_date.isoformat() if o.requested_delivery_date else None,
             "promised_delivery_date": promise.projected_date.isoformat() if promise else (o.promised_delivery_date.isoformat() if o.promised_delivery_date else None),
             "risk_level": promise.risk_level if promise else "SAFE",
+            "delivery_number": delivery.delivery_number if delivery else None,
+            "invoice_number": invoice.invoice_number if invoice else None,
         })
     return response
 
 
+@router.get("/deliveries")
+async def list_deliveries(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(DeliveryNote).order_by(DeliveryNote.created_at.desc()))
+    deliveries = result.scalars().all()
+    return [
+        {
+            "id": d.id,
+            "delivery_number": d.delivery_number,
+            "sales_order_id": d.sales_order_id,
+            "carrier": d.carrier,
+            "tracking_number": d.tracking_number,
+            "status": d.status,
+            "shipped_at": d.shipped_at.isoformat() if d.shipped_at else None,
+        }
+        for d in deliveries
+    ]
+
+
+@router.get("/invoices")
+async def list_invoices(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(Invoice).order_by(Invoice.issued_at.desc()))
+    invoices = result.scalars().all()
+    response = []
+    for inv in invoices:
+        c_res = await db.execute(select(Customer).where(Customer.id == inv.customer_id))
+        cust = c_res.scalar_one_or_none()
+        response.append({
+            "id": inv.id,
+            "invoice_number": inv.invoice_number,
+            "customer_name": cust.name if cust else "Unknown",
+            "total_amount": inv.total_amount,
+            "status": inv.status,
+            "due_date": inv.due_date.isoformat() if inv.due_date else None,
+            "issued_at": inv.issued_at.isoformat() if inv.issued_at else None,
+        })
+    return response
+
+
+@router.get("/audit-logs")
+async def list_audit_logs(db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(AuditLog).order_by(AuditLog.timestamp.desc()).limit(20))
+    logs = result.scalars().all()
+    return [
+        {
+            "id": l.id,
+            "timestamp": l.timestamp.isoformat(),
+            "actor": l.actor,
+            "action": l.action,
+            "entity_type": l.entity_type,
+            "entity_id": l.entity_id,
+            "details": l.details,
+        }
+        for l in logs
+    ]
+
+
 @router.post("/rfq/evaluate")
 async def evaluate_rfq(payload: Dict[str, Any], db: AsyncSession = Depends(get_db)):
-    """
-    Cognitive RFQ Evaluation:
-    1. AI extracts intent & entities from natural language.
-    2. Deterministic Credit Check against Customer record.
-    3. Deterministic BOM & Inventory Check.
-    4. Deterministic Capable-to-Promise (CTP) schedule calculation.
-    5. Stages human-in-the-loop approval token.
-    """
     user_prompt = payload.get("prompt", "")
     if not user_prompt:
         raise HTTPException(status_code=400, detail="Prompt is required.")
@@ -157,13 +212,8 @@ async def evaluate_rfq(payload: Dict[str, Any], db: AsyncSession = Depends(get_d
 
 @router.post("/approvals/decide")
 async def decide_approval(payload: Dict[str, Any], db: AsyncSession = Depends(get_db)):
-    """
-    Atomic Human-in-the-Loop Sign-off Gate:
-    Applies CAS (Compare-and-Swap) update to prevent double-commit.
-    Commits SalesOrder and triggers ProductionOrder creation.
-    """
     token = payload.get("token")
-    decision = payload.get("decision", "APPROVE")  # APPROVE or REJECT
+    decision = payload.get("decision", "APPROVE")
     approver = payload.get("approver", "director.operations@enterprise.com")
 
     appr_res = await db.execute(select(ApprovalRequest).where(ApprovalRequest.token == token))
@@ -183,7 +233,7 @@ async def decide_approval(payload: Dict[str, Any], db: AsyncSession = Depends(ge
         await db.commit()
         return {"status": "REJECTED", "message": "Order creation proposal was rejected."}
 
-    # Commit Sales Order
+    # 1. Commit Sales Order
     order_num = f"SO-{datetime.utcnow().strftime('%Y%m')}-{uuid.uuid4().hex[:4].upper()}"
     sales_order = SalesOrder(
         order_number=order_num,
@@ -197,7 +247,7 @@ async def decide_approval(payload: Dict[str, Any], db: AsyncSession = Depends(ge
     db.add(sales_order)
     await db.flush()
 
-    # Commit Order Line
+    # 2. Commit Order Line
     line = SalesOrderLine(
         sales_order_id=sales_order.id,
         material_id=proposal["material_id"],
@@ -209,7 +259,7 @@ async def decide_approval(payload: Dict[str, Any], db: AsyncSession = Depends(ge
     )
     db.add(line)
 
-    # Commit Delivery Promise
+    # 3. Commit Delivery Promise (Capable-to-Promise)
     promise = DeliveryPromise(
         sales_order_id=sales_order.id,
         committed_date=datetime.fromisoformat(proposal["projected_delivery_date"]),
@@ -219,19 +269,48 @@ async def decide_approval(payload: Dict[str, Any], db: AsyncSession = Depends(ge
     )
     db.add(promise)
 
-    # Update Customer Exposure
+    # 4. Generate Initial Outbound Delivery Document (Goods Issue)
+    deliv_num = f"DN-{datetime.utcnow().strftime('%Y%m')}-{uuid.uuid4().hex[:4].upper()}"
+    delivery = DeliveryNote(
+        delivery_number=deliv_num,
+        sales_order_id=sales_order.id,
+        carrier="FedEx Freight Priority",
+        tracking_number=f"TRK-{uuid.uuid4().hex[:8].upper()}",
+        status="PREPARED",
+    )
+    db.add(delivery)
+
+    # 5. Generate Billing Document (Invoice)
+    inv_num = f"INV-{datetime.utcnow().strftime('%Y%m')}-{uuid.uuid4().hex[:4].upper()}"
+    invoice = Invoice(
+        invoice_number=inv_num,
+        sales_order_id=sales_order.id,
+        customer_id=proposal["customer_id"],
+        total_amount=proposal["total_amount"],
+        tax_amount=proposal["total_amount"] * 0.08,
+        status="ISSUED",
+        due_date=datetime.utcnow() + timedelta(days=30),
+    )
+    db.add(invoice)
+
+    # 6. Update Customer Credit Exposure
     cust_res = await db.execute(select(Customer).where(Customer.id == proposal["customer_id"]))
     customer = cust_res.scalar_one_or_none()
     if customer:
         customer.current_exposure += proposal["total_amount"]
 
-    # SOX Audit Log
+    # 7. SOX Compliance Audit Log
     audit = AuditLog(
         actor=approver,
         action="SALES_ORDER_APPROVED",
         entity_type="SalesOrder",
         entity_id=sales_order.id,
-        details={"order_number": order_num, "amount": proposal["total_amount"]},
+        details={
+            "order_number": order_num,
+            "delivery_number": deliv_num,
+            "invoice_number": inv_num,
+            "amount": proposal["total_amount"]
+        },
     )
     db.add(audit)
 
@@ -241,7 +320,159 @@ async def decide_approval(payload: Dict[str, Any], db: AsyncSession = Depends(ge
         "status": "APPROVED",
         "order_id": sales_order.id,
         "order_number": order_num,
+        "delivery_number": deliv_num,
+        "invoice_number": inv_num,
         "promised_date": promise.committed_date.isoformat(),
         "message": f"Sales Order {order_num} successfully committed to enterprise ledger.",
-        "confetti": True,  # Celebratory trigger for Tier-1 live execution!
+        "confetti": True,
+    }
+
+@router.post("/deliveries/{delivery_id}/ship")
+async def ship_delivery(delivery_id: str, db: AsyncSession = Depends(get_db)):
+    res = await db.execute(select(DeliveryNote).where(DeliveryNote.id == delivery_id))
+    deliv = res.scalar_one_or_none()
+    if not deliv:
+        raise HTTPException(status_code=404, detail="Delivery note not found.")
+    deliv.status = "SHIPPED"
+    deliv.shipped_at = datetime.utcnow()
+
+    # Log SOX Audit
+    audit = AuditLog(
+        actor="logistics.supervisor@enterprise.com",
+        action="GOODS_ISSUE_POSTED",
+        entity_type="DeliveryNote",
+        entity_id=deliv.id,
+        details={"delivery_number": deliv.delivery_number, "tracking_number": deliv.tracking_number, "carrier": deliv.carrier}
+    )
+    db.add(audit)
+    await db.commit()
+    return {"status": "SUCCESS", "message": f"Goods Issue posted for delivery {deliv.delivery_number}. Tracking active."}
+
+
+@router.post("/invoices/{invoice_id}/pay")
+async def pay_invoice(invoice_id: str, db: AsyncSession = Depends(get_db)):
+    res = await db.execute(select(Invoice).where(Invoice.id == invoice_id))
+    inv = res.scalar_one_or_none()
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invoice not found.")
+    inv.status = "PAID"
+
+    # Reduce customer exposure
+    cust_res = await db.execute(select(Customer).where(Customer.id == inv.customer_id))
+    cust = cust_res.scalar_one_or_none()
+    if cust:
+        cust.current_exposure = max(0.0, cust.current_exposure - inv.total_amount)
+
+    # Log SOX Audit
+    audit = AuditLog(
+        actor="treasury.specialist@enterprise.com",
+        action="CUSTOMER_PAYMENT_CLEARED",
+        entity_type="Invoice",
+        entity_id=inv.id,
+        details={"invoice_number": inv.invoice_number, "amount_cleared": inv.total_amount}
+    )
+    db.add(audit)
+    await db.commit()
+    return {"status": "SUCCESS", "message": f"Payment recorded for invoice {inv.invoice_number}. Customer credit replenished."}
+
+
+@router.get("/orders/{order_id}/flow")
+async def get_order_document_flow(order_id: str, db: AsyncSession = Depends(get_db)):
+    o_res = await db.execute(select(SalesOrder).where(SalesOrder.id == order_id))
+    order = o_res.scalar_one_or_none()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found.")
+
+    c_res = await db.execute(select(Customer).where(Customer.id == order.customer_id))
+    cust = c_res.scalar_one_or_none()
+
+    p_res = await db.execute(select(DeliveryPromise).where(DeliveryPromise.sales_order_id == order.id))
+    promise = p_res.scalar_one_or_none()
+
+    d_res = await db.execute(select(DeliveryNote).where(DeliveryNote.sales_order_id == order.id))
+    delivery = d_res.scalar_one_or_none()
+
+    i_res = await db.execute(select(Invoice).where(Invoice.sales_order_id == order.id))
+    invoice = i_res.scalar_one_or_none()
+
+    lines_res = await db.execute(select(SalesOrderLine).where(SalesOrderLine.sales_order_id == order.id))
+    lines = lines_res.scalars().all()
+
+    audit_res = await db.execute(select(AuditLog).where(AuditLog.entity_id == order.id))
+    audit = audit_res.scalar_one_or_none()
+
+    line_details = []
+    for l in lines:
+        m_res = await db.execute(select(Material).where(Material.id == l.material_id))
+        mat = m_res.scalar_one_or_none()
+        line_details.append({
+            "line_number": l.line_number,
+            "material_sku": mat.sku if mat else "SKU-GEN",
+            "material_name": mat.name if mat else "Component Item",
+            "quantity": l.quantity,
+            "unit_price": l.unit_price,
+            "total_price": l.quantity * l.unit_price,
+            "strategy": l.fulfillment_strategy,
+        })
+
+    flow_nodes = [
+        {
+            "stage": "RFQ_INTAKE",
+            "doc_type": "Customer Inbound RFQ",
+            "reference": f"RFQ-{order.order_number.replace('SO-', '')}",
+            "status": "CONVERTED",
+            "date": order.created_at.isoformat() if order.created_at else None,
+            "details": "Parsed via Cognitive Entity Extractor"
+        },
+        {
+            "stage": "SALES_ORDER",
+            "doc_type": "Standard Sales Order (OR)",
+            "reference": order.order_number,
+            "status": order.status,
+            "date": order.created_at.isoformat() if order.created_at else None,
+            "details": f"Total: ${order.total_amount:,.2f} USD"
+        },
+        {
+            "stage": "CAPABLE_TO_PROMISE",
+            "doc_type": "CTP Production Commitment",
+            "reference": f"CTP-{order.order_number}",
+            "status": "COMMITTED",
+            "date": promise.projected_date.isoformat() if promise else None,
+            "details": f"Risk Level: {promise.risk_level if promise else 'SAFE'} (Confidence 99%)"
+        },
+        {
+            "stage": "OUTBOUND_DELIVERY",
+            "doc_type": "Delivery Note / Goods Issue (LF)",
+            "reference": delivery.delivery_number if delivery else "DN-PENDING",
+            "status": delivery.status if delivery else "PENDING_DISPATCH",
+            "date": delivery.shipped_at.isoformat() if (delivery and delivery.shipped_at) else (delivery.created_at.isoformat() if delivery else None),
+            "details": f"Carrier: {delivery.carrier if delivery else 'Standard'} · Tracking: {delivery.tracking_number if delivery else 'N/A'}"
+        },
+        {
+            "stage": "BILLING_INVOICE",
+            "doc_type": "Customer Invoice (F2)",
+            "reference": invoice.invoice_number if invoice else "INV-PENDING",
+            "status": invoice.status if invoice else "OPEN",
+            "date": invoice.issued_at.isoformat() if invoice else None,
+            "details": f"Amount: ${invoice.total_amount:,.2f} (Due: {invoice.due_date.strftime('%Y-%m-%d') if invoice else 'Net 30'})"
+        }
+    ]
+
+    return {
+        "order": {
+            "id": order.id,
+            "order_number": order.order_number,
+            "customer_name": cust.name if cust else "Unknown Customer",
+            "customer_code": cust.customer_number if cust else "CUST-000",
+            "created_at": order.created_at.isoformat() if order.created_at else None,
+            "promised_date": promise.projected_date.isoformat() if promise else (order.promised_delivery_date.isoformat() if order.promised_delivery_date else None),
+            "status": order.status,
+            "total_amount": order.total_amount,
+            "tax_amount": order.total_amount * 0.08,
+            "grand_total": order.total_amount * 1.08,
+            "payment_terms": cust.payment_terms if cust else "Net 30",
+            "approval_actor": audit.actor if audit else "director.operations@enterprise.com",
+            "lines": line_details
+        },
+        "document_flow": flow_nodes
     }
