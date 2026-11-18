@@ -1,6 +1,6 @@
 # enterprise-aps-platform/backend/app/core/config.py
 import os
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import Optional
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -34,9 +34,7 @@ class Settings(BaseSettings):
         "*"
     ]
 
-    class Config:
-        case_sensitive = True
-        extra = "allow"
+    model_config = SettingsConfigDict(case_sensitive=True, extra="allow")
 
 
 settings = Settings()

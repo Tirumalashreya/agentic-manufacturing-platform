@@ -30,9 +30,40 @@ import {
   Radio,
   BarChart3,
   Flame,
+  Download,
 } from "lucide-react";
 
 const API_BASE = "http://localhost:8080/api/v1";
+
+function exportToCsv(filename: string, rows: Record<string, any>[]) {
+  if (!rows || !rows.length) {
+    alert("No records to export.");
+    return;
+  }
+  const headers = Object.keys(rows[0]);
+  const csvContent = [
+    headers.join(","),
+    ...rows.map((row) =>
+      headers
+        .map((h) => {
+          let val = row[h] === null || row[h] === undefined ? "" : String(row[h]);
+          val = val.replace(/"/g, '""');
+          return `"${val}"`;
+        })
+        .join(",")
+    ),
+  ].join("\n");
+
+  const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", filename);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<"commercial" | "schedule" | "copilot" | "executive">("commercial");
@@ -207,18 +238,25 @@ export default function App() {
     }
   };
 
+  // Filter and view states
+  const [ganttWorkCenterFilter, setGanttWorkCenterFilter] = useState<string>("ALL");
+  const [inventoryHealthFilter, setInventoryHealthFilter] = useState<string>("ALL");
+
   // Apply Disruption Mitigation Plan
-  const handleApplyMitigation = async () => {
+  const handleApplyMitigation = async (scenarioToApply?: any) => {
     if (!disruptionResult) return;
+    const target = scenarioToApply || activeScenario;
     setApplyingMitigation(true);
     try {
+      const isOvertime = target?.scenario_id?.includes("OVERTIME");
       const res = await fetch(`${API_BASE}/scheduling/disruption/apply`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           machine_code: selectedMachine,
           downtime_hours: downtimeHours,
-          action_type: "DYNAMIC_REROUTE",
+          action_type: isOvertime ? "OVERTIME_SHIFT" : "DYNAMIC_REROUTE",
+          scenario_name: target?.name || "Mitigation Action",
         }),
       });
       const data = await res.json();
@@ -302,6 +340,49 @@ export default function App() {
         i.status?.toLowerCase().includes(q)
     );
   }, [invoices, searchQuery]);
+
+  // Disruption Copilot Multi-Scenario List
+  const allScenarios = useMemo(() => {
+    if (!disruptionResult) return [];
+    const list = [];
+    if (disruptionResult.recommended_scenario) {
+      list.push(disruptionResult.recommended_scenario);
+    }
+    if (Array.isArray(disruptionResult.alternative_scenarios)) {
+      list.push(...disruptionResult.alternative_scenarios);
+    }
+    return list;
+  }, [disruptionResult]);
+
+  const activeScenario = allScenarios[selectedScenarioIndex] || allScenarios[0];
+
+  // Gantt Filtered by Work Center
+  const filteredGanttResources = useMemo(() => {
+    if (!ganttData?.resources) return [];
+    if (ganttWorkCenterFilter === "ALL") return ganttData.resources;
+    return ganttData.resources.filter(
+      (r: any) => r.work_center_code === ganttWorkCenterFilter
+    );
+  }, [ganttData, ganttWorkCenterFilter]);
+
+  // Inventory Filtered by Health & Search
+  const filteredInventoryItems = useMemo(() => {
+    if (!inventoryData?.items) return [];
+    let items = inventoryData.items;
+    if (inventoryHealthFilter !== "ALL") {
+      items = items.filter((i: any) => i.health === inventoryHealthFilter);
+    }
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      items = items.filter(
+        (i: any) =>
+          i.sku?.toLowerCase().includes(q) ||
+          i.name?.toLowerCase().includes(q) ||
+          i.type?.toLowerCase().includes(q)
+      );
+    }
+    return items;
+  }, [inventoryData, inventoryHealthFilter, searchQuery]);
 
   const totalPipeline = salesOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
   const openInvoicesCount = invoices.filter((i) => i.status !== "PAID").length;
@@ -827,7 +908,28 @@ export default function App() {
                     <h2 className="font-bold text-sm text-slate-100">Committed Sales Orders Ledger (VBAK / VBAP)</h2>
                     <p className="text-xs text-slate-400">Click any record to inspect the SAP S/4HANA document flow and printable acknowledgment.</p>
                   </div>
-                  <span className="text-xs text-slate-400 font-mono">{filteredOrders.length} records</span>
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => {
+                        const rows = filteredOrders.map((o) => ({
+                          Order_Number: o.order_number,
+                          Customer: o.customer_name,
+                          Status: o.status,
+                          Total_Amount: o.total_amount,
+                          Promised_Delivery_Date: o.promised_delivery_date || "",
+                          Delivery_Number: o.delivery_number || "",
+                          Invoice_Number: o.invoice_number || "",
+                        }));
+                        exportToCsv("sales_orders_pipeline.csv", rows);
+                      }}
+                      className="flex items-center space-x-1 px-2.5 py-1 text-xs bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded border border-white/[0.08] transition-colors"
+                      title="Download Sales Pipeline as CSV"
+                    >
+                      <Download className="w-3 h-3 text-blue-400" />
+                      <span>Export CSV</span>
+                    </button>
+                    <span className="text-xs text-slate-400 font-mono">{filteredOrders.length} records</span>
+                  </div>
                 </div>
                 {filteredOrders.length > 0 ? (
                   <div className="overflow-x-auto">
@@ -898,7 +1000,26 @@ export default function App() {
                     <h2 className="font-bold text-sm text-slate-100">Outbound Delivery Documents (LIKP / VL01N)</h2>
                     <p className="text-xs text-slate-400">Warehouse fulfillment, carrier logistics, and Goods Issue dispatch.</p>
                   </div>
-                  <span className="text-xs text-slate-400 font-mono">{filteredDeliveries.length} delivery notes</span>
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => {
+                        const rows = filteredDeliveries.map((d) => ({
+                          Delivery_Number: d.delivery_number,
+                          Carrier: d.carrier,
+                          Tracking_Number: d.tracking_number || "",
+                          Status: d.status,
+                          Shipped_At: d.shipped_at || "",
+                        }));
+                        exportToCsv("outbound_deliveries.csv", rows);
+                      }}
+                      className="flex items-center space-x-1 px-2.5 py-1 text-xs bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded border border-white/[0.08] transition-colors"
+                      title="Download Deliveries as CSV"
+                    >
+                      <Download className="w-3 h-3 text-indigo-400" />
+                      <span>Export CSV</span>
+                    </button>
+                    <span className="text-xs text-slate-400 font-mono">{filteredDeliveries.length} delivery notes</span>
+                  </div>
                 </div>
                 {filteredDeliveries.length > 0 ? (
                   <div className="overflow-x-auto">
@@ -979,7 +1100,27 @@ export default function App() {
                     <h2 className="font-bold text-sm text-slate-100">Customer Billing Documents (VBRK / VF01)</h2>
                     <p className="text-xs text-slate-400">Accounts receivable, standard tax ledger, and cash clearing.</p>
                   </div>
-                  <span className="text-xs text-slate-400 font-mono">{filteredInvoices.length} invoices</span>
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => {
+                        const rows = filteredInvoices.map((inv) => ({
+                          Invoice_Number: inv.invoice_number,
+                          Customer: inv.customer_name,
+                          Amount_Due: inv.total_amount,
+                          Payment_Status: inv.status,
+                          Due_Date: inv.due_date || "",
+                          Issued_At: inv.issued_at || "",
+                        }));
+                        exportToCsv("billing_invoices.csv", rows);
+                      }}
+                      className="flex items-center space-x-1 px-2.5 py-1 text-xs bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded border border-white/[0.08] transition-colors"
+                      title="Download Invoices as CSV"
+                    >
+                      <Download className="w-3 h-3 text-emerald-400" />
+                      <span>Export CSV</span>
+                    </button>
+                    <span className="text-xs text-slate-400 font-mono">{filteredInvoices.length} invoices</span>
+                  </div>
                 </div>
                 {filteredInvoices.length > 0 ? (
                   <div className="overflow-x-auto">
@@ -1069,63 +1210,115 @@ export default function App() {
                     </h2>
                     <p className="text-xs text-slate-400">Unrestricted physical inventory, safety stock thresholds, and live valuation.</p>
                   </div>
-                  <div className="text-right">
-                    <span className="text-[10px] text-slate-400 uppercase font-mono block">Total Stock Valuation</span>
-                    <span className="text-base font-bold font-mono text-emerald-400">
-                      ${inventoryData?.total_inventory_valuation?.toLocaleString()} USD
-                    </span>
+                  <div className="flex items-center space-x-4">
+                    <button
+                      onClick={() => {
+                        const rows = filteredInventoryItems.map((item: any) => ({
+                          SKU: item.sku,
+                          Material_Description: item.name,
+                          Type: item.type,
+                          On_Hand: item.on_hand,
+                          UOM: item.uom,
+                          Safety_Stock: item.safety_stock,
+                          Stock_Health: item.health,
+                          Unit_Standard_Cost: item.unit_cost,
+                          Total_Valuation: item.total_valuation,
+                        }));
+                        exportToCsv("material_inventory_stock.csv", rows);
+                      }}
+                      className="flex items-center space-x-1 px-2.5 py-1 text-xs bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded border border-white/[0.08] transition-colors"
+                      title="Download Inventory Stock Ledger as CSV"
+                    >
+                      <Download className="w-3 h-3 text-emerald-400" />
+                      <span>Export CSV</span>
+                    </button>
+                    <div className="text-right">
+                      <span className="text-[10px] text-slate-400 uppercase font-mono block">Total Stock Valuation</span>
+                      <span className="text-base font-bold font-mono text-emerald-400">
+                        ${inventoryData?.total_inventory_valuation?.toLocaleString()} USD
+                      </span>
+                    </div>
                   </div>
                 </div>
 
+                {/* Health Filter Pills */}
+                <div className="px-5 flex items-center space-x-2 text-xs">
+                  <span className="text-slate-400 font-mono text-[11px] mr-1">Filter Health:</span>
+                  {[
+                    { label: "All Items", val: "ALL" },
+                    { label: "Healthy", val: "HEALTHY" },
+                    { label: "Low Stock", val: "LOW" },
+                    { label: "Depleted", val: "CRITICAL" },
+                  ].map((f) => (
+                    <button
+                      key={f.val}
+                      onClick={() => setInventoryHealthFilter(f.val)}
+                      className={`px-2.5 py-0.5 rounded text-[11px] font-mono transition-colors ${
+                        inventoryHealthFilter === f.val
+                          ? "bg-blue-600 text-white font-semibold"
+                          : "bg-white/[0.04] text-slate-400 hover:text-slate-200"
+                      }`}
+                    >
+                      {f.label}
+                    </button>
+                  ))}
+                </div>
+
                 <div className="overflow-x-auto px-5 pb-5">
-                  <table className="w-full text-left text-xs">
-                    <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
-                      <tr>
-                        <th className="py-3 px-4">SKU</th>
-                        <th className="py-3 px-4">Material Description</th>
-                        <th className="py-3 px-4">Type</th>
-                        <th className="py-3 px-4 text-right">On-Hand Stock</th>
-                        <th className="py-3 px-4 text-right">Safety Stock</th>
-                        <th className="py-3 px-4">Stock Health</th>
-                        <th className="py-3 px-4 text-right">Unit Standard Cost</th>
-                        <th className="py-3 px-4 text-right">Total Valuation</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-white/[0.04]">
-                      {inventoryData?.items?.map((item: any) => (
-                        <tr key={item.id} className="hover:bg-white/[0.02] transition-colors">
-                          <td className="py-3.5 px-4 font-mono font-medium text-blue-400">{item.sku}</td>
-                          <td className="py-3.5 px-4 font-semibold text-slate-200">{item.name}</td>
-                          <td className="py-3.5 px-4 font-mono text-[11px] text-slate-400">{item.type}</td>
-                          <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-100">
-                            {item.on_hand} {item.uom}
-                          </td>
-                          <td className="py-3.5 px-4 text-right font-mono text-slate-400">
-                            {item.safety_stock} {item.uom}
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <span
-                              className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
-                                item.health === "HEALTHY"
-                                  ? "bg-emerald-950 text-emerald-400 border-emerald-800/40"
-                                  : item.health === "LOW"
-                                  ? "bg-amber-950 text-amber-400 border-amber-800/40"
-                                  : "bg-rose-950 text-rose-400 border-rose-800/40"
-                              }`}
-                            >
-                              {item.health}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-right font-mono text-slate-300">
-                            ${item.unit_cost?.toFixed(2)}
-                          </td>
-                          <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-400">
-                            ${item.total_valuation?.toLocaleString()}
-                          </td>
+                  {filteredInventoryItems.length > 0 ? (
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-[#0a0b0e] text-slate-400 font-mono border-b border-white/[0.08] text-[11px]">
+                        <tr>
+                          <th className="py-3 px-4">SKU</th>
+                          <th className="py-3 px-4">Material Description</th>
+                          <th className="py-3 px-4">Type</th>
+                          <th className="py-3 px-4 text-right">On-Hand Stock</th>
+                          <th className="py-3 px-4 text-right">Safety Stock</th>
+                          <th className="py-3 px-4">Stock Health</th>
+                          <th className="py-3 px-4 text-right">Unit Standard Cost</th>
+                          <th className="py-3 px-4 text-right">Total Valuation</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-white/[0.04]">
+                        {filteredInventoryItems.map((item: any) => (
+                          <tr key={item.id} className="hover:bg-white/[0.02] transition-colors">
+                            <td className="py-3.5 px-4 font-mono font-medium text-blue-400">{item.sku}</td>
+                            <td className="py-3.5 px-4 font-semibold text-slate-200">{item.name}</td>
+                            <td className="py-3.5 px-4 font-mono text-[11px] text-slate-400">{item.type}</td>
+                            <td className="py-3.5 px-4 text-right font-mono font-bold text-slate-100">
+                              {item.on_hand} {item.uom}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-mono text-slate-400">
+                              {item.safety_stock} {item.uom}
+                            </td>
+                            <td className="py-3.5 px-4">
+                              <span
+                                className={`px-2 py-0.5 rounded text-[10px] font-bold border ${
+                                  item.health === "HEALTHY"
+                                    ? "bg-emerald-950 text-emerald-400 border-emerald-800/40"
+                                    : item.health === "LOW"
+                                    ? "bg-amber-950 text-amber-400 border-amber-800/40"
+                                    : "bg-rose-950 text-rose-400 border-rose-800/40"
+                                }`}
+                              >
+                                {item.health}
+                              </span>
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-mono text-slate-300">
+                              ${item.unit_cost?.toFixed(2)}
+                            </td>
+                            <td className="py-3.5 px-4 text-right font-mono font-bold text-emerald-400">
+                              ${item.total_valuation?.toLocaleString()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div className="p-8 text-center text-slate-500 font-mono text-xs">
+                      No inventory records matching active filter "{inventoryHealthFilter}".
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -1141,7 +1334,26 @@ export default function App() {
                     </h2>
                     <p className="text-xs text-slate-400">Cryptographic tokens, human sign-offs, and ledger mutation events.</p>
                   </div>
-                  <span className="text-xs text-emerald-400 font-mono">Tamper-Proof Ledger</span>
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => {
+                        const rows = auditLogs.map((log) => ({
+                          Timestamp: log.timestamp,
+                          Action: log.action,
+                          Actor: log.actor,
+                          Entity_Type: log.entity_type,
+                          Details: JSON.stringify(log.details),
+                        }));
+                        exportToCsv("sox_audit_trail.csv", rows);
+                      }}
+                      className="flex items-center space-x-1 px-2.5 py-1 text-xs bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded border border-white/[0.08] transition-colors"
+                      title="Download SOX Audit Trail as CSV"
+                    >
+                      <Download className="w-3 h-3 text-emerald-400" />
+                      <span>Export CSV</span>
+                    </button>
+                    <span className="text-xs text-emerald-400 font-mono">Tamper-Proof Ledger</span>
+                  </div>
                 </div>
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-xs">
@@ -1200,15 +1412,88 @@ export default function App() {
 
             {/* Interactive Visual Gantt Board */}
             <div className="hairline-panel rounded-xl p-5 space-y-4">
-              <div className="flex justify-between items-center border-b border-white/[0.08] pb-3">
-                <span className="text-xs font-semibold text-slate-300 font-mono">
-                  Shop-Floor Resource Timeline (9 Certified Machines Across 4 Work Centers)
-                </span>
-                <span className="text-xs text-slate-400 font-mono">Horizon: Next 24 Hours</span>
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-white/[0.08] pb-3">
+                <div>
+                  <span className="text-xs font-semibold text-slate-200 font-mono block">
+                    Shop-Floor Resource Timeline (9 Certified Machines Across 4 Work Centers)
+                  </span>
+                  <span className="text-[11px] text-slate-400 font-mono">
+                    Horizon: Next 24 Hours · Active Operations: {ganttData?.total_operations_scheduled || 0}
+                  </span>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <button
+                    onClick={() => {
+                      const rows: any[] = [];
+                      filteredGanttResources.forEach((res: any) => {
+                        if (res.operations && res.operations.length > 0) {
+                          res.operations.forEach((op: any) => {
+                            rows.push({
+                              Machine_Code: res.machine_code,
+                              Machine_Name: res.machine_name,
+                              Work_Center: res.work_center_code,
+                              Operation_Name: op.operation_name,
+                              Operation_Number: op.operation_number,
+                              Duration_Minutes: op.duration_minutes,
+                              Planned_Start: op.planned_start || "",
+                              Planned_End: op.planned_end || "",
+                              Status: op.status,
+                            });
+                          });
+                        } else {
+                          rows.push({
+                            Machine_Code: res.machine_code,
+                            Machine_Name: res.machine_name,
+                            Work_Center: res.work_center_code,
+                            Operation_Name: "STANDBY / OPEN CAPACITY",
+                            Operation_Number: 0,
+                            Duration_Minutes: 0,
+                            Planned_Start: "",
+                            Planned_End: "",
+                            Status: "AVAILABLE",
+                          });
+                        }
+                      });
+                      exportToCsv("finite_production_schedule.csv", rows);
+                    }}
+                    className="flex items-center space-x-1 px-2.5 py-1 text-xs bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded border border-white/[0.08] transition-colors"
+                    title="Download Finite Production Schedule as CSV"
+                  >
+                    <Download className="w-3 h-3 text-blue-400" />
+                    <span>Export Schedule (CSV)</span>
+                  </button>
+                  <span className="text-xs text-slate-400 font-mono">
+                    Showing {filteredGanttResources.length} of {ganttData?.resources?.length || 9} machines
+                  </span>
+                </div>
+              </div>
+
+              {/* Work Center Filter Row */}
+              <div className="flex items-center space-x-2 text-xs">
+                <span className="text-slate-400 font-mono text-[11px] mr-1">Work Center:</span>
+                {[
+                  { label: "All Work Centers (9)", val: "ALL" },
+                  { label: "CNC Machining (WC-CNC)", val: "WC-CNC" },
+                  { label: "Laser & Sheet (WC-FAB)", val: "WC-FAB" },
+                  { label: "Assembly Lines (WC-ASY)", val: "WC-ASY" },
+                  { label: "Quality Inspection (WC-QC)", val: "WC-QC" },
+                ].map((wc) => (
+                  <button
+                    key={wc.val}
+                    onClick={() => setGanttWorkCenterFilter(wc.val)}
+                    className={`px-2.5 py-0.5 rounded text-[11px] font-mono transition-colors ${
+                      ganttWorkCenterFilter === wc.val
+                        ? "bg-blue-600 text-white font-semibold"
+                        : "bg-white/[0.04] text-slate-400 hover:text-slate-200"
+                    }`}
+                  >
+                    {wc.label}
+                  </button>
+                ))}
               </div>
 
               <div className="space-y-2.5 font-mono text-xs">
-                {ganttData?.resources?.map((res: any) => (
+                {filteredGanttResources.map((res: any) => (
                   <div key={res.machine_id} className="grid grid-cols-12 gap-3 items-center p-2.5 rounded bg-[#0a0b0e] border border-white/[0.06]">
                     <div className="col-span-3">
                       <div className="font-bold text-slate-200">{res.machine_code}</div>
@@ -1364,67 +1649,127 @@ export default function App() {
 
               {/* Simulation Result */}
               <div className="lg:col-span-2 space-y-4">
-                {disruptionResult ? (
-                  <div className="hairline-panel-elevated rounded-xl p-6 space-y-4 animate-in fade-in duration-200">
-                    <div className="flex justify-between items-start">
-                      <span className="px-2.5 py-0.5 rounded text-[10px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
-                        Rank #1: Recommended Mitigation Action
-                      </span>
-                      <span className="text-xs font-mono text-emerald-400 font-bold">
-                        Feasibility: {disruptionResult.recommended_scenario.feasibility}
-                      </span>
-                    </div>
-
-                    <h2 className="text-lg font-bold text-white">
-                      {disruptionResult.recommended_scenario.name}
-                    </h2>
-                    <p className="text-xs text-slate-300">
-                      {disruptionResult.recommended_scenario.action}
-                    </p>
-
-                    <div className="grid grid-cols-3 gap-3 my-4">
-                      <div className="bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
-                        <span className="text-[10px] text-slate-400 block">Makespan Delta</span>
-                        <span className="text-sm font-bold font-mono text-slate-200">
-                          +{disruptionResult.recommended_scenario.projected_makespan_delta_hours}h
+                {disruptionResult && activeScenario ? (
+                  <div className="hairline-panel-elevated rounded-xl p-6 space-y-5 animate-in fade-in duration-200">
+                    {/* Multi-Scenario Switcher Tabs */}
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <span className="text-xs font-mono text-slate-400 uppercase tracking-wider font-semibold">
+                          What-If Trade-Off Scenarios ({allScenarios.length} Evaluated)
+                        </span>
+                        <span className="text-[11px] font-mono text-emerald-400 font-bold">
+                          Feasibility: {activeScenario.feasibility}
                         </span>
                       </div>
-                      <div className="bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
-                        <span className="text-[10px] text-slate-400 block">Estimated Cost</span>
-                        <span className="text-sm font-bold font-mono text-amber-400">
-                          +${disruptionResult.recommended_scenario.estimated_cost_delta}
-                        </span>
-                      </div>
-                      <div className="bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
-                        <span className="text-[10px] text-slate-400 block">Customer Orders Delayed</span>
-                        <span className="text-sm font-bold font-mono text-emerald-400">
-                          {disruptionResult.recommended_scenario.orders_delayed}
-                        </span>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {allScenarios.map((sc: any, idx: number) => {
+                          const isSelected = selectedScenarioIndex === idx;
+                          return (
+                            <button
+                              key={sc.scenario_id || idx}
+                              onClick={() => setSelectedScenarioIndex(idx)}
+                              className={`p-3.5 rounded-lg text-left border transition-all flex flex-col justify-between ${
+                                isSelected
+                                  ? "bg-indigo-950/40 border-indigo-500/60 ring-1 ring-indigo-500/40"
+                                  : "bg-[#0a0b0e] border-white/[0.06] hover:border-white/[0.12] text-slate-400"
+                              }`}
+                            >
+                              <div>
+                                <div className="flex justify-between items-center mb-1">
+                                  <span
+                                    className={`text-[10px] font-mono font-bold uppercase tracking-wider ${
+                                      idx === 0 ? "text-indigo-300" : "text-amber-400"
+                                    }`}
+                                  >
+                                    {idx === 0 ? "★ Rank #1: Recommended" : "⚡ Rank #2: Alternative"}
+                                  </span>
+                                  <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/[0.06] text-slate-300">
+                                    {sc.feasibility}
+                                  </span>
+                                </div>
+                                <div className="font-semibold text-xs text-slate-100">{sc.name}</div>
+                              </div>
+                              <div className="text-[11px] text-slate-400 font-mono mt-2 pt-2 border-t border-white/[0.06] flex justify-between">
+                                <span>
+                                  Makespan: <strong className="text-slate-200">+{sc.projected_makespan_delta_hours}h</strong>
+                                </span>
+                                <span>
+                                  Cost: <strong className="text-amber-400">+${sc.estimated_cost_delta}</strong>
+                                </span>
+                                <span>
+                                  Delay:{" "}
+                                  <strong className={sc.orders_delayed > 0 ? "text-rose-400" : "text-emerald-400"}>
+                                    {sc.orders_delayed}
+                                  </strong>
+                                </span>
+                              </div>
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
 
-                    <div className="text-xs text-slate-400 italic bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
-                      "{disruptionResult.recommended_scenario.rationale}"
-                    </div>
+                    {/* Active Scenario Detailed View */}
+                    <div className="pt-2 border-t border-white/[0.08] space-y-3">
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs font-mono font-bold uppercase px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                            Active Scenario
+                          </span>
+                          <h2 className="text-base font-bold text-white">{activeScenario.name}</h2>
+                        </div>
+                        <p className="text-xs text-slate-300 mt-1">{activeScenario.action}</p>
+                      </div>
 
-                    <div className="mt-4 flex justify-end">
-                      <button
-                        onClick={handleApplyMitigation}
-                        disabled={applyingMitigation}
-                        className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-lg text-xs shadow-sm flex items-center space-x-1.5 transition-all"
-                      >
-                        {applyingMitigation ? (
-                          <>
-                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                            <span>Reallocating Operations...</span>
-                          </>
-                        ) : (
-                          <>
-                            <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>Approve & Re-Optimize Schedule</span>
-                          </>
-                        )}
-                      </button>
+                      <div className="grid grid-cols-3 gap-3 my-3">
+                        <div className="bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
+                          <span className="text-[10px] text-slate-400 block font-mono">Makespan Delta</span>
+                          <span className="text-sm font-bold font-mono text-slate-200">
+                            +{activeScenario.projected_makespan_delta_hours}h
+                          </span>
+                        </div>
+                        <div className="bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
+                          <span className="text-[10px] text-slate-400 block font-mono">Cost Delta</span>
+                          <span className="text-sm font-bold font-mono text-amber-400">
+                            +${activeScenario.estimated_cost_delta}
+                          </span>
+                        </div>
+                        <div className="bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
+                          <span className="text-[10px] text-slate-400 block font-mono">Customer Delays</span>
+                          <span
+                            className={`text-sm font-bold font-mono ${
+                              activeScenario.orders_delayed > 0 ? "text-rose-400" : "text-emerald-400"
+                            }`}
+                          >
+                            {activeScenario.orders_delayed} order(s)
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="text-xs text-slate-400 italic bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
+                        "{activeScenario.rationale}"
+                      </div>
+
+                      <div className="mt-4 flex justify-end">
+                        <button
+                          onClick={() => handleApplyMitigation(activeScenario)}
+                          disabled={applyingMitigation}
+                          className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-lg text-xs shadow-sm flex items-center space-x-1.5 transition-all"
+                        >
+                          {applyingMitigation ? (
+                            <>
+                              <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                              <span>Executing Mitigation Protocol...</span>
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="w-3.5 h-3.5" />
+                              <span>Commit & Execute: {activeScenario.name}</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 ) : (

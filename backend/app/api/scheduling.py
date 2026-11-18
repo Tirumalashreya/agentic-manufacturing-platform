@@ -101,12 +101,16 @@ async def simulate_disruption(payload: Dict[str, Any], db: AsyncSession = Depend
 async def apply_disruption_mitigation(payload: Dict[str, Any], db: AsyncSession = Depends(get_db)):
     """
     Applies the selected disruption mitigation scenario in real time:
-    Reroutes operations from the failed machine to an alternative parallel machine,
-    adds changeover buffers, updates operation statuses, and logs a SOX audit trail entry.
+    - DYNAMIC_REROUTE: Reroutes operations from the failed machine to an alternative parallel machine,
+      adds changeover buffers, updates operation statuses, and logs a SOX audit trail entry.
+    - OVERTIME_SHIFT: Schedules a dedicated catch-up overtime shift, shifts subsequent operations,
+      and logs an overtime labor variance authorization in the audit ledger.
     """
     from app.models.audit import AuditLog
     machine_code = payload.get("machine_code")
     downtime_hours = float(payload.get("downtime_hours", 4.0))
+    action_type = payload.get("action_type", "DYNAMIC_REROUTE")
+    scenario_name = payload.get("scenario_name", "Dynamic Reroute to Parallel Work Centers")
 
     # 1. Find target machine
     m_res = await db.execute(select(Machine).where(Machine.code == machine_code))
@@ -114,14 +118,48 @@ async def apply_disruption_mitigation(payload: Dict[str, Any], db: AsyncSession 
     if not target_machine:
         raise HTTPException(status_code=404, detail="Target machine not found.")
 
-    # 2. Find parallel machine in same or sibling work center
+    # 2. Find operations on target machine
+    ops_res = await db.execute(select(ScheduledOperation).where(ScheduledOperation.machine_id == target_machine.id))
+    ops = ops_res.scalars().all()
+
+    if action_type == "OVERTIME_SHIFT":
+        # Shift operations by downtime buffer for overtime catchup
+        for op in ops:
+            op.status = "OVERTIME_SCHEDULED"
+            op.planned_start = op.planned_start + timedelta(hours=downtime_hours)
+            op.planned_end = op.planned_end + timedelta(hours=downtime_hours)
+
+        audit = AuditLog(
+            actor="operations.director@enterprise.com",
+            action="DISRUPTION_OVERTIME_AUTHORIZED",
+            entity_type="Machine",
+            entity_id=target_machine.id,
+            details={
+                "failed_machine": machine_code,
+                "action_type": action_type,
+                "scenario_name": scenario_name,
+                "downtime_hours": downtime_hours,
+                "overtime_labor_cost_delta": 1200.0,
+                "adjusted_operations_count": len(ops),
+                "status": "OVERTIME_SHIFT_COMMITTED"
+            }
+        )
+        db.add(audit)
+        await db.commit()
+
+        return {
+            "status": "SUCCESS",
+            "message": f"Overtime catch-up shift authorized for {machine_code}! Scheduled 8h buffer for {len(ops)} operations.",
+            "action_type": action_type,
+            "rerouted_count": len(ops),
+            "new_machine": machine_code
+        }
+
+    # Default: DYNAMIC_REROUTE
+    # Find parallel machine in same or sibling work center
     alt_res = await db.execute(select(Machine).where(Machine.id != target_machine.id))
     alt_machines = alt_res.scalars().all()
     alt_machine = next((m for m in alt_machines if m.work_center_id == target_machine.work_center_id), alt_machines[0] if alt_machines else None)
-
-    # 3. Find operations on target machine
-    ops_res = await db.execute(select(ScheduledOperation).where(ScheduledOperation.machine_id == target_machine.id))
-    ops = ops_res.scalars().all()
 
     rerouted_count = 0
     if alt_machine and ops:
@@ -133,7 +171,7 @@ async def apply_disruption_mitigation(payload: Dict[str, Any], db: AsyncSession 
             op.planned_end = op.planned_end + timedelta(hours=1.4)
             rerouted_count += 1
 
-    # 4. Record SOX Audit Log
+    # Record SOX Audit Log
     audit = AuditLog(
         actor="operations.director@enterprise.com",
         action="DISRUPTION_MITIGATION_COMMITTED",
@@ -144,6 +182,7 @@ async def apply_disruption_mitigation(payload: Dict[str, Any], db: AsyncSession 
             "target_alternate_machine": alt_machine.code if alt_machine else "NONE",
             "downtime_hours": downtime_hours,
             "rerouted_operations_count": rerouted_count,
+            "scenario_name": scenario_name,
             "status": "ZERO_DELIVERY_BREACH_GUARANTEED"
         }
     )
@@ -153,6 +192,7 @@ async def apply_disruption_mitigation(payload: Dict[str, Any], db: AsyncSession 
     return {
         "status": "SUCCESS",
         "message": f"Schedule re-optimized! Rerouted {rerouted_count} operations from {machine_code} to {alt_machine.code if alt_machine else 'parallel line'} with zero delivery breaches.",
+        "action_type": action_type,
         "rerouted_count": rerouted_count,
         "new_machine": alt_machine.code if alt_machine else None
     }

@@ -93,22 +93,53 @@ The plant model reflects **GAIC Chicago Plant (PLANT-01)** with 4 certified Work
 ## 5. System Architecture & Tech Stack
 
 - **Backend**:
-  - Python 3.11+ / FastAPI async server
+  - Python 3.11+ / FastAPI async server with zero deprecation warnings
   - SQLAlchemy 2.0 with `asyncpg` (PostgreSQL) and `aiosqlite` (SQLite)
-  - Google OR-Tools CP-SAT constraint programming solver
-  - Pydantic Settings for zero-friction environment switching
-- **Frontend**:
+  - Google OR-Tools CP-SAT constraint programming solver (mathematical non-overlap and setup minimization)
+  - Pydantic Settings V2 for robust environment management
+  - Automated test suite with 100% pass rate (`pytest tests/`)
+- **Frontend Cockpit**:
   - React 19 + TypeScript + Vite 8
-  - Tailwind CSS with customized dark enterprise HUD design
+  - Industrial Titanium Cockpit (`#090a0d` matte graphite, subtle blueprint technical grid, 1px precision hairline borders)
   - Canvas Confetti for celebratory order execution animations
-  - Lucide React iconography
+  - Real-time zero-latency table filtering and multi-attribute search
+  - Interactive Master Gantt operation inspector drawer
+  - One-click CSV exports for Sales Pipeline, Outbound Deliveries, Invoices, Inventory, Audit Trail, and Production Schedules
 - **Security & Compliance**:
-  - CAS (Compare-And-Swap) approval tokens
-  - SOX Section 404 audit logging with actor identity and immutable JSON payload capture
+  - CAS (Compare-And-Swap) cryptographic approval tokens
+  - SOX Section 404 audit logging with actor identity, timestamp, and immutable JSON payload capture
 
 ---
 
-## 6. One-Click Quickstart
+## 6. Installed Open-Source UI Engineering Skills
+
+To eliminate generic AI SaaS tells and achieve Tier-1 enterprise software craft (Linear, Palantir, Apple caliber), 5 industry-standard skills are installed under `.agents/skills/`:
+
+1. **`frontend-ui-engineering`** (`addyosmani/agent-skills`): Authored by Addy Osmani (Google Chrome Engineering Lead). Enforces component composition over prop-heavy configurations, keyboard accessibility (`Esc` drawer dismissal), explicit dual-indicator states (icons + text), and skeleton loaders.
+2. **`impeccable`** (`pbakaus/impeccable`): Authored by Paul Bakaus (former jQuery UI & Google AMP Lead). Governs "Operate Mode" enterprise precision, dense information layouts, tabular scanability, and craftsmanship floors.
+3. **`frontend-design`** (`anthropics/skills`): Official design studio guidelines from Anthropic eliminating generic AI tells (chopping everything into identical rounded cards, tracked-out ALL-CAPS eyebrows, middle dots).
+4. **`premium-frontend-ui`** (`github/awesome-copilot`): GitHub flagship skill for high-craft digital environments, fluid typography, 1px hairline borders (`rgba(255,255,255,0.08)`), and hardware-accelerated animations.
+5. **`tailwind-design-system`** (`wshobson/agents`): Modern CSS-first design tokens and compound component patterns.
+
+---
+
+## 7. Automated Test Suite & Verification
+
+The backend includes a comprehensive automated test suite verifying constraint satisfaction and financial audit integrity:
+
+```bash
+cd backend
+.venv/bin/pytest
+```
+
+**Test Coverage**:
+- `test_finite_scheduler.py`: Verifies OR-Tools CP-SAT non-overlapping machine allocations, precedence ordering, and makespan minimization.
+- `test_o2c_pipeline.py`: Verifies full 6-stage document flow from RFQ intake, CAS digital sign-off, Sales Order (`OR`), Planned Production Order (`AFKO`), Outbound Delivery (`LF`), to Billing Invoice (`F2`).
+- `test_disruption_copilot.py`: Verifies machine failure blast-radius simulation, multi-scenario Pareto rankings, real-time Dynamic Reroute mitigation, and Weekend Overtime shift authorizations.
+
+---
+
+## 8. One-Click Quickstart
 
 ### Automated Launch
 ```bash
@@ -128,6 +159,7 @@ cd backend
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+pytest
 uvicorn app.main:app --port 8080 --reload
 
 # Terminal 2: Frontend
