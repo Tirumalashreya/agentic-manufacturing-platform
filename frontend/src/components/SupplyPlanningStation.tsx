@@ -19,6 +19,8 @@ import {
   PackageCheck,
   Workflow,
   ArrowRight,
+  BookOpen,
+  Info,
 } from "lucide-react";
 
 interface SupplyPlanningStationProps {
@@ -41,6 +43,7 @@ interface SupplyPlanningStationProps {
 
 export default function SupplyPlanningStation(props: SupplyPlanningStationProps) {
   const [subTab, setSubTab] = useState<"requirements" | "orders" | "bom" | "suppliers">("requirements");
+  const [showSapGuide, setShowSapGuide] = useState(false);
 
   const purchaseOrders = props.mrpData?.purchase_orders || [];
   const openPrCount = purchaseOrders.filter((po: any) => po.status === "DRAFT_PR").length;
@@ -71,9 +74,18 @@ export default function SupplyPlanningStation(props: SupplyPlanningStationProps)
           </div>
         </div>
 
-        {/* Buyer Persona & Quick Stats */}
+        {/* Buyer Persona & Guide Button */}
         <div className="flex items-center space-x-3 text-xs">
-          <div className="text-right">
+          <button
+            onClick={() => setShowSapGuide(!showSapGuide)}
+            className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-emerald-950/50 hover:bg-emerald-900/60 text-emerald-300 border border-emerald-500/30 transition-all cursor-pointer font-mono text-[11px] whitespace-nowrap"
+            title="View translation guide from legacy SAP MD01N / MD04"
+          >
+            <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
+            <span>{showSapGuide ? "Hide SAP Guide" : "Switching from SAP MRP? (Guide)"}</span>
+          </button>
+
+          <div className="text-right border-l border-white/[0.08] pl-3">
             <div className="font-semibold text-slate-200">Elena Rostova</div>
             <div className="text-slate-400 text-[11px] font-mono">Lead Supply Planner & Global Buyer</div>
           </div>
@@ -82,6 +94,46 @@ export default function SupplyPlanningStation(props: SupplyPlanningStationProps)
           </div>
         </div>
       </div>
+
+      {/* SAP / Oracle Transition Guide for Supply Planners */}
+      {showSapGuide && (
+        <div className="p-5 rounded-xl bg-gradient-to-r from-emerald-950/60 to-[#0e111a] border border-emerald-500/30 text-xs space-y-3 animate-in fade-in duration-200">
+          <div className="flex justify-between items-start">
+            <div className="flex items-center space-x-2 text-emerald-300 font-bold text-sm">
+              <Info className="w-4 h-4" />
+              <span>Supply Planner Guide: How This Replaces Legacy SAP MD01N & Old MRP Runs</span>
+            </div>
+            <button
+              onClick={() => setShowSapGuide(false)}
+              className="text-slate-400 hover:text-white font-mono text-xs px-2 py-0.5 bg-white/[0.04] rounded cursor-pointer"
+            >
+              ✕ Close
+            </button>
+          </div>
+
+          <p className="text-slate-300 leading-relaxed">
+            In traditional systems like <strong>SAP ERP (MD01N / MD04 / ME21N)</strong>, Material Buyers and SCM Planners suffered from:
+            <strong> (1) Overnight batch MRP runs</strong> that meant acting on 12-hour-old data,
+            <strong> (2) Clunky tree navigators</strong> across multiple screens just to trace which component was short, and
+            <strong> (3) Manual Purchase Requisition generation</strong> (ME51N) followed by manual PO release (ME21N). Here is your modernized experience:
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 font-mono text-[11px]">
+            <div className="p-3 rounded-lg bg-[#08090d] border border-white/[0.08] space-y-1">
+              <span className="text-rose-400 font-bold block">OLD SAP MD01N</span>
+              <div className="text-slate-400">Overnight batch netting, cryptic MD04 stock requirement trees, and manual calculation of engineering scrap factors.</div>
+            </div>
+            <div className="p-3 rounded-lg bg-[#08090d] border border-emerald-500/30 space-y-1">
+              <span className="text-emerald-300 font-bold block">AUTONOMOUS MULTI-LEVEL MRP</span>
+              <div className="text-slate-300">Explodes multi-level BOMs in 1-click. Applies scrap factors (2% CNC, 3.5% laser) and computes deterministic net requirements instantaneously.</div>
+            </div>
+            <div className="p-3 rounded-lg bg-[#08090d] border border-blue-500/30 space-y-1">
+              <span className="text-blue-400 font-bold block">CLOSED-LOOP PROCUREMENT</span>
+              <div className="text-slate-300">Auto-generates Purchase Requisitions with lead-time dock dates. 1-click PO release (ME21N) and 1-click MIGO 101 Goods Receipt.</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* SCM Telemetry Bar */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -117,10 +169,10 @@ export default function SupplyPlanningStation(props: SupplyPlanningStationProps)
 
       {/* Sub-Navigation & Actions */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-white/[0.08] pb-2">
-        <div className="flex space-x-1">
+        <div className="flex space-x-1 overflow-x-auto">
           <button
             onClick={() => setSubTab("requirements")}
-            className={`flex items-center space-x-2 px-4 py-2 text-xs font-medium border-b-2 transition-all ${
+            className={`flex items-center space-x-2 px-4 py-2 text-xs font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
               subTab === "requirements"
                 ? "border-emerald-500 text-emerald-400 bg-emerald-500/[0.04]"
                 : "border-transparent text-slate-400 hover:text-slate-200"
@@ -137,7 +189,7 @@ export default function SupplyPlanningStation(props: SupplyPlanningStationProps)
 
           <button
             onClick={() => setSubTab("orders")}
-            className={`flex items-center space-x-2 px-4 py-2 text-xs font-medium border-b-2 transition-all ${
+            className={`flex items-center space-x-2 px-4 py-2 text-xs font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
               subTab === "orders"
                 ? "border-emerald-500 text-emerald-400 bg-emerald-500/[0.04]"
                 : "border-transparent text-slate-400 hover:text-slate-200"
@@ -154,7 +206,7 @@ export default function SupplyPlanningStation(props: SupplyPlanningStationProps)
 
           <button
             onClick={() => setSubTab("bom")}
-            className={`flex items-center space-x-2 px-4 py-2 text-xs font-medium border-b-2 transition-all ${
+            className={`flex items-center space-x-2 px-4 py-2 text-xs font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
               subTab === "bom"
                 ? "border-emerald-500 text-emerald-400 bg-emerald-500/[0.04]"
                 : "border-transparent text-slate-400 hover:text-slate-200"
@@ -166,7 +218,7 @@ export default function SupplyPlanningStation(props: SupplyPlanningStationProps)
 
           <button
             onClick={() => setSubTab("suppliers")}
-            className={`flex items-center space-x-2 px-4 py-2 text-xs font-medium border-b-2 transition-all ${
+            className={`flex items-center space-x-2 px-4 py-2 text-xs font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
               subTab === "suppliers"
                 ? "border-emerald-500 text-emerald-400 bg-emerald-500/[0.04]"
                 : "border-transparent text-slate-400 hover:text-slate-200"
@@ -181,7 +233,7 @@ export default function SupplyPlanningStation(props: SupplyPlanningStationProps)
         <button
           onClick={props.handleRunMrp}
           disabled={props.runningMrp}
-          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-lg text-xs shadow-sm flex items-center space-x-2 transition-all cursor-pointer"
+          className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-lg text-xs shadow-sm flex items-center space-x-2 transition-all cursor-pointer whitespace-nowrap"
         >
           {props.runningMrp ? (
             <>
@@ -208,7 +260,7 @@ export default function SupplyPlanningStation(props: SupplyPlanningStationProps)
           </div>
           <button
             onClick={() => props.setMrpMessage(null)}
-            className="text-xs text-emerald-300 hover:text-white px-2 py-0.5 bg-emerald-900/40 rounded border border-emerald-700/50"
+            className="text-xs text-emerald-300 hover:text-white px-2 py-0.5 bg-emerald-900/40 rounded border border-emerald-700/50 cursor-pointer"
           >
             Dismiss
           </button>
@@ -237,7 +289,7 @@ export default function SupplyPlanningStation(props: SupplyPlanningStationProps)
                 <button
                   key={f.val}
                   onClick={() => props.setMrpFilterStatus(f.val)}
-                  className={`px-2.5 py-0.5 rounded text-[11px] font-mono transition-colors ${
+                  className={`px-2.5 py-0.5 rounded text-[11px] font-mono transition-colors cursor-pointer ${
                     props.mrpFilterStatus === f.val
                       ? "bg-emerald-600 text-white font-semibold"
                       : "bg-white/[0.04] text-slate-400 hover:text-slate-200"
@@ -262,7 +314,7 @@ export default function SupplyPlanningStation(props: SupplyPlanningStationProps)
                   }));
                   props.exportToCsv("mrp_net_requirements.csv", rows);
                 }}
-                className="flex items-center space-x-1 px-2.5 py-1 bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded border border-white/[0.08] transition-colors ml-2"
+                className="flex items-center space-x-1 px-2.5 py-1 bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded border border-white/[0.08] transition-colors ml-2 cursor-pointer"
               >
                 <Download className="w-3 h-3 text-emerald-400" />
                 <span>Export CSV</span>
@@ -362,7 +414,7 @@ export default function SupplyPlanningStation(props: SupplyPlanningStationProps)
                 }));
                 props.exportToCsv("procurement_purchase_orders.csv", rows);
               }}
-              className="flex items-center space-x-1 px-2.5 py-1 bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded border border-white/[0.08] text-xs transition-colors"
+              className="flex items-center space-x-1 px-2.5 py-1 bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 rounded border border-white/[0.08] text-xs transition-colors cursor-pointer"
             >
               <Download className="w-3 h-3 text-emerald-400" />
               <span>Export PO Ledger (CSV)</span>
