@@ -31,6 +31,10 @@ import {
   Download,
   Boxes,
   Split,
+  LayoutGrid,
+  ExternalLink,
+  ChevronDown,
+  Globe,
 } from "lucide-react";
 
 import CommercialStation from "./components/CommercialStation";
@@ -71,8 +75,57 @@ function exportToCsv(filename: string, rows: Record<string, any>[]) {
   URL.revokeObjectURL(url);
 }
 
+// Determine active standalone application based on Port, URL search params, or pathname
+function getInitialApp(): "commercial" | "schedule" | "mrp" | "dual" | "executive" {
+  if (typeof window === "undefined") return "commercial";
+
+  const params = new URLSearchParams(window.location.search);
+  const appParam = params.get("app");
+  if (appParam === "sales" || appParam === "commercial") return "commercial";
+  if (appParam === "aps" || appParam === "schedule" || appParam === "operations") return "schedule";
+  if (appParam === "supply" || appParam === "mrp") return "mrp";
+  if (appParam === "dual") return "dual";
+  if (appParam === "executive") return "executive";
+
+  const path = window.location.pathname.toLowerCase();
+  if (path.includes("sales") || path.includes("commercial")) return "commercial";
+  if (path.includes("aps") || path.includes("schedule") || path.includes("operations")) return "schedule";
+  if (path.includes("supply") || path.includes("mrp")) return "mrp";
+  if (path.includes("dual")) return "dual";
+  if (path.includes("executive")) return "executive";
+
+  // Dedicated Port Mapping:
+  // Port 3001 ➔ Dedicated Commercial Sales Website
+  // Port 3002 ➔ Dedicated Plant Operations & APS Console
+  // Port 3003 ➔ Dedicated Supply Planning & Procurement
+  // Port 3000 ➔ Dual-Station Live Synchronized Monitor
+  const port = window.location.port;
+  if (port === "3001") return "commercial";
+  if (port === "3002") return "schedule";
+  if (port === "3003") return "mrp";
+  if (port === "3000") return "dual";
+
+  return "commercial";
+}
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState<"commercial" | "schedule" | "mrp" | "dual" | "executive">("commercial");
+  const [activeApp, setActiveApp] = useState<"commercial" | "schedule" | "mrp" | "dual" | "executive">(getInitialApp);
+  const [showAppSwitcher, setShowAppSwitcher] = useState(false);
+
+  // Synchronize document title based on dedicated app
+  useEffect(() => {
+    if (activeApp === "commercial") {
+      document.title = "Order Management Cloud (Commercial O2C) — GAIC Enterprise";
+    } else if (activeApp === "schedule") {
+      document.title = "Production Scheduling Console (Plant APS) — Austin Plant #1";
+    } else if (activeApp === "mrp") {
+      document.title = "Supply Planning & Sourcing Cloud (MRP) — GAIC Global";
+    } else if (activeApp === "dual") {
+      document.title = "Enterprise SCM Cloud — Dual Workstation Live Monitor";
+    } else {
+      document.title = "Executive Supply Chain Radar — GAIC Enterprise";
+    }
+  }, [activeApp]);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
@@ -117,6 +170,16 @@ export default function App() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [syncing, setSyncing] = useState(false);
 
+  // Switch app helper (updates state and URL query param)
+  const handleSwitchApp = (app: "commercial" | "schedule" | "mrp" | "dual" | "executive") => {
+    setActiveApp(app);
+    setShowAppSwitcher(false);
+    const url = new URL(window.location.href);
+    const key = app === "commercial" ? "sales" : app === "schedule" ? "aps" : app === "mrp" ? "supply" : app;
+    url.searchParams.set("app", key);
+    window.history.pushState({}, "", url.toString());
+  };
+
   // Load authoritative ERP data
   const fetchData = async () => {
     setSyncing(true);
@@ -156,6 +219,7 @@ export default function App() {
       if (e.key === "Escape") {
         setSelectedOrderFlow(null);
         setSelectedOperation(null);
+        setShowAppSwitcher(false);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -467,116 +531,261 @@ export default function App() {
 
   return (
     <div className="flex flex-col h-screen bg-[#090a0d] text-slate-100 overflow-hidden font-sans technical-grid selection:bg-blue-600/30">
-      {/* Precision Master Cockpit Header */}
+      {/* ============================================================== */}
+      {/* DEDICATED INDEPENDENT APPLICATION HEADER                       */}
+      {/* ============================================================== */}
       <header className="h-14 border-b border-white/[0.08] bg-[#0c0e14]/95 px-6 flex items-center justify-between backdrop-blur-md z-30">
-        <div className="flex items-center space-x-5">
-          <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-600 to-indigo-700 flex items-center justify-center font-bold text-white text-xs shadow-md">
-              APS
+        <div className="flex items-center space-x-4">
+          {/* Dedicated Branding by Application */}
+          {activeApp === "commercial" && (
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white shadow-md">
+                <Building2 className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h1 className="font-bold text-sm tracking-tight text-white">Order Management Cloud</h1>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20 font-bold">
+                    Commercial Portal
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-400 font-mono">
+                  User: <strong className="text-slate-200 font-sans">Sarah Jenkins</strong> · Inside Sales Desk
+                </div>
+              </div>
             </div>
-            <div className="flex items-baseline space-x-2">
-              <span className="font-bold text-sm tracking-tight text-white">Enterprise APS & O2C</span>
-              <span className="text-[10px] font-mono text-cyan-400 border border-cyan-500/20 px-1.5 py-0.5 rounded bg-cyan-500/10">
-                Oracle Redwood / SAP S4
-              </span>
-            </div>
-          </div>
+          )}
 
-          <div className="hidden xl:flex items-center text-xs text-slate-400 space-x-3 border-l border-white/[0.08] pl-4 font-mono">
-            <span className="flex items-center">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 mr-2 animate-pulse"></span>
-              Core: <strong>PostgreSQL + CP-SAT + MRP Engine (Synced)</strong>
-            </span>
-          </div>
+          {activeApp === "schedule" && (
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white shadow-md">
+                <Calendar className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h1 className="font-bold text-sm tracking-tight text-white">Production Scheduling Console</h1>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 font-bold">
+                    Plant APS Portal
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-400 font-mono">
+                  User: <strong className="text-slate-200 font-sans">Dave Vance</strong> · Austin Plant #1 Dispatcher
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeApp === "mrp" && (
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 rounded-lg bg-emerald-600 flex items-center justify-center font-bold text-white shadow-md">
+                <Boxes className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h1 className="font-bold text-sm tracking-tight text-white">Supply Planning Cloud</h1>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 font-bold">
+                    MRP & Procurement Portal
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-400 font-mono">
+                  User: <strong className="text-slate-200 font-sans">Elena Rostova</strong> · Lead Supply Planner
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeApp === "dual" && (
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 rounded-lg bg-cyan-600 flex items-center justify-center font-bold text-white shadow-md">
+                <Split className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h1 className="font-bold text-sm tracking-tight text-white">Enterprise SCM Cloud</h1>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 font-bold">
+                    Dual-Station Live Monitor
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-400 font-mono">
+                  Digital Thread: <strong className="text-cyan-300">Sales ➔ Plant Dispatch Sync Active</strong>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeApp === "executive" && (
+            <div className="flex items-center space-x-3">
+              <div className="w-8 h-8 rounded-lg bg-purple-600 flex items-center justify-center font-bold text-white shadow-md">
+                <Activity className="w-4 h-4" />
+              </div>
+              <div>
+                <div className="flex items-center space-x-2">
+                  <h1 className="font-bold text-sm tracking-tight text-white">Executive Telemetry Radar</h1>
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 font-bold">
+                    S&OP Leadership
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-400 font-mono">
+                  Executive VP / Operations Leadership
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Dedicated Persona Workstation Seats */}
-        <nav className="flex space-x-1.5 bg-black/50 p-1 rounded-xl border border-white/[0.08] text-xs">
-          <button
-            onClick={() => setActiveTab("commercial")}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center space-x-2 cursor-pointer ${
-              activeTab === "commercial"
-                ? "bg-blue-600 text-white shadow-sm border border-blue-400/40"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-            title="Commercial Order Management Cloud (Sales Rep / CSR Seat)"
-          >
-            <Building2 className="w-3.5 h-3.5" />
-            <span>Seat 1: Commercial (O2C)</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("schedule")}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center space-x-2 cursor-pointer ${
-              activeTab === "schedule"
-                ? "bg-indigo-600 text-white shadow-sm border border-indigo-400/40"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-            title="Production Scheduling Console (Plant Dispatcher Seat)"
-          >
-            <Calendar className="w-3.5 h-3.5" />
-            <span>Seat 2: Plant Operations</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("mrp")}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center space-x-2 cursor-pointer ${
-              activeTab === "mrp"
-                ? "bg-emerald-600 text-white shadow-sm border border-emerald-400/40"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-            title="Supply Planning & Procurement (Material Buyer Seat)"
-          >
-            <Boxes className="w-3.5 h-3.5" />
-            <span>Seat 3: Supply Planning</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("dual")}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center space-x-2 cursor-pointer ${
-              activeTab === "dual"
-                ? "bg-cyan-600 text-white shadow-sm border border-cyan-400/40"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-            title="Side-by-Side Dual-Seat Synchronized Monitor"
-          >
-            <Split className="w-3.5 h-3.5" />
-            <span>Dual-Seat Split View</span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab("executive")}
-            className={`px-3 py-1.5 rounded-lg font-medium transition-all flex items-center space-x-2 cursor-pointer ${
-              activeTab === "executive"
-                ? "bg-purple-600 text-white shadow-sm border border-purple-400/40"
-                : "text-slate-400 hover:text-slate-200"
-            }`}
-            title="Executive Radar & Telemetry"
-          >
-            <Activity className="w-3.5 h-3.5" />
-            <span>Seat 4: Executive</span>
-          </button>
-        </nav>
-
-        {/* Global Sync Status */}
+        {/* Global Synchronization Pulse & Oracle Redwood App Switcher */}
         <div className="flex items-center space-x-3 text-xs font-mono">
+          <div className="hidden lg:flex items-center space-x-2 px-3 py-1 bg-white/[0.03] border border-white/[0.06] rounded-lg text-slate-400">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>Core: <strong>PostgreSQL :8080 (Single Source of Truth)</strong></span>
+          </div>
+
           <button
             onClick={fetchData}
             disabled={syncing}
-            className="flex items-center space-x-1.5 px-2.5 py-1 rounded bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] transition-all cursor-pointer"
+            className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-slate-300 border border-white/[0.08] transition-all cursor-pointer"
             title="Refresh ERP State"
           >
             <RefreshCw className={`w-3.5 h-3.5 text-blue-400 ${syncing ? "animate-spin" : ""}`} />
-            <span>{syncing ? "Syncing..." : "Sync Core"}</span>
+            <span className="hidden sm:inline">{syncing ? "Syncing..." : "Sync Core"}</span>
           </button>
+
+          {/* Oracle Redwood Enterprise App Navigator Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowAppSwitcher(!showAppSwitcher)}
+              className="flex items-center space-x-2 px-3 py-1.5 rounded-lg bg-white/[0.08] hover:bg-white/[0.12] text-white border border-white/[0.12] transition-all cursor-pointer font-sans font-semibold text-xs shadow-sm"
+              title="Switch between independent enterprise websites"
+            >
+              <LayoutGrid className="w-3.5 h-3.5 text-cyan-400" />
+              <span>Switch Application</span>
+              <ChevronDown className={`w-3.5 h-3.5 text-slate-400 transition-transform ${showAppSwitcher ? "rotate-180" : ""}`} />
+            </button>
+
+            {showAppSwitcher && (
+              <div className="absolute right-0 mt-2 w-80 bg-[#0d1017] border border-white/[0.15] rounded-xl shadow-2xl p-2.5 space-y-1.5 z-50 animate-in fade-in zoom-in-95 duration-150 font-sans">
+                <div className="px-3 py-1.5 border-b border-white/[0.08] flex justify-between items-center text-[11px] text-slate-400 font-mono">
+                  <span>ENTERPRISE APPLICATION PORTALS</span>
+                  <span className="text-cyan-400">Single Cloud Core</span>
+                </div>
+
+                {/* App 1: Commercial Sales */}
+                <button
+                  onClick={() => handleSwitchApp("commercial")}
+                  className={`w-full p-2.5 rounded-lg text-left transition-all flex items-center justify-between cursor-pointer ${
+                    activeApp === "commercial"
+                      ? "bg-blue-600/20 border border-blue-500/40 text-white"
+                      : "hover:bg-white/[0.05] text-slate-300 border border-transparent"
+                  }`}
+                >
+                  <div className="flex items-center space-x-2.5">
+                    <div className="w-7 h-7 rounded-md bg-blue-600/30 flex items-center justify-center text-blue-400">
+                      <Building2 className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-xs text-white">Order Management Cloud</div>
+                      <div className="text-[10px] text-slate-400 font-mono">Port :3001 · Sales Rep / CSR Portal</div>
+                    </div>
+                  </div>
+                  {activeApp === "commercial" && <Check className="w-4 h-4 text-blue-400" />}
+                </button>
+
+                {/* App 2: Plant Operations & APS */}
+                <button
+                  onClick={() => handleSwitchApp("schedule")}
+                  className={`w-full p-2.5 rounded-lg text-left transition-all flex items-center justify-between cursor-pointer ${
+                    activeApp === "schedule"
+                      ? "bg-indigo-600/20 border border-indigo-500/40 text-white"
+                      : "hover:bg-white/[0.05] text-slate-300 border border-transparent"
+                  }`}
+                >
+                  <div className="flex items-center space-x-2.5">
+                    <div className="w-7 h-7 rounded-md bg-indigo-600/30 flex items-center justify-center text-indigo-400">
+                      <Calendar className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-xs text-white">Production Scheduling Console</div>
+                      <div className="text-[10px] text-slate-400 font-mono">Port :3002 · Plant Floor Dispatcher</div>
+                    </div>
+                  </div>
+                  {activeApp === "schedule" && <Check className="w-4 h-4 text-indigo-400" />}
+                </button>
+
+                {/* App 3: Supply Planning & MRP */}
+                <button
+                  onClick={() => handleSwitchApp("mrp")}
+                  className={`w-full p-2.5 rounded-lg text-left transition-all flex items-center justify-between cursor-pointer ${
+                    activeApp === "mrp"
+                      ? "bg-emerald-600/20 border border-emerald-500/40 text-white"
+                      : "hover:bg-white/[0.05] text-slate-300 border border-transparent"
+                  }`}
+                >
+                  <div className="flex items-center space-x-2.5">
+                    <div className="w-7 h-7 rounded-md bg-emerald-600/30 flex items-center justify-center text-emerald-400">
+                      <Boxes className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-xs text-white">Supply Planning Cloud (MRP)</div>
+                      <div className="text-[10px] text-slate-400 font-mono">Port :3003 · Material Buyer & Sourcing</div>
+                    </div>
+                  </div>
+                  {activeApp === "mrp" && <Check className="w-4 h-4 text-emerald-400" />}
+                </button>
+
+                {/* App 4: Dual-Monitor Split View */}
+                <button
+                  onClick={() => handleSwitchApp("dual")}
+                  className={`w-full p-2.5 rounded-lg text-left transition-all flex items-center justify-between cursor-pointer ${
+                    activeApp === "dual"
+                      ? "bg-cyan-600/20 border border-cyan-500/40 text-white"
+                      : "hover:bg-white/[0.05] text-slate-300 border border-transparent"
+                  }`}
+                >
+                  <div className="flex items-center space-x-2.5">
+                    <div className="w-7 h-7 rounded-md bg-cyan-600/30 flex items-center justify-center text-cyan-400">
+                      <Split className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-xs text-white">Dual-Station Live Monitor</div>
+                      <div className="text-[10px] text-slate-400 font-mono">Port :3000 · Side-by-Side Sync View</div>
+                    </div>
+                  </div>
+                  {activeApp === "dual" && <Check className="w-4 h-4 text-cyan-400" />}
+                </button>
+
+                {/* App 5: Executive Radar */}
+                <button
+                  onClick={() => handleSwitchApp("executive")}
+                  className={`w-full p-2.5 rounded-lg text-left transition-all flex items-center justify-between cursor-pointer ${
+                    activeApp === "executive"
+                      ? "bg-purple-600/20 border border-purple-500/40 text-white"
+                      : "hover:bg-white/[0.05] text-slate-300 border border-transparent"
+                  }`}
+                >
+                  <div className="flex items-center space-x-2.5">
+                    <div className="w-7 h-7 rounded-md bg-purple-600/30 flex items-center justify-center text-purple-400">
+                      <Activity className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="font-semibold text-xs text-white">Executive S&OP Radar</div>
+                      <div className="text-[10px] text-slate-400 font-mono">Enterprise Telemetry & Leadership</div>
+                    </div>
+                  </div>
+                  {activeApp === "executive" && <Check className="w-4 h-4 text-purple-400" />}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
-      {/* Main Viewport */}
+      {/* ============================================================== */}
+      {/* MAIN VIEWPORT: RENDERS ONLY THE ACTIVE INDEPENDENT APPLICATION */}
+      {/* ============================================================== */}
       <main className="flex-1 overflow-y-auto p-6">
         <div className="max-w-7xl mx-auto">
-          {/* SEAT 1: COMMERCIAL WORKSTATION */}
-          {activeTab === "commercial" && (
+          {/* APPLICATION 1: COMMERCIAL ORDER MANAGEMENT CLOUD */}
+          {activeApp === "commercial" && (
             <CommercialStation
               customers={customers}
               salesOrders={salesOrders}
@@ -603,8 +812,8 @@ export default function App() {
             />
           )}
 
-          {/* SEAT 2: SCHEDULING & OPERATIONS WORKSTATION */}
-          {activeTab === "schedule" && (
+          {/* APPLICATION 2: PRODUCTION SCHEDULING & APS CONSOLE */}
+          {activeApp === "schedule" && (
             <SchedulingStation
               ganttData={ganttData}
               materials={inventoryData?.items || []}
@@ -634,8 +843,8 @@ export default function App() {
             />
           )}
 
-          {/* SEAT 3: PROCUREMENT & SUPPLY PLANNING WORKSTATION */}
-          {activeTab === "mrp" && (
+          {/* APPLICATION 3: SUPPLY PLANNING & STRATEGIC SOURCING */}
+          {activeApp === "mrp" && (
             <SupplyPlanningStation
               mrpData={mrpData}
               runningMrp={runningMrp}
@@ -655,8 +864,8 @@ export default function App() {
             />
           )}
 
-          {/* DUAL-SEAT SPLIT SCREEN MONITOR */}
-          {activeTab === "dual" && (
+          {/* APPLICATION 4: DUAL-MONITOR CROSS-WORKSTATION SPLIT SCREEN */}
+          {activeApp === "dual" && (
             <DualStationMonitor
               customers={customers}
               salesOrders={salesOrders}
@@ -688,8 +897,8 @@ export default function App() {
             />
           )}
 
-          {/* SEAT 4: EXECUTIVE RADAR */}
-          {activeTab === "executive" && (
+          {/* APPLICATION 5: EXECUTIVE S&OP RADAR */}
+          {activeApp === "executive" && (
             <ExecutiveStation
               salesOrders={salesOrders}
               materials={inventoryData?.items || []}
