@@ -27,6 +27,7 @@ import {
   Calendar,
   Users,
   Hammer,
+  ArrowRight,
 } from "lucide-react";
 
 interface SchedulingStationProps {
