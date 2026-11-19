@@ -1,5 +1,5 @@
 // frontend/src/components/SchedulingStation.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Factory,
   Cpu,
@@ -24,6 +24,9 @@ import {
   BookOpen,
   Info,
   Check,
+  Calendar,
+  Users,
+  Hammer,
 } from "lucide-react";
 
 interface SchedulingStationProps {
@@ -54,10 +57,21 @@ interface SchedulingStationProps {
   exportToCsv: (filename: string, rows: Record<string, any>[]) => void;
 }
 
+const API_BASE = "http://localhost:8080/api/v1";
+
 export default function SchedulingStation(props: SchedulingStationProps) {
-  const [subTab, setSubTab] = useState<"gantt" | "matrix" | "telemetry" | "copilot" | "inventory" | "audit">("gantt");
+  const [subTab, setSubTab] = useState<"gantt" | "heatmap" | "secondary" | "matrix" | "telemetry" | "copilot" | "inventory" | "audit">("gantt");
   const [showSapGuide, setShowSapGuide] = useState(false);
   const [selectedMatrixCell, setSelectedMatrixCell] = useState<{ from: string; to: string; time: number; note: string } | null>(null);
+  const [enterpriseData, setEnterpriseData] = useState<any>(null);
+
+  // Fetch Oracle Production Scheduling enterprise features
+  useEffect(() => {
+    fetch(`${API_BASE}/scheduling/enterprise-features`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setEnterpriseData(data))
+      .catch((e) => console.error("Scheduling enterprise fetch error:", e));
+  }, []);
 
   const totalOps = props.ganttData?.total_operations_scheduled || 0;
   const activeResourcesCount = props.ganttData?.resources?.length || 9;
@@ -169,7 +183,7 @@ export default function SchedulingStation(props: SchedulingStationProps) {
             </div>
             <button
               onClick={() => setShowSapGuide(false)}
-              className="text-slate-400 hover:text-white font-mono text-xs px-2 py-0.5 bg-white/[0.04] rounded"
+              className="text-slate-400 hover:text-white font-mono text-xs px-2 py-0.5 bg-white/[0.04] rounded cursor-pointer"
             >
               ✕ Close
             </button>
@@ -236,6 +250,33 @@ export default function SchedulingStation(props: SchedulingStationProps) {
         >
           <Layers className="w-4 h-4" />
           <span>Master Gantt (9 Machines)</span>
+        </button>
+
+        <button
+          onClick={() => setSubTab("heatmap")}
+          className={`flex items-center space-x-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+            subTab === "heatmap"
+              ? "border-indigo-500 text-indigo-400 bg-indigo-500/[0.04]"
+              : "border-transparent text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Activity className="w-4 h-4" />
+          <span>Work Center Heatmap</span>
+          <span className="px-1.5 py-0.2 rounded text-[10px] bg-rose-500/20 text-rose-300 font-mono font-bold">
+            88% Bottleneck
+          </span>
+        </button>
+
+        <button
+          onClick={() => setSubTab("secondary")}
+          className={`flex items-center space-x-2 px-4 py-2.5 text-xs font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+            subTab === "secondary"
+              ? "border-indigo-500 text-indigo-400 bg-indigo-500/[0.04]"
+              : "border-transparent text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Hammer className="w-4 h-4" />
+          <span>Tooling Fixtures & Crews</span>
         </button>
 
         <button
@@ -474,7 +515,182 @@ export default function SchedulingStation(props: SchedulingStationProps) {
       )}
 
       {/* ============================================================== */}
-      {/* SUB-TAB 2: SEQUENCE-DEPENDENT SETUP MATRIX                     */}
+      {/* SUB-TAB 2: WORK CENTER CAPACITY HEATMAP                       */}
+      {/* ============================================================== */}
+      {subTab === "heatmap" && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-start">
+            <div>
+              <h2 className="text-sm font-bold text-white tracking-tight flex items-center space-x-2">
+                <Activity className="w-4 h-4 text-rose-400" />
+                <span>Oracle Capacity Utilization Heatmap & Shift Allocation</span>
+              </h2>
+              <p className="text-xs text-slate-400">
+                Work center load percentages against finite shift hours. Highlights bottleneck resources before late orders occur.
+              </p>
+            </div>
+            <div className="text-right text-xs font-mono">
+              <span className="text-rose-400 font-bold block">Bottleneck: WC-CNC (88.4%)</span>
+              <span className="text-slate-400 text-[10px]">Pacing Entire Austin Plant</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {(enterpriseData?.workcenter_utilization || [
+              { code: "WC-CNC", name: "5-Axis Precision Machining", utilization_pct: 88.4, status: "CRITICAL_BOTTLENECK" },
+              { code: "WC-FAB", name: "Fiber Laser & Sheetmetal", utilization_pct: 74.2, status: "BALANCED" },
+              { code: "WC-ASY", name: "Automated Pump Assembly", utilization_pct: 62.0, status: "HEALTHY" },
+              { code: "WC-QC", name: "Zeiss CMM Quality Inspection", utilization_pct: 54.5, status: "OPEN_CAPACITY" },
+            ]).map((wc: any) => {
+              const isBottleneck = wc.utilization_pct > 80;
+              return (
+                <div key={wc.code} className="hairline-panel rounded-xl p-5 space-y-3.5 border border-white/[0.08]">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <div className="flex items-center space-x-2">
+                        <span className="font-bold text-white text-sm font-mono">{wc.code}</span>
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
+                            isBottleneck
+                              ? "bg-rose-500/20 text-rose-300 border border-rose-500/40"
+                              : "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                          }`}
+                        >
+                          {wc.status}
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-400 mt-0.5">{wc.name}</div>
+                    </div>
+                    <div className="text-right font-mono">
+                      <span className={`text-xl font-bold ${isBottleneck ? "text-rose-400" : "text-emerald-400"}`}>
+                        {wc.utilization_pct}%
+                      </span>
+                      <span className="text-[10px] text-slate-500 block">Horizon Load</span>
+                    </div>
+                  </div>
+
+                  <div className="w-full bg-[#08090d] h-2.5 rounded-full overflow-hidden border border-white/[0.06]">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        isBottleneck ? "bg-rose-500" : "bg-emerald-500"
+                      }`}
+                      style={{ width: `${wc.utilization_pct}%` }}
+                    ></div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Shift Patterns & Planned Maintenance Windows */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2">
+            <div className="hairline-panel rounded-xl p-5 space-y-3 border border-white/[0.08]">
+              <h3 className="font-bold text-xs text-slate-200 flex items-center space-x-2">
+                <Calendar className="w-4 h-4 text-blue-400" />
+                <span>Operating Shift Patterns (Austin Plant #1)</span>
+              </h3>
+              <div className="space-y-2 font-mono text-xs">
+                {(enterpriseData?.shift_patterns || [
+                  { shift: "Shift 1 (Day)", hours: "07:00 - 15:30", crews_on_duty: 12, status: "ACTIVE" },
+                  { shift: "Shift 2 (Swing)", hours: "15:30 - 23:30", crews_on_duty: 8, status: "SCHEDULED" },
+                  { shift: "Shift 3 (Night)", hours: "23:30 - 07:00", crews_on_duty: 4, status: "LIGHTS_OUT" },
+                ]).map((s: any) => (
+                  <div key={s.shift} className="p-2.5 rounded bg-[#0a0b0e] border border-white/[0.06] flex justify-between items-center">
+                    <div>
+                      <span className="text-slate-100 font-bold">{s.shift}</span>
+                      <span className="text-slate-400 text-[11px] block">{s.hours} · {s.crews_on_duty} Operators</span>
+                    </div>
+                    <span className="px-1.5 py-0.5 rounded text-[10px] bg-blue-500/10 text-blue-300 border border-blue-500/20">
+                      {s.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="hairline-panel rounded-xl p-5 space-y-3 border border-white/[0.08]">
+              <h3 className="font-bold text-xs text-slate-200 flex items-center space-x-2">
+                <Wrench className="w-4 h-4 text-amber-400" />
+                <span>Planned Maintenance Windows (PM)</span>
+              </h3>
+              <div className="space-y-2 font-mono text-xs">
+                {(enterpriseData?.planned_maintenance_windows || [
+                  { machine_code: "CNC-01", window: "Sunday 02:00 - 06:00 (4h)", type: "Spindle Laser Calibration", status: "LOCKED_PREVENTATIVE" },
+                  { machine_code: "LASER-01", window: "Saturday 22:00 - 00:00 (2h)", type: "Optical Lens Cleaning", status: "SCHEDULED" },
+                ]).map((pm: any) => (
+                  <div key={pm.machine_code} className="p-2.5 rounded bg-[#0a0b0e] border border-white/[0.06] space-y-1">
+                    <div className="flex justify-between items-start">
+                      <span className="text-amber-400 font-bold">{pm.machine_code} Maintenance</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                        {pm.status}
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-300">{pm.type}</div>
+                    <div className="text-[10px] text-slate-500">{pm.window}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* SUB-TAB 3: SECONDARY RESOURCE CONSTRAINTS (TOOLING & FIXTURES) */}
+      {/* ============================================================== */}
+      {subTab === "secondary" && (
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-sm font-bold text-white tracking-tight flex items-center space-x-2">
+              <Hammer className="w-4 h-4 text-indigo-400" />
+              <span>Secondary Resource Constraints: Tooling Fixtures & Certified Crews</span>
+            </h2>
+            <p className="text-xs text-slate-400">
+              In Oracle Production Scheduling, an operation is dual-constrained: it binds both a Machine AND a specialized Tooling Fixture.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {(enterpriseData?.secondary_resources || [
+              { resource_code: "FIX-5AXIS-A", type: "Hydraulic Vise Fixture", bound_machine: "CNC-01", compatible_alloys: ["AL-6061", "TI-64"], status: "IN_USE" },
+              { resource_code: "MOLD-INCONEL-01", type: "Ceramic Rigidity Chuck", bound_machine: "CNC-02", compatible_alloys: ["INCONEL-625"], status: "IN_USE" },
+              { resource_code: "JIG-PMP-500", type: "Impeller Balancing Frame", bound_machine: "ASY-01", compatible_alloys: ["SS-316L"], status: "AVAILABLE" },
+            ]).map((sr: any) => (
+              <div key={sr.resource_code} className="hairline-panel rounded-xl p-5 space-y-3 border border-white/[0.08] font-mono text-xs">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <span className="text-indigo-400 font-bold block">{sr.resource_code}</span>
+                    <span className="text-[11px] text-slate-300 font-sans">{sr.type}</span>
+                  </div>
+                  <span
+                    className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                      sr.status === "IN_USE"
+                        ? "bg-amber-500/10 text-amber-300 border border-amber-500/30"
+                        : "bg-emerald-500/10 text-emerald-300 border border-emerald-500/30"
+                    }`}
+                  >
+                    {sr.status}
+                  </span>
+                </div>
+
+                <div className="pt-2 border-t border-white/[0.06] space-y-1 text-[11px]">
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Bound Asset:</span>
+                    <span className="text-slate-200 font-bold">{sr.bound_machine}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-slate-400">Compatible Alloys:</span>
+                    <span className="text-blue-300">{sr.compatible_alloys.join(", ")}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* SUB-TAB 4: SEQUENCE-DEPENDENT SETUP MATRIX                     */}
       {/* ============================================================== */}
       {subTab === "matrix" && (
         <div className="space-y-4">
@@ -495,7 +711,6 @@ export default function SchedulingStation(props: SchedulingStationProps) {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-            {/* The Matrix Table */}
             <div className="lg:col-span-8 hairline-panel rounded-xl p-5 space-y-4">
               <div className="text-xs font-semibold text-slate-300 flex justify-between items-center border-b border-white/[0.08] pb-2">
                 <span>TRANSITION PENALTY MATRIX (FROM ROW ➔ TO COLUMN)</span>
@@ -525,7 +740,6 @@ export default function SchedulingStation(props: SchedulingStationProps) {
                           const cell = setupMatrixData[fromMat.code]?.[toMat.code] || { time: 0, penalty: "MINIMAL", note: "" };
                           const isMinimal = cell.penalty === "MINIMAL";
                           const isModerate = cell.penalty === "MODERATE";
-                          const isHigh = cell.penalty === "HIGH" || cell.penalty === "CRITICAL";
 
                           return (
                             <td key={toMat.code} className="py-2 px-2">
@@ -566,7 +780,6 @@ export default function SchedulingStation(props: SchedulingStationProps) {
               </div>
             </div>
 
-            {/* Matrix Explanation Inspector */}
             <div className="lg:col-span-4 hairline-panel rounded-xl p-5 space-y-4">
               <h3 className="font-bold text-xs text-slate-200 flex items-center space-x-2">
                 <Info className="w-4 h-4 text-indigo-400" />
@@ -592,21 +805,13 @@ export default function SchedulingStation(props: SchedulingStationProps) {
                   Click any transition cell in the matrix to view the exact tooling and changeover protocol.
                 </div>
               )}
-
-              <div className="p-3.5 rounded-lg bg-indigo-950/30 border border-indigo-500/20 text-xs space-y-1.5">
-                <span className="text-indigo-300 font-bold block">Why Oracle & SAP Users Love This:</span>
-                <p className="text-slate-400 text-[11px] leading-relaxed">
-                  In SAP PP-DS, changeover tables are buried in obscure configuration tables (T-Code <code>/SAPAPO/CDPS0</code>).
-                  Here, the dispatcher can immediately explain to production supervisors why job batches were ordered this way.
-                </p>
-              </div>
             </div>
           </div>
         </div>
       )}
 
       {/* ============================================================== */}
-      {/* SUB-TAB 3: MACHINE DIGITAL TWIN & IOT TELEMETRY               */}
+      {/* SUB-TAB 5: MACHINE DIGITAL TWIN & IOT TELEMETRY               */}
       {/* ============================================================== */}
       {subTab === "telemetry" && (
         <div className="space-y-4">
@@ -661,13 +866,11 @@ export default function SchedulingStation(props: SchedulingStationProps) {
                     )}
                   </div>
 
-                  {/* Active Job Block */}
                   <div className="p-2 rounded bg-[#08090d] border border-white/[0.06] text-xs font-mono">
                     <span className="text-[10px] text-slate-500 block">Current Operation:</span>
                     <span className="text-slate-200 font-medium truncate block">{m.op}</span>
                   </div>
 
-                  {/* IoT Telemetry Gauges */}
                   <div className="grid grid-cols-3 gap-2 font-mono text-[11px] text-center">
                     <div className="bg-[#08090d] p-2 rounded border border-white/[0.04]">
                       <span className="text-[9px] text-slate-500 block">Spindle</span>
@@ -683,7 +886,6 @@ export default function SchedulingStation(props: SchedulingStationProps) {
                     </div>
                   </div>
 
-                  {/* Tool Wear Progress Bar */}
                   <div className="space-y-1 font-mono text-[10px]">
                     <div className="flex justify-between text-slate-400">
                       <span>Carbide Tool Wear Index:</span>
@@ -708,7 +910,7 @@ export default function SchedulingStation(props: SchedulingStationProps) {
       )}
 
       {/* ============================================================== */}
-      {/* SUB-TAB 4: WHAT-IF DISRUPTION COPILOT                          */}
+      {/* SUB-TAB 6: WHAT-IF DISRUPTION COPILOT                          */}
       {/* ============================================================== */}
       {subTab === "copilot" && (
         <div className="space-y-6">
@@ -743,7 +945,6 @@ export default function SchedulingStation(props: SchedulingStationProps) {
           )}
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Incident Injection Control */}
             <div className="hairline-panel rounded-xl p-5 space-y-4">
               <h3 className="font-bold text-xs text-slate-300 flex items-center space-x-2">
                 <AlertTriangle className="w-4 h-4 text-amber-400" />
@@ -794,11 +995,9 @@ export default function SchedulingStation(props: SchedulingStationProps) {
               </div>
             </div>
 
-            {/* Simulation Result */}
             <div className="lg:col-span-2 space-y-4">
               {props.disruptionResult && activeScenario ? (
                 <div className="hairline-panel-elevated rounded-xl p-6 space-y-5 animate-in fade-in duration-200">
-                  {/* Multi-Scenario Switcher Tabs */}
                   <div>
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-xs font-mono text-slate-400 uppercase tracking-wider font-semibold">
@@ -857,7 +1056,6 @@ export default function SchedulingStation(props: SchedulingStationProps) {
                     </div>
                   </div>
 
-                  {/* Active Scenario Detailed View */}
                   <div className="pt-2 border-t border-white/[0.08] space-y-3">
                     <div>
                       <div className="flex items-center space-x-2">
@@ -934,7 +1132,7 @@ export default function SchedulingStation(props: SchedulingStationProps) {
       )}
 
       {/* ============================================================== */}
-      {/* SUB-TAB 5: PHYSICAL STOCK & INVENTORY HEALTH (SAP MMBE)        */}
+      {/* SUB-TAB 7: PHYSICAL STOCK & INVENTORY HEALTH (SAP MMBE)        */}
       {/* ============================================================== */}
       {subTab === "inventory" && (
         <div className="space-y-4">
@@ -1049,7 +1247,7 @@ export default function SchedulingStation(props: SchedulingStationProps) {
       )}
 
       {/* ============================================================== */}
-      {/* SUB-TAB 6: SOX PLANT AUDIT TRAIL                               */}
+      {/* SUB-TAB 8: SOX PLANT AUDIT TRAIL                               */}
       {/* ============================================================== */}
       {subTab === "audit" && (
         <div className="space-y-4">

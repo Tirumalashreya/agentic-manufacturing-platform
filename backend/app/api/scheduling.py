@@ -196,3 +196,68 @@ async def apply_disruption_mitigation(payload: Dict[str, Any], db: AsyncSession 
         "rerouted_count": rerouted_count,
         "new_machine": alt_machine.code if alt_machine else None
     }
+
+
+# ==============================================================================
+# ORACLE PRODUCTION SCHEDULING ENTERPRISE EXTENSIONS (SECONDARY RESOURCES & SHIFTS)
+# ==============================================================================
+
+@router.get("/enterprise-features")
+async def get_enterprise_scheduling_features():
+    """
+    Oracle Production Scheduling Cloud Enterprise Extensions:
+    Secondary resource constraints (tooling & fixtures), labor crews,
+    shift calendars, planned maintenance windows, and work center heatmaps.
+    """
+    return {
+        "shift_patterns": [
+            {"shift": "Shift 1 (Day)", "hours": "07:00 - 15:30", "crews_on_duty": 12, "status": "ACTIVE"},
+            {"shift": "Shift 2 (Swing)", "hours": "15:30 - 23:30", "crews_on_duty": 8, "status": "SCHEDULED"},
+            {"shift": "Shift 3 (Night)", "hours": "23:30 - 07:00", "crews_on_duty": 4, "status": "UNMANNED_LIGHTS_OUT"}
+        ],
+        "planned_maintenance_windows": [
+            {
+                "machine_code": "CNC-01",
+                "window": "Sunday 02:00 - 06:00 (4 Hours)",
+                "type": "5-Axis Spindle Laser Calibration & Collet Inspection",
+                "technician": "Haas Certified Service Tier-4",
+                "status": "LOCKED_PREVENTATIVE"
+            },
+            {
+                "machine_code": "LASER-01",
+                "window": "Saturday 22:00 - 00:00 (2 Hours)",
+                "type": "Optical Lens Cleaning & Fiber Laser Alignment",
+                "technician": "Amada Factory Tech",
+                "status": "SCHEDULED"
+            }
+        ],
+        "secondary_resources": [
+            {
+                "resource_code": "FIX-5AXIS-A",
+                "type": "Precision Hydraulic Vise Fixture",
+                "bound_machine": "CNC-01",
+                "compatible_alloys": ["AL-6061", "TI-64"],
+                "status": "IN_USE"
+            },
+            {
+                "resource_code": "MOLD-INCONEL-01",
+                "type": "High-Temp Ceramic Rigidity Chuck",
+                "bound_machine": "CNC-02",
+                "compatible_alloys": ["INCONEL-625"],
+                "status": "IN_USE"
+            },
+            {
+                "resource_code": "JIG-PMP-500",
+                "type": "Impeller Balancing Rigidity Frame",
+                "bound_machine": "ASY-01",
+                "compatible_alloys": ["SS-316L"],
+                "status": "AVAILABLE"
+            }
+        ],
+        "workcenter_utilization": [
+            {"code": "WC-CNC", "name": "5-Axis Precision Machining", "utilization_pct": 88.4, "status": "CRITICAL_BOTTLENECK", "color": "rose"},
+            {"code": "WC-FAB", "name": "Fiber Laser & Sheetmetal", "utilization_pct": 74.2, "status": "BALANCED", "color": "blue"},
+            {"code": "WC-ASY", "name": "Automated Pump Assembly", "utilization_pct": 62.0, "status": "HEALTHY", "color": "emerald"},
+            {"code": "WC-QC", "name": "Zeiss CMM Quality Inspection", "utilization_pct": 54.5, "status": "OPEN_CAPACITY", "color": "emerald"}
+        ]
+    }

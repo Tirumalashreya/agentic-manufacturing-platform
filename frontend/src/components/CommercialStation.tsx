@@ -1,5 +1,5 @@
 // frontend/src/components/CommercialStation.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Building2,
   CheckCircle2,
@@ -25,6 +25,11 @@ import {
   Info,
   Activity,
   Zap,
+  Globe,
+  Lock,
+  Unlock,
+  Sliders,
+  Filter,
 } from "lucide-react";
 
 interface CommercialStationProps {
@@ -52,13 +57,52 @@ interface CommercialStationProps {
   exportToCsv: (filename: string, rows: Record<string, any>[]) => void;
 }
 
+const API_BASE = "http://localhost:8080/api/v1";
+
 export default function CommercialStation(props: CommercialStationProps) {
-  const [subTab, setSubTab] = useState<"intake" | "orders" | "deliveries" | "invoices" | "customers">("intake");
+  const [subTab, setSubTab] = useState<"intake" | "orders" | "gop" | "deliveries" | "invoices" | "customers">("intake");
   const [showSapGuide, setShowSapGuide] = useState(false);
+  const [gopData, setGopData] = useState<any>(null);
+  const [holdActionLoading, setHoldActionLoading] = useState<string | null>(null);
+
+  // Fetch Oracle GOP Multi-Sourcing rules
+  useEffect(() => {
+    fetch(`${API_BASE}/sales/gop/multi-sourcing`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => setGopData(data))
+      .catch((e) => console.error("GOP fetch error:", e));
+  }, []);
 
   const totalPipeline = props.salesOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0);
   const openInvoicesCount = props.invoices.filter((i) => i.status !== "PAID").length;
   const pendingShipmentsCount = props.deliveries.filter((d) => d.status !== "SHIPPED").length;
+  const ordersOnHoldCount = props.salesOrders.filter((o) => o.status === "ON_HOLD").length;
+
+  // Toggle order hold (Oracle DOO Hold Management)
+  const handleToggleHold = async (orderId: string, currentStatus: string) => {
+    setHoldActionLoading(orderId);
+    const action = currentStatus === "ON_HOLD" ? "RELEASE" : "APPLY";
+    const holdType = "CREDIT_HOLD";
+    try {
+      const res = await fetch(`${API_BASE}/sales/orders/${orderId}/hold`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          hold_type: holdType,
+          action: action,
+          reason: action === "RELEASE" ? "Administrative SOX compliance verified" : "Customer credit review triggered",
+          actor: "sarah.jenkins@enterprise.com",
+        }),
+      });
+      if (res.ok) {
+        window.location.reload();
+      }
+    } catch (e) {
+      alert("Failed to update order hold status.");
+    } finally {
+      setHoldActionLoading(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -124,22 +168,22 @@ export default function CommercialStation(props: CommercialStationProps) {
           <p className="text-slate-300 leading-relaxed">
             In traditional systems like <strong>SAP ERP (VA01 / VA02)</strong>, Customer Service Representatives (CSRs) faced massive blind spots:
             <strong> (1) Filling 15 mandatory fields</strong> across 4 separate tabs just to get a price,
-            <strong> (2) Zero visibility into real factory capacity</strong> (having to call Dave on the shop floor to ask if machines were free), and
+            <strong> (2) Zero visibility into real factory capacity</strong>, and
             <strong> (3) Delayed ATP batches</strong> that broke customer promises. Here is your modern workflow:
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 font-mono text-[11px]">
             <div className="p-3 rounded-lg bg-[#08090d] border border-white/[0.08] space-y-1">
               <span className="text-rose-400 font-bold block">OLD SAP VA01</span>
-              <div className="text-slate-400">Manual sold-to/ship-to entry, static lead-time tables, separate screens for pricing conditions (PR00), and no plant machine visibility.</div>
+              <div className="text-slate-400">Manual sold-to/ship-to entry, static lead-time tables, separate pricing condition screens (PR00), and no plant machine visibility.</div>
             </div>
             <div className="p-3 rounded-lg bg-[#08090d] border border-blue-500/30 space-y-1">
               <span className="text-blue-300 font-bold block">COGNITIVE CTP INTAKE</span>
               <div className="text-slate-300">Paste the customer email or speak naturally. AI extracts the demand, tests CP-SAT machine availability in 150ms, and calculates an exact feasible date.</div>
             </div>
             <div className="p-3 rounded-lg bg-[#08090d] border border-emerald-500/30 space-y-1">
-              <span className="text-emerald-400 font-bold block">1-CLICK SOX EXECUTION</span>
-              <div className="text-slate-300">One click books the contract, checks credit exposure, reserves machine slots, stages warehouse delivery, and prints customer acknowledgments.</div>
+              <span className="text-emerald-400 font-bold block">ORACLE DOO ORCHESTRATION</span>
+              <div className="text-slate-300">Distributed Order Orchestration: automated hold management, multi-plant GOP sourcing, and 1-click SOX contract execution.</div>
             </div>
           </div>
         </div>
@@ -158,9 +202,11 @@ export default function CommercialStation(props: CommercialStationProps) {
           <span className="text-[10px] text-slate-400">100% CTP Promised</span>
         </div>
         <div className="hairline-panel p-4 rounded-xl">
-          <span className="text-[11px] text-slate-400 font-mono block">PENDING SHIPMENTS</span>
-          <div className="text-xl font-bold font-mono text-amber-400 mt-1">{pendingShipmentsCount} Deliveries</div>
-          <span className="text-[10px] text-slate-400">Warehouse Goods Issue (VL01N)</span>
+          <span className="text-[11px] text-slate-400 font-mono block">ORDERS ON HOLD (DOO)</span>
+          <div className={`text-xl font-bold font-mono mt-1 ${ordersOnHoldCount > 0 ? "text-amber-400" : "text-emerald-400"}`}>
+            {ordersOnHoldCount} On Hold
+          </div>
+          <span className="text-[10px] text-slate-400">Credit / Compliance Holds</span>
         </div>
         <div className="hairline-panel p-4 rounded-xl">
           <span className="text-[11px] text-slate-400 font-mono block">OPEN INVOICES</span>
@@ -187,7 +233,19 @@ export default function CommercialStation(props: CommercialStationProps) {
           }`}
         >
           <FileText className="w-3.5 h-3.5" />
-          <span>Committed Sales Orders ({props.salesOrders.length})</span>
+          <span>Sales Orders & DOO Holds ({props.salesOrders.length})</span>
+        </button>
+        <button
+          onClick={() => setSubTab("gop")}
+          className={`pb-3 font-semibold transition-colors flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
+            subTab === "gop" ? "text-blue-400 border-b-2 border-blue-500" : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <Globe className="w-3.5 h-3.5" />
+          <span>Oracle GOP Multi-Sourcing</span>
+          <span className="px-1.5 py-0.2 rounded text-[10px] bg-blue-500/20 text-blue-300 font-mono">
+            2 Plants
+          </span>
         </button>
         <button
           onClick={() => setSubTab("deliveries")}
@@ -411,14 +469,14 @@ export default function CommercialStation(props: CommercialStationProps) {
         </div>
       )}
 
-      {/* SUBTAB 2: COMMITTED SALES ORDERS */}
+      {/* SUBTAB 2: SALES ORDERS & ORACLE DOO HOLDS */}
       {subTab === "orders" && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
             <div>
-              <h2 className="text-sm font-bold text-white tracking-tight">Committed Sales Orders Ledger</h2>
+              <h2 className="text-sm font-bold text-white tracking-tight">Committed Sales Orders & DOO Hold Management</h2>
               <p className="text-xs text-slate-400">
-                Authoritative ERP sales contract register with CTP promise dates and document flow tracking.
+                Oracle Distributed Order Orchestration: manage order fulfillment lines, credit holds, and export compliance.
               </p>
             </div>
             <button
@@ -448,43 +506,145 @@ export default function CommercialStation(props: CommercialStationProps) {
                   <th className="py-2.5 px-4 font-semibold">CUSTOMER</th>
                   <th className="py-2.5 px-4 font-semibold text-right">CONTRACT VALUE</th>
                   <th className="py-2.5 px-4 font-semibold">CTP PROMISED DATE</th>
-                  <th className="py-2.5 px-4 font-semibold">STATUS</th>
+                  <th className="py-2.5 px-4 font-semibold">ORCHESTRATION STATUS</th>
+                  <th className="py-2.5 px-4 font-semibold text-right">DOO HOLD ACTION</th>
                   <th className="py-2.5 px-4 font-semibold text-right">ACTION</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.04]">
-                {props.filteredOrders.map((so: any) => (
-                  <tr key={so.id} className="hover:bg-white/[0.02]">
-                    <td className="py-3 px-4 font-bold text-slate-200">{so.order_number}</td>
-                    <td className="py-3 px-4 font-sans text-slate-300">{so.customer_name}</td>
-                    <td className="py-3 px-4 text-right font-bold text-emerald-400">
-                      ${so.total_amount?.toLocaleString()}
-                    </td>
-                    <td className="py-3 px-4 text-slate-300">
-                      {so.promised_delivery_date ? new Date(so.promised_delivery_date).toLocaleDateString() : "—"}
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-500/10 text-blue-300 border border-blue-500/20">
-                        {so.status}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-right">
-                      <button
-                        onClick={() => props.handleViewOrderFlow(so.id)}
-                        className="px-2.5 py-1 bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 rounded border border-white/[0.08] text-[11px] transition-colors cursor-pointer"
-                      >
-                        View Document Flow
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {props.filteredOrders.map((so: any) => {
+                  const isOnHold = so.status === "ON_HOLD";
+                  const isHolding = holdActionLoading === so.id;
+                  return (
+                    <tr key={so.id} className="hover:bg-white/[0.02]">
+                      <td className="py-3 px-4 font-bold text-slate-200">{so.order_number}</td>
+                      <td className="py-3 px-4 font-sans text-slate-300">{so.customer_name}</td>
+                      <td className="py-3 px-4 text-right font-bold text-emerald-400">
+                        ${so.total_amount?.toLocaleString()}
+                      </td>
+                      <td className="py-3 px-4 text-slate-300">
+                        {so.promised_delivery_date ? new Date(so.promised_delivery_date).toLocaleDateString() : "—"}
+                      </td>
+                      <td className="py-3 px-4">
+                        <span
+                          className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                            isOnHold
+                              ? "bg-amber-500/10 text-amber-300 border border-amber-500/30"
+                              : "bg-blue-500/10 text-blue-300 border border-blue-500/20"
+                          }`}
+                        >
+                          {isOnHold ? "ON HOLD (Credit Review)" : so.status}
+                        </span>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <button
+                          onClick={() => handleToggleHold(so.id, so.status)}
+                          disabled={isHolding}
+                          className={`px-2.5 py-1 rounded text-[11px] font-semibold border transition-all cursor-pointer flex items-center space-x-1 ml-auto ${
+                            isOnHold
+                              ? "bg-emerald-600/20 text-emerald-300 border-emerald-500/40 hover:bg-emerald-600/30"
+                              : "bg-amber-600/20 text-amber-300 border-amber-500/40 hover:bg-amber-600/30"
+                          }`}
+                        >
+                          {isOnHold ? (
+                            <>
+                              <Unlock className="w-3 h-3" />
+                              <span>Release Hold</span>
+                            </>
+                          ) : (
+                            <>
+                              <Lock className="w-3 h-3" />
+                              <span>Apply Hold</span>
+                            </>
+                          )}
+                        </button>
+                      </td>
+                      <td className="py-3 px-4 text-right">
+                        <button
+                          onClick={() => props.handleViewOrderFlow(so.id)}
+                          className="px-2.5 py-1 bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 rounded border border-white/[0.08] text-[11px] transition-colors cursor-pointer"
+                        >
+                          View DOO Flow
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {/* SUBTAB 3: OUTBOUND DELIVERIES */}
+      {/* SUBTAB 3: ORACLE GLOBAL ORDER PROMISING (GOP) MULTI-SOURCING */}
+      {subTab === "gop" && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-start">
+            <div>
+              <h2 className="text-sm font-bold text-white tracking-tight flex items-center space-x-2">
+                <Globe className="w-4 h-4 text-blue-400" />
+                <span>Oracle Global Order Promising (GOP) Multi-Plant Allocation</span>
+              </h2>
+              <p className="text-xs text-slate-400">
+                Network optimization across distributed manufacturing plants. Evaluates production capacity vs. freight transit cost.
+              </p>
+            </div>
+            <div className="text-right text-xs font-mono">
+              <span className="text-emerald-400 font-bold block">Policy: Least Cost + Fastest Transit</span>
+              <span className="text-slate-400 text-[10px]">Split Fulfillment Enabled</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {(gopData?.plants || []).map((plant: any) => (
+              <div key={plant.plant_id} className="hairline-panel rounded-xl p-5 space-y-4 border border-white/[0.08]">
+                <div className="flex justify-between items-start border-b border-white/[0.06] pb-3">
+                  <div>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-bold">
+                      {plant.plant_id}
+                    </span>
+                    <h3 className="text-sm font-bold text-white mt-1">{plant.name}</h3>
+                    <p className="text-[11px] text-slate-400">{plant.specialization}</p>
+                  </div>
+                  <span
+                    className={`text-[10px] font-mono px-2 py-0.5 rounded font-bold ${
+                      plant.status === "OPTIMAL_PRIMARY"
+                        ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/30"
+                        : "bg-blue-500/10 text-blue-300 border border-blue-500/30"
+                    }`}
+                  >
+                    {plant.status === "OPTIMAL_PRIMARY" ? "★ Primary Source" : "Secondary Source"}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-3 gap-2 font-mono text-xs text-center">
+                  <div className="bg-[#0a0b0e] p-2.5 rounded border border-white/[0.06]">
+                    <span className="text-[10px] text-slate-400 block">Plant Load</span>
+                    <span className="text-sm font-bold text-slate-200">{plant.capacity_load_pct}%</span>
+                  </div>
+                  <div className="bg-[#0a0b0e] p-2.5 rounded border border-white/[0.06]">
+                    <span className="text-[10px] text-slate-400 block">Transit Time</span>
+                    <span className="text-sm font-bold text-blue-400">{plant.transit_lead_days} Days</span>
+                  </div>
+                  <div className="bg-[#0a0b0e] p-2.5 rounded border border-white/[0.06]">
+                    <span className="text-[10px] text-slate-400 block">Open Slots</span>
+                    <span className="text-sm font-bold text-emerald-400">{plant.open_capacity_slots} CNC Slots</span>
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-lg bg-[#0a0b0e] border border-white/[0.06] text-xs font-mono text-slate-300 flex justify-between items-center">
+                  <span>GOP Routing Recommendation:</span>
+                  <span className="font-bold text-emerald-400">
+                    {plant.plant_id.includes("AUSTIN") ? "Fulfill 80% High-Precision Batch" : "Fulfill 20% Standard Assembly"}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* SUBTAB 4: OUTBOUND DELIVERIES */}
       {subTab === "deliveries" && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
@@ -573,7 +733,7 @@ export default function CommercialStation(props: CommercialStationProps) {
         </div>
       )}
 
-      {/* SUBTAB 4: BILLING & INVOICES */}
+      {/* SUBTAB 5: BILLING & INVOICES */}
       {subTab === "invoices" && (
         <div className="space-y-4">
           <div className="flex justify-between items-center">
@@ -664,7 +824,7 @@ export default function CommercialStation(props: CommercialStationProps) {
         </div>
       )}
 
-      {/* SUBTAB 5: CUSTOMER CREDIT MASTER */}
+      {/* SUBTAB 6: CUSTOMER CREDIT MASTER */}
       {subTab === "customers" && (
         <div className="space-y-4">
           <div>

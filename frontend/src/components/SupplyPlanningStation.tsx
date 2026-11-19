@@ -1,5 +1,5 @@
 // frontend/src/components/SupplyPlanningStation.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Boxes,
   Cpu,
@@ -11,6 +11,7 @@ import {
   Truck,
   FileText,
   ChevronRight,
+  ChevronDown,
   Search,
   Building2,
   DollarSign,
@@ -21,6 +22,11 @@ import {
   ArrowRight,
   BookOpen,
   Info,
+  GitBranch,
+  Activity,
+  ShieldAlert,
+  CheckCircle,
+  Sparkles,
 } from "lucide-react";
 
 interface SupplyPlanningStationProps {
@@ -41,9 +47,35 @@ interface SupplyPlanningStationProps {
   salesOrdersCount: number;
 }
 
+const API_BASE = "http://localhost:8080/api/v1";
+
 export default function SupplyPlanningStation(props: SupplyPlanningStationProps) {
-  const [subTab, setSubTab] = useState<"requirements" | "orders" | "bom" | "suppliers">("requirements");
+  const [subTab, setSubTab] = useState<"requirements" | "orders" | "bom" | "suppliers" | "pegging" | "buffer">("requirements");
   const [showSapGuide, setShowSapGuide] = useState(false);
+  const [peggingData, setPeggingData] = useState<any>(null);
+  const [loadingPegging, setLoadingPegging] = useState(false);
+  const [expandedNodes, setExpandedNodes] = useState<Record<string, boolean>>({
+    "SO-202611-0D67": true,
+    "SO-202611-0002": true,
+  });
+
+  useEffect(() => {
+    const fetchPegging = async () => {
+      try {
+        setLoadingPegging(true);
+        const res = await fetch(`${API_BASE}/mrp/pegging-tree`);
+        if (res.ok) {
+          const json = await res.json();
+          setPeggingData(json);
+        }
+      } catch (e) {
+        console.error("Failed to load pegging tree:", e);
+      } finally {
+        setLoadingPegging(false);
+      }
+    };
+    fetchPegging();
+  }, []);
 
   const purchaseOrders = props.mrpData?.purchase_orders || [];
   const openPrCount = purchaseOrders.filter((po: any) => po.status === "DRAFT_PR").length;
@@ -202,6 +234,36 @@ export default function SupplyPlanningStation(props: SupplyPlanningStationProps)
                 {openPrCount} PRs
               </span>
             )}
+          </button>
+
+          <button
+            onClick={() => setSubTab("pegging")}
+            className={`flex items-center space-x-2 px-4 py-2 text-xs font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+              subTab === "pegging"
+                ? "border-emerald-500 text-emerald-400 bg-emerald-500/[0.04]"
+                : "border-transparent text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <GitBranch className="w-4 h-4" />
+            <span>Demand-to-Supply Pegging (Oracle)</span>
+            <span className="px-1.5 py-0.2 rounded text-[10px] bg-emerald-500/20 text-emerald-300 font-mono font-bold">
+              Chain Trace
+            </span>
+          </button>
+
+          <button
+            onClick={() => setSubTab("buffer")}
+            className={`flex items-center space-x-2 px-4 py-2 text-xs font-medium border-b-2 transition-all cursor-pointer whitespace-nowrap ${
+              subTab === "buffer"
+                ? "border-emerald-500 text-emerald-400 bg-emerald-500/[0.04]"
+                : "border-transparent text-slate-400 hover:text-slate-200"
+            }`}
+          >
+            <Activity className="w-4 h-4" />
+            <span>Buffer Penetration Health</span>
+            <span className="px-1.5 py-0.2 rounded text-[10px] bg-amber-500/20 text-amber-300 font-mono font-bold">
+              DDMRP
+            </span>
           </button>
 
           <button
@@ -722,6 +784,451 @@ export default function SupplyPlanningStation(props: SupplyPlanningStationProps)
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* SUB-TAB 5: DEMAND-TO-SUPPLY PEGGING TREE (ORACLE SCM)          */}
+      {/* ============================================================== */}
+      {subTab === "pegging" && (
+        <div className="space-y-4 animate-in fade-in duration-200">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div>
+              <div className="flex items-center space-x-2">
+                <h2 className="text-sm font-bold text-white tracking-tight">
+                  Oracle Planning Central Demand-to-Supply Pegging Tree
+                </h2>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                  Multi-Echelon Traceability Active
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Full digital thread linking commercial sales commitments to active plant work orders, component reservations, and vendor purchase orders.
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-2 text-xs">
+              <span className="text-[11px] font-mono text-slate-400 bg-white/[0.04] px-2.5 py-1 rounded border border-white/[0.08]">
+                Algorithm: Oracle Planning Central Deterministic Pegging
+              </span>
+            </div>
+          </div>
+
+          {/* Pegging Stats Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="p-3.5 rounded-xl bg-[#090b10] border border-emerald-500/20 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-mono text-slate-400 uppercase">Demand Commitments Pegged</span>
+                <div className="text-lg font-bold font-mono text-emerald-400">
+                  {peggingData?.pegging_nodes?.length || 2} Sales Orders (100% Pegged)
+                </div>
+              </div>
+              <CheckCircle className="w-6 h-6 text-emerald-400/60" />
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-[#090b10] border border-blue-500/20 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-mono text-slate-400 uppercase">Component Allocations</span>
+                <div className="text-lg font-bold font-mono text-blue-400">
+                  3 Critical Billet & Fastener Items
+                </div>
+              </div>
+              <Layers className="w-6 h-6 text-blue-400/60" />
+            </div>
+
+            <div className="p-3.5 rounded-xl bg-[#090b10] border border-amber-500/20 flex items-center justify-between">
+              <div>
+                <span className="text-[10px] font-mono text-slate-400 uppercase">Inbound PO Supply Links</span>
+                <div className="text-lg font-bold font-mono text-amber-400">
+                  PO-202611-0001 (Timken) Pegged
+                </div>
+              </div>
+              <Truck className="w-6 h-6 text-amber-400/60" />
+            </div>
+          </div>
+
+          {/* Pegging Tree Hierarchy */}
+          <div className="space-y-3">
+            {(peggingData?.pegging_nodes || [
+              {
+                customer_order: "SO-202611-0D67",
+                customer: "Boeing Aerospace",
+                product: "PMP-500 Multi-Stage Impeller Pump",
+                quantity: 20,
+                target_delivery: "2026-11-25",
+                work_order: "WO-202611-01",
+                pegged_components: [
+                  {
+                    sku: "RAW-AL-6061",
+                    name: "Billet 6061 Aerospace Aluminum",
+                    pegged_qty: "250.0 KG",
+                    source: "EXISTING_ON_HAND (Bin A-14)",
+                    status: "ALLOCATED_RESERVED",
+                    buffer_zone: "GREEN"
+                  },
+                  {
+                    sku: "COMP-BRG-SKF",
+                    name: "SKF Precision Roller Bearings",
+                    pegged_qty: "40 EA",
+                    source: "PO-202611-0001 (Timken)",
+                    status: "PURCHASE_ORDER_IN_FLIGHT",
+                    buffer_zone: "YELLOW_PENETRATED",
+                    expected_dock: "2026-11-23"
+                  }
+                ]
+              },
+              {
+                customer_order: "SO-202611-0002",
+                customer: "Siemens Energy",
+                product: "PMP-200 Centrifugal Utility Pump",
+                quantity: 5,
+                target_delivery: "2026-11-22",
+                work_order: "WO-202611-02",
+                pegged_components: [
+                  {
+                    sku: "COMP-SEAL-VITON",
+                    name: "Viton Chemical Seal Ring",
+                    pegged_qty: "5 EA",
+                    source: "EXISTING_ON_HAND (Bin B-02)",
+                    status: "ALLOCATED_RESERVED",
+                    buffer_zone: "GREEN"
+                  }
+                ]
+              }
+            ]).map((node: any) => {
+              const isExpanded = expandedNodes[node.customer_order] !== false;
+              return (
+                <div
+                  key={node.customer_order}
+                  className="hairline-panel rounded-xl overflow-hidden border border-white/[0.08] transition-all"
+                >
+                  {/* Order Pegging Root Header */}
+                  <div
+                    onClick={() => setExpandedNodes((prev) => ({ ...prev, [node.customer_order]: !isExpanded }))}
+                    className="p-4 bg-[#0d1017] flex flex-col md:flex-row justify-between items-start md:items-center gap-3 cursor-pointer hover:bg-[#121620] transition-colors"
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className="p-1 rounded bg-white/[0.05] text-slate-300">
+                        {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                      </div>
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-xs font-mono font-bold text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20">
+                            {node.customer_order}
+                          </span>
+                          <span className="text-xs font-bold text-white">{node.customer}</span>
+                        </div>
+                        <div className="text-xs text-slate-300 mt-1 flex items-center space-x-2">
+                          <span>{node.product}</span>
+                          <span className="text-slate-500">•</span>
+                          <span className="font-mono text-emerald-400 font-semibold">{node.quantity} Units</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-3 text-xs">
+                      <div className="text-right">
+                        <span className="text-[10px] text-slate-400 font-mono block">PLANNED WORK ORDER</span>
+                        <span className="text-xs font-mono font-bold text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/20">
+                          {node.work_order}
+                        </span>
+                      </div>
+                      <div className="text-right border-l border-white/[0.08] pl-3">
+                        <span className="text-[10px] text-slate-400 font-mono block">TARGET DELIVERY</span>
+                        <span className="text-xs font-mono text-slate-200">{node.target_delivery}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Exploded Pegged Components Branch */}
+                  {isExpanded && (
+                    <div className="p-4 bg-[#08090d]/60 border-t border-white/[0.06] space-y-3">
+                      <div className="flex items-center space-x-2 text-[11px] font-mono text-slate-400">
+                        <GitBranch className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>PEGGED COMPONENT DEMAND & SOURCING RESOLUTION:</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {node.pegged_components.map((comp: any, idx: number) => {
+                          const isGreen = comp.buffer_zone === "GREEN";
+                          const isYellow = comp.buffer_zone?.includes("YELLOW");
+                          return (
+                            <div
+                              key={idx}
+                              className="p-3.5 rounded-lg bg-[#0c0e14] border border-white/[0.06] space-y-2 hover:border-white/[0.12] transition-all"
+                            >
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <div className="flex items-center space-x-2">
+                                    <span className="text-xs font-mono font-bold text-slate-200">{comp.sku}</span>
+                                    <span
+                                      className={`px-1.5 py-0.5 rounded text-[9px] font-mono font-bold ${
+                                        isGreen
+                                          ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
+                                          : isYellow
+                                          ? "bg-amber-500/20 text-amber-300 border border-amber-500/30"
+                                          : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
+                                      }`}
+                                    >
+                                      {comp.buffer_zone}
+                                    </span>
+                                  </div>
+                                  <div className="text-xs text-slate-400 mt-0.5">{comp.name}</div>
+                                </div>
+                                <span className="text-xs font-mono font-bold text-slate-100 bg-white/[0.04] px-2 py-0.5 rounded">
+                                  {comp.pegged_qty}
+                                </span>
+                              </div>
+
+                              <div className="flex justify-between items-center text-[11px] border-t border-white/[0.04] pt-2">
+                                <span className="text-slate-400">Pegged Source:</span>
+                                <span className="font-mono text-slate-200 font-semibold">{comp.source}</span>
+                              </div>
+
+                              {comp.expected_dock && (
+                                <div className="flex justify-between items-center text-[11px]">
+                                  <span className="text-slate-400">Expected Dock Date:</span>
+                                  <span className="font-mono text-amber-400 font-bold">{comp.expected_dock}</span>
+                                </div>
+                              )}
+
+                              <div className="flex justify-between items-center text-[11px]">
+                                <span className="text-slate-400">Allocation Status:</span>
+                                <span
+                                  className={`font-mono text-[10px] font-bold ${
+                                    comp.status === "ALLOCATED_RESERVED" ? "text-emerald-400" : "text-amber-400"
+                                  }`}
+                                >
+                                  {comp.status}
+                                </span>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Oracle SCM Transition Advantage Callout */}
+          <div className="p-4 rounded-xl bg-gradient-to-r from-blue-950/40 to-[#0e111a] border border-blue-500/30 text-xs flex items-start space-x-3">
+            <Sparkles className="w-5 h-5 text-blue-400 shrink-0 mt-0.5" />
+            <div className="space-y-1">
+              <span className="font-bold text-blue-300">
+                Oracle Supply Planning Cloud: Continuous Pegging vs Legacy SAP MD04
+              </span>
+              <p className="text-slate-300 leading-relaxed">
+                In SAP ERP, MD04 isolates sales requirements, production orders, and supplier PRs into static lines with no direct deterministic link.
+                Our Oracle Cloud SCM pegging engine continuously binds each customer demand spike directly to its physical component lot or supplier PO dock receipt, eliminating inventory phantom shortages and expediting delays.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* SUB-TAB 6: DYNAMIC BUFFER PENETRATION HEALTH (DDMRP)          */}
+      {/* ============================================================== */}
+      {subTab === "buffer" && (
+        <div className="space-y-4 animate-in fade-in duration-200">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+            <div>
+              <div className="flex items-center space-x-2">
+                <h2 className="text-sm font-bold text-white tracking-tight">
+                  Dynamic Safety Buffer Penetration Health (Oracle DDMRP)
+                </h2>
+                <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                  Decoupled Lead Time Buffers Active
+                </span>
+              </div>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Demand-Driven buffer penetration monitoring that dynamically absorbs supplier lead time variability and sudden commercial volume spikes.
+              </p>
+            </div>
+
+            <div className="flex items-center space-x-2 text-xs">
+              <span className="text-[11px] font-mono text-slate-400 bg-white/[0.04] px-2.5 py-1 rounded border border-white/[0.08]">
+                DDMRP Standard: DDI 3-Zone Buffer Matrix
+              </span>
+            </div>
+          </div>
+
+          {/* Buffer Penetration Composite Gauge Bar */}
+          <div className="hairline-panel p-5 rounded-xl border border-white/[0.08] space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-xs font-mono font-bold text-slate-200 uppercase tracking-wider">
+                Supply Chain Buffer Penetration Distribution
+              </span>
+              <span className="text-xs font-mono text-emerald-400 font-semibold">
+                Network Health: OPTIMAL (74.5% Green)
+              </span>
+            </div>
+
+            {/* Tri-Color Segmented Health Bar */}
+            <div className="w-full h-4 rounded-full bg-slate-900 overflow-hidden flex border border-white/[0.08]">
+              <div
+                style={{ width: "74.5%" }}
+                className="h-full bg-emerald-500 transition-all flex items-center justify-center text-[9px] font-mono font-bold text-black"
+                title="Green Zone: 74.5% Safe"
+              >
+                74.5%
+              </div>
+              <div
+                style={{ width: "21.0%" }}
+                className="h-full bg-amber-500 transition-all flex items-center justify-center text-[9px] font-mono font-bold text-black"
+                title="Yellow Zone: 21.0% Penetrated"
+              >
+                21.0%
+              </div>
+              <div
+                style={{ width: "4.5%" }}
+                className="h-full bg-rose-500 transition-all flex items-center justify-center text-[9px] font-mono font-bold text-white"
+                title="Red Zone: 4.5% Stockout Alert"
+              >
+                4.5%
+              </div>
+            </div>
+
+            {/* Buffer Zone Legend Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-2">
+              <div className="p-3 rounded-lg bg-emerald-950/20 border border-emerald-500/30 flex items-center space-x-3">
+                <div className="w-3 h-3 rounded-full bg-emerald-400 shrink-0" />
+                <div>
+                  <div className="text-xs font-bold text-emerald-300">Green Zone (74.5%)</div>
+                  <div className="text-[11px] text-slate-400">Stock above Top of Yellow. Unconstrained execution buffer.</div>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-amber-950/20 border border-amber-500/30 flex items-center space-x-3">
+                <div className="w-3 h-3 rounded-full bg-amber-400 shrink-0" />
+                <div>
+                  <div className="text-xs font-bold text-amber-300">Yellow Zone (21.0%)</div>
+                  <div className="text-[11px] text-slate-400">Reorder trigger breached. Purchase orders active in transit.</div>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-lg bg-rose-950/20 border border-rose-500/30 flex items-center space-x-3">
+                <div className="w-3 h-3 rounded-full bg-rose-400 shrink-0" />
+                <div>
+                  <div className="text-xs font-bold text-rose-300">Red Zone (4.5%)</div>
+                  <div className="text-[11px] text-slate-400">Critical safety penetrated. Expedited freight required.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Component Decoupled Buffer Health Table */}
+          <div className="hairline-panel rounded-xl overflow-hidden border border-white/[0.08]">
+            <div className="p-4 border-b border-white/[0.06] bg-[#0c0e14] flex justify-between items-center">
+              <span className="text-xs font-bold text-white uppercase tracking-wider font-mono">
+                Decoupled Buffer Inventory Health Log
+              </span>
+              <span className="text-[11px] font-mono text-slate-400">5 Decoupled Stocking Points</span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse font-mono">
+                <thead>
+                  <tr className="border-b border-white/[0.06] bg-[#08090d] text-slate-400 text-[11px]">
+                    <th className="py-2.5 px-3">SKU & Material</th>
+                    <th className="py-2.5 px-3">Buffer Maximum</th>
+                    <th className="py-2.5 px-3">Current Stock</th>
+                    <th className="py-2.5 px-3">Buffer Penetration</th>
+                    <th className="py-2.5 px-3">Zone Status</th>
+                    <th className="py-2.5 px-3 text-right">Autonomous Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/[0.04]">
+                  {[
+                    {
+                      sku: "RAW-AL-6061",
+                      name: "Billet 6061 Aerospace Aluminum",
+                      max: "500.0 KG",
+                      current: "420.0 KG",
+                      pct: "16.0% (Green)",
+                      status: "SAFE",
+                      statusColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+                      action: "Adequate Stock",
+                      actionEnabled: false,
+                    },
+                    {
+                      sku: "COMP-BRG-SKF",
+                      name: "SKF Precision Roller Bearings",
+                      max: "80 EA",
+                      current: "24 EA",
+                      pct: "70.0% (Yellow)",
+                      status: "PENETRATED",
+                      statusColor: "text-amber-400 bg-amber-500/10 border-amber-500/20",
+                      action: "Track PO-0001 (Timken)",
+                      actionEnabled: true,
+                    },
+                    {
+                      sku: "COMP-SEAL-VITON",
+                      name: "Viton Chemical Seal Ring",
+                      max: "60 EA",
+                      current: "52 EA",
+                      pct: "13.3% (Green)",
+                      status: "SAFE",
+                      statusColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+                      action: "Adequate Stock",
+                      actionEnabled: false,
+                    },
+                    {
+                      sku: "RAW-STL-01",
+                      name: "Inconel 718 Round Bar",
+                      max: "120.0 KG",
+                      current: "12.0 KG",
+                      pct: "90.0% (Red Alert)",
+                      status: "STOCKOUT RISK",
+                      statusColor: "text-rose-400 bg-rose-500/10 border-rose-500/20",
+                      action: "Auto-Expedite Inbound PR",
+                      actionEnabled: true,
+                    },
+                    {
+                      sku: "RAW-FST-02",
+                      name: "Grade 10.9 Structural Bolts",
+                      max: "1000 EA",
+                      current: "850 EA",
+                      pct: "15.0% (Green)",
+                      status: "SAFE",
+                      statusColor: "text-emerald-400 bg-emerald-500/10 border-emerald-500/20",
+                      action: "Adequate Stock",
+                      actionEnabled: false,
+                    },
+                  ].map((row) => (
+                    <tr key={row.sku} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="py-2.5 px-3">
+                        <div className="font-bold text-slate-200">{row.sku}</div>
+                        <div className="text-[10px] text-slate-400 font-sans">{row.name}</div>
+                      </td>
+                      <td className="py-2.5 px-3 text-slate-300">{row.max}</td>
+                      <td className="py-2.5 px-3 font-bold text-slate-100">{row.current}</td>
+                      <td className="py-2.5 px-3">
+                        <span className="font-semibold text-slate-200">{row.pct}</span>
+                      </td>
+                      <td className="py-2.5 px-3">
+                        <span className={`px-2 py-0.5 rounded text-[10px] border font-bold ${row.statusColor}`}>
+                          {row.status}
+                        </span>
+                      </td>
+                      <td className="py-2.5 px-3 text-right">
+                        {row.actionEnabled ? (
+                          <button className="px-2.5 py-1 rounded bg-amber-600 hover:bg-amber-500 text-white text-[10px] font-bold transition-colors cursor-pointer">
+                            {row.action}
+                          </button>
+                        ) : (
+                          <span className="text-[10px] text-slate-500 italic">No Action Needed</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
