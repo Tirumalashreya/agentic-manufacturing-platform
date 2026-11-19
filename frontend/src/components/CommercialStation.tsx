@@ -30,6 +30,11 @@ import {
   Unlock,
   Sliders,
   Filter,
+  FileCode,
+  Copy,
+  CheckCheck,
+  Workflow,
+  X,
 } from "lucide-react";
 
 interface CommercialStationProps {
@@ -60,10 +65,94 @@ interface CommercialStationProps {
 const API_BASE = "http://localhost:8080/api/v1";
 
 export default function CommercialStation(props: CommercialStationProps) {
-  const [subTab, setSubTab] = useState<"intake" | "orders" | "gop" | "deliveries" | "invoices" | "customers">("intake");
+  const [subTab, setSubTab] = useState<"intake" | "orders" | "gop" | "edi" | "deliveries" | "invoices" | "customers">("intake");
   const [showSapGuide, setShowSapGuide] = useState(false);
   const [gopData, setGopData] = useState<any>(null);
   const [holdActionLoading, setHoldActionLoading] = useState<string | null>(null);
+
+  // Enterprise EDI 850/855 Gateway State
+  const [ediPayload, setEdiPayload] = useState<string>(
+    `ISA*00*          *00*          *ZZ*BOEING_AERO    *ZZ*GAIC_ENTERPRISE*261119*0930*U*00401*000008891*0*P*>~
+GS*PO*BOEING_AERO*GAIC_ENTERPRISE*20261119*0930*8891*X*004010~
+ST*850*0001~
+BEG*00*SA*PO-BOE-2026-9812**20261119~
+CUR*BY*USD~
+REF*DP*AEROSPACE-DEFENSE-DIV~
+PER*BD*Sarah Jenkins CSR*TE*512-555-0199~
+N1*BY*Boeing Aerospace Defense*92*BOEING-01~
+N3*100 Boeing Way*Plant Bldg 4~
+N4*Seattle*WA*98108*USA~
+N1*ST*Boeing Final Assembly Dock 3*92*BOEING-DOCK3~
+PO1*1*20*EA*900.00**VP*PMP-500*MG*CRYOGENIC-IMPELLER~
+PID*F****AS9100 Precision 5-Axis Impeller Pump Assembly~
+DTM*002*20261125~
+CTT*1*20~
+SE*15*0001~
+GE*1*8891~
+IEA*1*000008891~`
+  );
+  const [ediIngesting, setEdiIngesting] = useState(false);
+  const [ediResult, setEdiResult] = useState<any>(null);
+  const [edi855Result, setEdi855Result] = useState<any>(null);
+  const [copied855, setCopied855] = useState(false);
+
+  // DOO 8-Milestone Inspection Modal State
+  const [selectedDooMilestones, setSelectedDooMilestones] = useState<any>(null);
+  const [loadingDooId, setLoadingDooId] = useState<string | null>(null);
+
+  const handleIngestEdi850 = async () => {
+    setEdiIngesting(true);
+    try {
+      const res = await fetch(`${API_BASE}/sales/edi/ingest-850`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          raw_edi_text: ediPayload,
+          customer_name: "Boeing Aerospace",
+          po_number: "PO-BOE-2026-9812",
+          sku: "PMP-500",
+          quantity: 20,
+          unit_price: 900.0,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setEdiResult(data);
+        const ackRes = await fetch(`${API_BASE}/sales/edi/generate-855/${data.order_id}`);
+        if (ackRes.ok) {
+          const ackData = await ackRes.json();
+          setEdi855Result(ackData);
+        }
+      }
+    } catch (e) {
+      console.error("EDI 850 Ingestion failed:", e);
+    } finally {
+      setEdiIngesting(false);
+    }
+  };
+
+  const handleCopy855 = () => {
+    if (edi855Result?.edi_x12_payload) {
+      navigator.clipboard.writeText(edi855Result.edi_x12_payload);
+      setCopied855(true);
+      setTimeout(() => setCopied855(false), 2000);
+    }
+  };
+
+  const handleFetchDooMilestones = async (orderId: string) => {
+    setLoadingDooId(orderId);
+    try {
+      const res = await fetch(`${API_BASE}/sales/orders/${orderId}/doo-milestones`);
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedDooMilestones(data);
+      }
+    } catch (e) {
+      console.error("Failed to load DOO milestones:", e);
+    } finally {
+      setLoadingDooId(null);
+    }
+  };
 
   // Fetch Oracle GOP Multi-Sourcing rules
   useEffect(() => {
@@ -289,6 +378,18 @@ export default function CommercialStation(props: CommercialStationProps) {
           <span>Oracle GOP Multi-Sourcing</span>
           <span className="px-1.5 py-0.2 rounded text-[10px] bg-blue-500/20 text-blue-300 font-mono">
             2 Plants
+          </span>
+        </button>
+        <button
+          onClick={() => setSubTab("edi")}
+          className={`pb-3 font-semibold transition-colors flex items-center space-x-1.5 cursor-pointer whitespace-nowrap ${
+            subTab === "edi" ? "text-purple-400 border-b-2 border-purple-500" : "text-slate-400 hover:text-slate-200"
+          }`}
+        >
+          <FileCode className="w-3.5 h-3.5" />
+          <span>EDI 850/855 B2B Gateway</span>
+          <span className="px-1.5 py-0.2 rounded text-[10px] bg-purple-500/20 text-purple-300 font-mono font-bold">
+            ANSI X12
           </span>
         </button>
         <button
@@ -630,12 +731,22 @@ export default function CommercialStation(props: CommercialStationProps) {
                         </button>
                       </td>
                       <td className="py-3 px-4 text-right">
-                        <button
-                          onClick={() => props.handleViewOrderFlow(so.id)}
-                          className="px-2.5 py-1 bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 rounded border border-white/[0.08] text-[11px] transition-colors cursor-pointer"
-                        >
-                          View DOO Flow
-                        </button>
+                        <div className="flex items-center justify-end space-x-1.5">
+                          <button
+                            onClick={() => handleFetchDooMilestones(so.id)}
+                            disabled={loadingDooId === so.id}
+                            className="px-2 py-1 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 rounded border border-purple-500/30 text-[11px] font-semibold transition-colors cursor-pointer flex items-center space-x-1"
+                          >
+                            <Workflow className="w-3 h-3" />
+                            <span>{loadingDooId === so.id ? "Loading..." : "8 Milestones"}</span>
+                          </button>
+                          <button
+                            onClick={() => props.handleViewOrderFlow(so.id)}
+                            className="px-2.5 py-1 bg-white/[0.04] hover:bg-white/[0.08] text-slate-200 rounded border border-white/[0.08] text-[11px] transition-colors cursor-pointer"
+                          >
+                            View DOO Flow
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -710,6 +821,350 @@ export default function CommercialStation(props: CommercialStationProps) {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* SUBTAB: ENTERPRISE B2B EDI 850/855 GATEWAY */}
+      {subTab === "edi" && (
+        <div className="space-y-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+            <div>
+              <h2 className="text-sm font-bold text-white tracking-tight flex items-center space-x-2">
+                <FileCode className="w-4 h-4 text-purple-400" />
+                <span>Tier-1 Enterprise B2B EDI 850 / 855 Ingestion & Acknowledgment Gateway</span>
+              </h2>
+              <p className="text-xs text-slate-400">
+                Direct Machine-to-Machine (M2M) protocol interface. ANSI X12 004010 standard used by Boeing, Siemens, Lockheed Martin, and Caterpillar.
+              </p>
+            </div>
+            <div className="flex items-center space-x-2 font-mono text-[11px]">
+              <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-bold flex items-center space-x-1">
+                <ShieldCheck className="w-3 h-3" />
+                <span>AS2 Secure Channel Connected</span>
+              </span>
+              <span className="px-2 py-0.5 rounded bg-purple-500/10 text-purple-300 border border-purple-500/20 font-bold">
+                ANSI X12 · EDIFACT
+              </span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left Column: Inbound EDI 850 Purchase Order */}
+            <div className="lg:col-span-6 space-y-4">
+              <div className="hairline-panel rounded-xl p-5 space-y-4 border border-white/[0.08]">
+                <div className="flex justify-between items-center border-b border-white/[0.06] pb-3">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-7 h-7 rounded-lg bg-blue-500/20 text-blue-400 flex items-center justify-center font-bold text-xs">
+                      850
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-white text-xs">Inbound ANSI X12 Purchase Order (PO)</h3>
+                      <span className="text-[10px] text-slate-400 font-mono">Channel: AS2 HTTPS Direct · Partner: BOEING_AERO</span>
+                    </div>
+                  </div>
+                  <span className="px-2 py-0.5 rounded text-[10px] bg-blue-500/10 text-blue-300 border border-blue-500/20 font-mono font-bold">
+                    BEG: PO-BOE-2026-9812
+                  </span>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex justify-between text-[11px] text-slate-300">
+                    <span className="text-slate-400">Customer OEM:</span>
+                    <strong className="text-white">Boeing Aerospace Defense (CUST-BOEING)</strong>
+                  </div>
+                  <div className="flex justify-between text-[11px] text-slate-300">
+                    <span className="text-slate-400">Order Lines:</span>
+                    <strong className="text-emerald-400">20 EA × PMP-500 Cryogenic Impeller Pump @ $900.00</strong>
+                  </div>
+                  <div className="flex justify-between text-[11px] text-slate-300">
+                    <span className="text-slate-400">Total Contract Value:</span>
+                    <strong className="text-emerald-400 font-bold font-mono">$18,000.00 USD</strong>
+                  </div>
+                  <div className="flex justify-between text-[11px] text-slate-300">
+                    <span className="text-slate-400">Requested Delivery:</span>
+                    <span className="font-mono text-slate-200">2026-11-25 (Seattle Final Assembly Dock 3)</span>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <div className="flex justify-between items-center text-[10px] font-mono text-slate-400">
+                    <span>Raw ANSI X12 004010 Interchange Payload</span>
+                    <span>ISA ~ GS ~ ST*850 ~ SE</span>
+                  </div>
+                  <textarea
+                    value={ediPayload}
+                    onChange={(e) => setEdiPayload(e.target.value)}
+                    rows={8}
+                    className="w-full bg-[#07080c] border border-white/[0.08] rounded-lg p-3 font-mono text-[11px] text-slate-300 focus:outline-none focus:border-purple-500 leading-relaxed resize-none"
+                  />
+                </div>
+
+                <button
+                  onClick={handleIngestEdi850}
+                  disabled={ediIngesting}
+                  className="w-full py-2.5 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs shadow-lg transition-all cursor-pointer flex items-center justify-center space-x-2 disabled:opacity-50"
+                >
+                  {ediIngesting ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Ingesting into DOO Engine & Computing CTP...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap className="w-3.5 h-3.5" />
+                      <span>Ingest EDI 850 PO into Oracle DOO Pipeline</span>
+                    </>
+                  )}
+                </button>
+
+                {ediResult && (
+                  <div className="p-3.5 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-xs font-mono space-y-1.5 animate-in fade-in duration-200">
+                    <div className="flex items-center space-x-1.5 text-emerald-400 font-bold">
+                      <CheckCircle2 className="w-4 h-4" />
+                      <span>{ediResult.message}</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2 pt-1 text-[11px] text-slate-300">
+                      <div>Sales Order: <strong className="text-white">{ediResult.order_number}</strong></div>
+                      <div>Customer PO: <strong className="text-white">{ediResult.customer_po}</strong></div>
+                      <div>CTP Promised Ship: <strong className="text-emerald-400">{ediResult.promised_delivery_date}</strong></div>
+                      <div>DOO Status: <strong className="text-blue-400">COMMITTED (Austin Plant #1)</strong></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Right Column: Outbound EDI 855 PO Acknowledgment */}
+            <div className="lg:col-span-6 space-y-4">
+              <div className="hairline-panel rounded-xl p-5 space-y-4 border border-white/[0.08]">
+                <div className="flex justify-between items-center border-b border-white/[0.06] pb-3">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-7 h-7 rounded-lg bg-purple-500/20 text-purple-400 flex items-center justify-center font-bold text-xs">
+                      855
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-white text-xs">Outbound ANSI X12 PO Acknowledgment (ACK)</h3>
+                      <span className="text-[10px] text-slate-400 font-mono">Carrier SLA & CTP Committed Date</span>
+                    </div>
+                  </div>
+                  {edi855Result && (
+                    <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono font-bold">
+                      STATUS: AC (Accepted)
+                    </span>
+                  )}
+                </div>
+
+                {edi855Result ? (
+                  <div className="space-y-3 font-mono text-xs">
+                    <div className="p-3 rounded-lg bg-[#0a0b0e] border border-white/[0.06] space-y-1.5 text-[11px]">
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Target Standard:</span>
+                        <strong className="text-purple-300">{edi855Result.standard}</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Order Number:</span>
+                        <strong className="text-white">{edi855Result.order_number}</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Promised Ship Date:</span>
+                        <strong className="text-emerald-400">{edi855Result.confirmed_ship_date}</strong>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Confirmed Quantity & Value:</span>
+                        <strong className="text-slate-200">{edi855Result.confirmed_quantity} EA · ${edi855Result.total_value?.toLocaleString()} USD</strong>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <div className="flex justify-between items-center text-[10px] text-slate-400">
+                        <span>Generated ANSI X12 855 Transmission Payload</span>
+                        <button
+                          onClick={handleCopy855}
+                          className="flex items-center space-x-1 text-purple-400 hover:text-purple-300 transition-colors cursor-pointer"
+                        >
+                          {copied855 ? <CheckCheck className="w-3 h-3 text-emerald-400" /> : <Copy className="w-3 h-3" />}
+                          <span>{copied855 ? "Copied X12!" : "Copy Payload"}</span>
+                        </button>
+                      </div>
+                      <pre className="w-full bg-[#07080c] border border-purple-500/20 rounded-lg p-3 text-[11px] text-purple-200 leading-relaxed overflow-x-auto whitespace-pre font-mono">
+                        {edi855Result.edi_x12_payload}
+                      </pre>
+                    </div>
+
+                    <div className="flex items-center justify-between pt-2">
+                      <div className="flex items-center space-x-1.5 text-[11px] text-emerald-400">
+                        <ShieldCheck className="w-4 h-4" />
+                        <span>EDI 855 Transmitted via AS2 (MDN Acknowledged)</span>
+                      </div>
+                      {ediResult?.order_id && (
+                        <button
+                          onClick={() => handleFetchDooMilestones(ediResult.order_id)}
+                          className="px-3 py-1 bg-purple-600/20 hover:bg-purple-600/30 text-purple-300 border border-purple-500/30 rounded text-[11px] font-semibold transition-all cursor-pointer flex items-center space-x-1"
+                        >
+                          <Workflow className="w-3 h-3" />
+                          <span>Inspect DOO Milestones</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="p-8 rounded-xl bg-[#0a0b0e] border border-dashed border-white/[0.08] text-center space-y-3">
+                    <div className="w-10 h-10 mx-auto rounded-full bg-purple-500/10 text-purple-400 flex items-center justify-center">
+                      <FileCode className="w-5 h-5" />
+                    </div>
+                    <div className="text-xs text-slate-300 font-medium">Awaiting EDI 850 Ingestion</div>
+                    <p className="text-[11px] text-slate-500 max-w-sm mx-auto leading-relaxed">
+                      Click "Ingest EDI 850 PO" on the left. The DOO engine will parse the purchase order, evaluate plant finite capacity, schedule delivery, and automatically generate the ANSI X12 855 acknowledgment.
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Bottom Panel: Enterprise B2B Manufacturing EDI Protocol Reference */}
+          <div className="p-5 rounded-xl bg-gradient-to-r from-[#0c0e17] via-[#101424] to-[#0c0e17] border border-white/[0.08] space-y-3 font-mono text-xs">
+            <div className="flex items-center space-x-2 text-white font-bold text-xs">
+              <BookOpen className="w-4 h-4 text-purple-400" />
+              <span>Enterprise EDI Architecture: The 4 Core O2C Electronic Documents</span>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3 pt-1 text-[11px]">
+              <div className="p-3 rounded-lg bg-[#08090d] border border-white/[0.06] space-y-1">
+                <span className="text-blue-400 font-bold block">1. EDI 850 / ORDERS</span>
+                <span className="text-slate-400 font-sans block">Purchase Order</span>
+                <div className="text-slate-300 text-[10px] font-sans">
+                  Inbound customer contract authorizing manufacturing with pricing, delivery address, and ship-by requirements.
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-[#08090d] border border-purple-500/30 space-y-1">
+                <span className="text-purple-400 font-bold block">2. EDI 855 / ORDRSP</span>
+                <span className="text-slate-400 font-sans block">PO Acknowledgment</span>
+                <div className="text-slate-300 text-[10px] font-sans">
+                  Outbound confirmation accepting line items with mathematically guaranteed CTP delivery dates.
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-[#08090d] border border-emerald-500/30 space-y-1">
+                <span className="text-emerald-400 font-bold block">3. EDI 856 / DESADV</span>
+                <span className="text-slate-400 font-sans block">Ship Notice (ASN)</span>
+                <div className="text-slate-300 text-[10px] font-sans">
+                  Outbound dispatch notice generated upon goods issue with carrier tracking number and container barcode data.
+                </div>
+              </div>
+              <div className="p-3 rounded-lg bg-[#08090d] border border-indigo-500/30 space-y-1">
+                <span className="text-indigo-400 font-bold block">4. EDI 810 / INVOIC</span>
+                <span className="text-slate-400 font-sans block">Commercial Invoice</span>
+                <div className="text-slate-300 text-[10px] font-sans">
+                  Billing document transmitted to customer ERP for automated 3-way match (PO + Receipt + Invoice) and ACH settlement.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ORACLE DOO 8-MILESTONE INTERACTIVE MODAL */}
+      {selectedDooMilestones && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#0e111a] border border-purple-500/30 text-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-5 animate-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-start border-b border-white/[0.08] pb-4">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <Workflow className="w-5 h-5 text-purple-400" />
+                  <h3 className="text-base font-bold text-white tracking-tight">Oracle DOO 8-Milestone Orchestration Thread</h3>
+                </div>
+                <p className="text-xs text-slate-400 mt-1 font-mono">
+                  Order #{selectedDooMilestones.order_number} · Process: {selectedDooMilestones.doo_process_name}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedDooMilestones(null)}
+                className="p-1 hover:bg-white/[0.08] rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-xl bg-purple-950/30 border border-purple-500/20 font-mono text-xs">
+              <span className="text-slate-300">Orchestration Completion Progress:</span>
+              <span className="font-bold text-purple-300">
+                {selectedDooMilestones.progress_pct}% ({selectedDooMilestones.completed_milestones} of {selectedDooMilestones.total_milestones} Milestones Completed)
+              </span>
+            </div>
+
+            <div className="space-y-3 font-mono text-xs">
+              {selectedDooMilestones.milestones.map((m: any) => {
+                const isDone = m.status === "COMPLETED";
+                const isInProg = m.status === "IN_PROGRESS";
+                const isOnHold = m.status === "ON_HOLD";
+                return (
+                  <div
+                    key={m.step}
+                    className={`p-3.5 rounded-xl border transition-all ${
+                      isDone
+                        ? "bg-[#0c1219] border-emerald-500/30"
+                        : isInProg
+                        ? "bg-[#0d1424] border-blue-500/40 shadow-md"
+                        : isOnHold
+                        ? "bg-[#18130c] border-amber-500/40"
+                        : "bg-[#090a0f] border-white/[0.06] opacity-60"
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-start space-x-3">
+                        <div
+                          className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 ${
+                            isDone
+                              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                              : isInProg
+                              ? "bg-blue-500/20 text-blue-400 border border-blue-500/40 animate-pulse"
+                              : isOnHold
+                              ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
+                              : "bg-white/[0.04] text-slate-500 border border-white/[0.08]"
+                          }`}
+                        >
+                          {isDone ? "✓" : m.step}
+                        </div>
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span className="font-bold text-slate-100 text-xs">{m.name}</span>
+                            <span
+                              className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                                isDone
+                                  ? "bg-emerald-500/10 text-emerald-400"
+                                  : isInProg
+                                  ? "bg-blue-500/10 text-blue-400"
+                                  : isOnHold
+                                  ? "bg-amber-500/10 text-amber-400"
+                                  : "text-slate-500"
+                              }`}
+                            >
+                              {m.status}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-slate-400 mt-1">{m.details}</div>
+                          <div className="text-[10px] text-slate-500 mt-0.5">Assigned Owner: {m.owner}</div>
+                        </div>
+                      </div>
+                      {m.completed_at && (
+                        <span className="text-[10px] text-slate-500 font-mono whitespace-nowrap">
+                          {new Date(m.completed_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-white/[0.06]">
+              <button
+                onClick={() => setSelectedDooMilestones(null)}
+                className="px-4 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 font-mono text-xs transition-colors cursor-pointer"
+              >
+                Close DOO Inspection
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -937,6 +1392,112 @@ export default function CommercialStation(props: CommercialStationProps) {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* ORACLE DOO 8-MILESTONE INTERACTIVE MODAL */}
+      {selectedDooMilestones && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-[#0e111a] border border-purple-500/30 text-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-2xl p-6 space-y-5 animate-in zoom-in-95 duration-150">
+            <div className="flex justify-between items-start border-b border-white/[0.08] pb-4">
+              <div>
+                <div className="flex items-center space-x-2">
+                  <Workflow className="w-5 h-5 text-purple-400" />
+                  <h3 className="text-base font-bold text-white tracking-tight">Oracle DOO 8-Milestone Orchestration Thread</h3>
+                </div>
+                <p className="text-xs text-slate-400 mt-1 font-mono">
+                  Order #{selectedDooMilestones.order_number} · Process: {selectedDooMilestones.doo_process_name}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedDooMilestones(null)}
+                className="p-1 hover:bg-white/[0.08] rounded-lg text-slate-400 hover:text-white transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-xl bg-purple-950/30 border border-purple-500/20 font-mono text-xs">
+              <span className="text-slate-300">Orchestration Completion Progress:</span>
+              <span className="font-bold text-purple-300">
+                {selectedDooMilestones.progress_pct}% ({selectedDooMilestones.completed_milestones} of {selectedDooMilestones.total_milestones} Milestones Completed)
+              </span>
+            </div>
+
+            <div className="space-y-3 font-mono text-xs">
+              {selectedDooMilestones.milestones.map((m: any) => {
+                const isDone = m.status === "COMPLETED";
+                const isInProg = m.status === "IN_PROGRESS";
+                const isOnHold = m.status === "ON_HOLD";
+                return (
+                  <div
+                    key={m.step}
+                    className={`p-3.5 rounded-xl border transition-all ${
+                      isDone
+                        ? "bg-[#0c1219] border-emerald-500/30"
+                        : isInProg
+                        ? "bg-[#0d1424] border-blue-500/40 shadow-md"
+                        : isOnHold
+                        ? "bg-[#18130c] border-amber-500/40"
+                        : "bg-[#090a0f] border-white/[0.06] opacity-60"
+                    }`}
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex items-start space-x-3">
+                        <div
+                          className={`w-7 h-7 rounded-full flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 ${
+                            isDone
+                              ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                              : isInProg
+                              ? "bg-blue-500/20 text-blue-400 border border-blue-500/40 animate-pulse"
+                              : isOnHold
+                              ? "bg-amber-500/20 text-amber-400 border border-amber-500/40"
+                              : "bg-white/[0.04] text-slate-500 border border-white/[0.08]"
+                          }`}
+                        >
+                          {isDone ? "✓" : m.step}
+                        </div>
+                        <div>
+                          <div className="flex items-center space-x-2">
+                            <span className="font-bold text-slate-100 text-xs">{m.name}</span>
+                            <span
+                              className={`px-1.5 py-0.2 rounded text-[10px] font-bold ${
+                                isDone
+                                  ? "bg-emerald-500/10 text-emerald-400"
+                                  : isInProg
+                                  ? "bg-blue-500/10 text-blue-400"
+                                  : isOnHold
+                                  ? "bg-amber-500/10 text-amber-400"
+                                  : "text-slate-500"
+                              }`}
+                            >
+                              {m.status}
+                            </span>
+                          </div>
+                          <div className="text-[11px] text-slate-400 mt-1">{m.details}</div>
+                          <div className="text-[10px] text-slate-500 mt-0.5">Assigned Owner: {m.owner}</div>
+                        </div>
+                      </div>
+                      {m.completed_at && (
+                        <span className="text-[10px] text-slate-500 font-mono whitespace-nowrap">
+                          {new Date(m.completed_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex justify-end pt-2 border-t border-white/[0.06]">
+              <button
+                onClick={() => setSelectedDooMilestones(null)}
+                className="px-4 py-1.5 rounded-lg bg-white/[0.06] hover:bg-white/[0.1] text-slate-300 font-mono text-xs transition-colors cursor-pointer"
+              >
+                Close DOO Inspection
+              </button>
+            </div>
           </div>
         </div>
       )}

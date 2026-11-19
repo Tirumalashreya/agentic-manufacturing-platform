@@ -278,13 +278,19 @@ export default function App() {
     }
   };
 
-  // View Document Flow Modal
+  // View Document Flow & Oracle DOO Modal
   const handleViewOrderFlow = async (orderId: string) => {
     setLoadingFlow(true);
     try {
-      const res = await fetch(`${API_BASE}/sales/orders/${orderId}/flow`);
-      if (res.ok) {
-        const data = await res.json();
+      const [resFlow, resDoo] = await Promise.all([
+        fetch(`${API_BASE}/sales/orders/${orderId}/flow`),
+        fetch(`${API_BASE}/sales/orders/${orderId}/doo-milestones`),
+      ]);
+      if (resFlow.ok) {
+        const data = await resFlow.json();
+        if (resDoo.ok) {
+          data.dooMilestones = await resDoo.json();
+        }
         setSelectedOrderFlow(data);
       }
     } catch (e) {
@@ -941,48 +947,98 @@ export default function App() {
               </div>
             </div>
 
-            {/* Document Flow Progression Tracker */}
+            {/* Document Flow Progression Tracker / Oracle DOO 8-Milestones */}
             <div className="p-6 bg-slate-50 border-b border-slate-200">
-              <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 mb-4 font-mono">
-                Authoritative Audit Thread (SOX 404 Compliant)
+              <div className="flex justify-between items-center mb-3">
+                <div className="text-xs font-semibold uppercase tracking-wider text-slate-500 font-mono flex items-center space-x-2">
+                  <span>Authoritative Audit Thread (SOX 404 & Oracle DOO Compliant)</span>
+                  {selectedOrderFlow.dooMilestones && (
+                    <span className="px-2 py-0.5 rounded text-[10px] bg-blue-100 text-blue-800 font-bold">
+                      {selectedOrderFlow.dooMilestones.progress_pct}% Completed ({selectedOrderFlow.dooMilestones.completed_milestones}/8 Milestones)
+                    </span>
+                  )}
+                </div>
               </div>
-              <div className="flex items-center justify-between">
-                {[
-                  { label: "1. Quotation / RFQ", status: "COMPLETE", desc: "AI Parsed & CTP Solved" },
-                  { label: "2. Sales Order", status: "COMPLETE", desc: selectedOrderFlow.order.order_number },
-                  {
-                    label: "3. Plant Dispatch",
-                    status: selectedOrderFlow.production_run ? "COMPLETE" : "IN_PROGRESS",
-                    desc: selectedOrderFlow.production_run?.run_number || "Finite Routing",
-                  },
-                  {
-                    label: "4. Outbound Delivery",
-                    status: selectedOrderFlow.delivery ? "COMPLETE" : "PENDING",
-                    desc: selectedOrderFlow.delivery?.delivery_number || "Staged at Dock",
-                  },
-                  {
-                    label: "5. Customer Invoice",
-                    status: selectedOrderFlow.invoice ? "COMPLETE" : "PENDING",
-                    desc: selectedOrderFlow.invoice?.invoice_number || "AR Clearing",
-                  },
-                ].map((step, idx) => (
-                  <div key={idx} className="flex-1 text-center relative">
-                    <div
-                      className={`w-8 h-8 mx-auto rounded-full flex items-center justify-center font-bold text-xs mb-1.5 ${
-                        step.status === "COMPLETE"
-                          ? "bg-emerald-600 text-white shadow-sm"
-                          : step.status === "IN_PROGRESS"
-                          ? "bg-blue-600 text-white animate-pulse"
-                          : "bg-slate-200 text-slate-500"
-                      }`}
-                    >
-                      {step.status === "COMPLETE" ? "✓" : idx + 1}
+
+              {selectedOrderFlow.dooMilestones ? (
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-2 pt-1 font-mono">
+                  {selectedOrderFlow.dooMilestones.milestones.map((m: any) => {
+                    const isDone = m.status === "COMPLETED";
+                    const isInProg = m.status === "IN_PROGRESS";
+                    const isOnHold = m.status === "ON_HOLD";
+                    return (
+                      <div
+                        key={m.step}
+                        className={`p-2.5 rounded-lg border text-center transition-all ${
+                          isDone
+                            ? "bg-emerald-50 border-emerald-300 text-emerald-900"
+                            : isInProg
+                            ? "bg-blue-50 border-blue-400 text-blue-900 shadow-sm animate-pulse"
+                            : isOnHold
+                            ? "bg-amber-50 border-amber-300 text-amber-900"
+                            : "bg-slate-100/70 border-slate-200 text-slate-500"
+                        }`}
+                      >
+                        <div
+                          className={`w-6 h-6 mx-auto rounded-full flex items-center justify-center font-bold text-[11px] mb-1 ${
+                            isDone
+                              ? "bg-emerald-600 text-white"
+                              : isInProg
+                              ? "bg-blue-600 text-white"
+                              : isOnHold
+                              ? "bg-amber-600 text-white"
+                              : "bg-slate-200 text-slate-600"
+                          }`}
+                        >
+                          {isDone ? "✓" : m.step}
+                        </div>
+                        <div className="font-bold text-[10px] leading-tight line-clamp-2">{m.name}</div>
+                        <div className="text-[9px] text-slate-500 mt-1 truncate" title={m.owner}>
+                          {m.owner.split("(")[0]}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex items-center justify-between">
+                  {[
+                    { label: "1. Quotation / RFQ", status: "COMPLETE", desc: "AI Parsed & CTP Solved" },
+                    { label: "2. Sales Order", status: "COMPLETE", desc: selectedOrderFlow.order.order_number },
+                    {
+                      label: "3. Plant Dispatch",
+                      status: selectedOrderFlow.production_run ? "COMPLETE" : "IN_PROGRESS",
+                      desc: selectedOrderFlow.production_run?.run_number || "Finite Routing",
+                    },
+                    {
+                      label: "4. Outbound Delivery",
+                      status: selectedOrderFlow.delivery ? "COMPLETE" : "PENDING",
+                      desc: selectedOrderFlow.delivery?.delivery_number || "Staged at Dock",
+                    },
+                    {
+                      label: "5. Customer Invoice",
+                      status: selectedOrderFlow.invoice ? "COMPLETE" : "PENDING",
+                      desc: selectedOrderFlow.invoice?.invoice_number || "AR Clearing",
+                    },
+                  ].map((step, idx) => (
+                    <div key={idx} className="flex-1 text-center relative">
+                      <div
+                        className={`w-8 h-8 mx-auto rounded-full flex items-center justify-center font-bold text-xs mb-1.5 ${
+                          step.status === "COMPLETE"
+                            ? "bg-emerald-600 text-white shadow-sm"
+                            : step.status === "IN_PROGRESS"
+                            ? "bg-blue-600 text-white animate-pulse"
+                            : "bg-slate-200 text-slate-500"
+                        }`}
+                      >
+                        {step.status === "COMPLETE" ? "✓" : idx + 1}
+                      </div>
+                      <div className="font-semibold text-xs text-slate-800">{step.label}</div>
+                      <div className="text-[10px] text-slate-500 font-mono mt-0.5">{step.desc}</div>
                     </div>
-                    <div className="font-semibold text-xs text-slate-800">{step.label}</div>
-                    <div className="text-[10px] text-slate-500 font-mono mt-0.5">{step.desc}</div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Printable Commercial Order Document */}
