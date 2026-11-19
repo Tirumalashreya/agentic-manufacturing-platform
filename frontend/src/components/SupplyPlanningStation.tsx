@@ -27,6 +27,7 @@ import {
   ShieldAlert,
   CheckCircle,
   Sparkles,
+  Zap,
 } from "lucide-react";
 
 interface SupplyPlanningStationProps {
@@ -196,6 +197,51 @@ export default function SupplyPlanningStation(props: SupplyPlanningStationProps)
             {openPrCount} PRs / {releasedPoCount} In Flight
           </div>
           <span className="text-[10px] text-emerald-400">{receivedPoCount} Received at Dock</span>
+        </div>
+      </div>
+
+      {/* Sourcing Action Queue / Priority Briefing */}
+      <div className="p-4 rounded-xl bg-gradient-to-r from-[#0c1514] via-[#0f1d1b] to-[#0c1514] border border-emerald-500/30 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-xs shadow-lg">
+        <div className="flex items-center space-x-3.5">
+          <div className="w-9 h-9 rounded-xl bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 font-bold shrink-0 shadow-inner">
+            <Zap className="w-4 h-4 text-emerald-400" />
+          </div>
+          <div>
+            <div className="flex items-center space-x-2">
+              <span className="font-bold text-sm text-white tracking-tight">Supply Sourcing Command Center</span>
+              <span className="px-2 py-0.5 rounded text-[10px] bg-emerald-500/20 text-emerald-300 font-mono font-bold border border-emerald-500/30">
+                DDMRP Dynamic Buffer Active
+              </span>
+            </div>
+            <div className="text-slate-300 text-xs mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="text-amber-400 font-medium flex items-center space-x-1">
+                <Truck className="w-3 h-3 inline" />
+                <span>Inbound Supply: PO-202611-0001 (Timken Bearings) Dock Arrival Nov 23</span>
+              </span>
+              <span className="text-slate-500">•</span>
+              <span className="text-emerald-400 font-medium">Decoupled Buffer Health: 74.5% Green (Safe)</span>
+              <span className="text-slate-500">•</span>
+              <span className="text-slate-300">100% Demand Pegged to Active Shop Orders</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2 w-full md:w-auto">
+          <button
+            onClick={() => setSubTab("pegging")}
+            className="px-3.5 py-1.5 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 font-mono text-[11px] font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center space-x-1.5"
+          >
+            <span>Trace Pegging Tree</span>
+            <ArrowRight className="w-3 h-3" />
+          </button>
+          <button
+            onClick={props.handleRunMrp}
+            disabled={props.runningMrp}
+            className="px-4 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs transition-all cursor-pointer whitespace-nowrap shadow-md flex items-center space-x-1.5 disabled:opacity-50"
+          >
+            <Cpu className="w-3.5 h-3.5" />
+            <span>{props.runningMrp ? "Netting..." : "Explode MRP (1-Click)"}</span>
+          </button>
         </div>
       </div>
 

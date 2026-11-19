@@ -238,6 +238,50 @@ export default function SchedulingStation(props: SchedulingStationProps) {
         </div>
       </div>
 
+      {/* Master Dispatcher Operational Action Queue / Priority Briefing */}
+      <div className="p-4 rounded-xl bg-gradient-to-r from-[#0d101a] via-[#121626] to-[#0d101a] border border-indigo-500/30 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-xs shadow-lg">
+        <div className="flex items-center space-x-3.5">
+          <div className="w-9 h-9 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 font-bold shrink-0 shadow-inner">
+            <Zap className="w-4 h-4 text-indigo-400" />
+          </div>
+          <div>
+            <div className="flex items-center space-x-2">
+              <span className="font-bold text-sm text-white tracking-tight">Plant Operations Command Center</span>
+              <span className="px-2 py-0.5 rounded text-[10px] bg-indigo-500/20 text-indigo-300 font-mono font-bold border border-indigo-500/30">
+                Shift 1 (Day) Active · 12 Operators
+              </span>
+            </div>
+            <div className="text-slate-300 text-xs mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="text-rose-400 font-medium flex items-center space-x-1">
+                <AlertTriangle className="w-3 h-3 inline" />
+                <span>Critical Pacing Center: WC-CNC (88.4% Load)</span>
+              </span>
+              <span className="text-slate-500">•</span>
+              <span className="text-emerald-400 font-medium">Secondary Tooling Fixtures (FIX-5AXIS-A & MOLD-01): Collision-Free</span>
+              <span className="text-slate-500">•</span>
+              <span className="text-slate-300">Next Scheduled Maintenance: Haas CNC-01 (Sunday PM 4h Spindle Calibration)</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2 w-full md:w-auto">
+          <button
+            onClick={() => setSubTab("heatmap")}
+            className="px-3.5 py-1.5 rounded-lg bg-rose-500/15 hover:bg-rose-500/25 text-rose-300 border border-rose-500/40 font-mono text-[11px] font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center space-x-1.5"
+          >
+            <span>Inspect Bottleneck</span>
+            <ArrowRight className="w-3 h-3" />
+          </button>
+          <button
+            onClick={() => setSubTab("copilot")}
+            className="px-4 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs transition-all cursor-pointer whitespace-nowrap shadow-md flex items-center space-x-1.5"
+          >
+            <Sliders className="w-3.5 h-3.5" />
+            <span>What-If Healing Copilot</span>
+          </button>
+        </div>
+      </div>
+
       {/* Internal Sub-Navigation */}
       <div className="flex border-b border-white/[0.08] space-x-1 overflow-x-auto">
         <button

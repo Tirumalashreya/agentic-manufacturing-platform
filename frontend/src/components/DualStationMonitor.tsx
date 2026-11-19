@@ -98,6 +98,39 @@ export default function DualStationMonitor(props: DualStationMonitorProps) {
         </div>
       </div>
 
+      {/* 3-Step Live Pitch Walkthrough Ribbon */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 font-mono text-xs">
+        <div className="p-3 rounded-xl bg-[#0c101c] border border-blue-500/30 flex items-center space-x-3 shadow-md">
+          <div className="w-7 h-7 rounded-full bg-blue-500/20 border border-blue-500/40 text-blue-300 font-bold flex items-center justify-center shrink-0 text-xs">
+            1
+          </div>
+          <div>
+            <span className="font-bold text-slate-100 block">Step 1: Enter RFQ On Left</span>
+            <span className="text-[11px] text-slate-400">Pick preset customer quote (e.g. Boeing)</span>
+          </div>
+        </div>
+
+        <div className="p-3 rounded-xl bg-[#0b141d] border border-cyan-500/30 flex items-center space-x-3 shadow-md">
+          <div className="w-7 h-7 rounded-full bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 font-bold flex items-center justify-center shrink-0 text-xs">
+            2
+          </div>
+          <div>
+            <span className="font-bold text-slate-100 block">Step 2: Solve CTP & Book</span>
+            <span className="text-[11px] text-slate-400">AI solver validates capacity & books SO</span>
+          </div>
+        </div>
+
+        <div className="p-3 rounded-xl bg-[#0d101a] border border-indigo-500/30 flex items-center space-x-3 shadow-md">
+          <div className="w-7 h-7 rounded-full bg-indigo-500/20 border border-indigo-500/40 text-indigo-300 font-bold flex items-center justify-center shrink-0 text-xs">
+            3
+          </div>
+          <div>
+            <span className="font-bold text-slate-100 block">Step 3: Auto-Schedule On Right</span>
+            <span className="text-[11px] text-slate-400">Work order appears live on Haas CNC-01</span>
+          </div>
+        </div>
+      </div>
+
       {/* Side-by-Side Split Screen Container */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
         {/* ============================================================== */}

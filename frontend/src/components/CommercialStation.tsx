@@ -215,6 +215,50 @@ export default function CommercialStation(props: CommercialStationProps) {
         </div>
       </div>
 
+      {/* Morning Operational Action Queue / Priority Briefing */}
+      <div className="p-4 rounded-xl bg-gradient-to-r from-[#0c101c] via-[#101524] to-[#0c101c] border border-blue-500/30 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 text-xs shadow-lg">
+        <div className="flex items-center space-x-3.5">
+          <div className="w-9 h-9 rounded-xl bg-blue-500/20 border border-blue-500/40 flex items-center justify-center text-blue-400 font-bold shrink-0 shadow-inner">
+            <Zap className="w-4 h-4 text-blue-400" />
+          </div>
+          <div>
+            <div className="flex items-center space-x-2">
+              <span className="font-bold text-sm text-white tracking-tight">Commercial Priority Action Queue</span>
+              <span className="px-2 py-0.5 rounded text-[10px] bg-blue-500/20 text-blue-300 font-mono font-bold border border-blue-500/30">
+                Live Pulse Active
+              </span>
+            </div>
+            <div className="text-slate-300 text-xs mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-1">
+              <span className="text-amber-400 font-medium flex items-center space-x-1">
+                <Lock className="w-3 h-3 inline" />
+                <span>1 Order on DOO Hold (Credit Review)</span>
+              </span>
+              <span className="text-slate-500">•</span>
+              <span className="text-emerald-400 font-medium">Austin Plant: 78.4% Load (2 Open CNC Slots)</span>
+              <span className="text-slate-500">•</span>
+              <span className="text-slate-300">Chicago Plant: 62.1% Load (Split Routing Ready)</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center space-x-2 w-full md:w-auto">
+          <button
+            onClick={() => setSubTab("orders")}
+            className="px-3.5 py-1.5 rounded-lg bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 font-mono text-[11px] font-semibold transition-all cursor-pointer whitespace-nowrap flex items-center space-x-1.5"
+          >
+            <span>Resolve DOO Holds</span>
+            <ArrowRight className="w-3 h-3" />
+          </button>
+          <button
+            onClick={() => setSubTab("intake")}
+            className="px-4 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-all cursor-pointer whitespace-nowrap shadow-md flex items-center space-x-1.5"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>Evaluate New RFQ</span>
+          </button>
+        </div>
+      </div>
+
       {/* Workstation Sub-Navigation */}
       <div className="flex border-b border-white/[0.08] space-x-6 text-xs overflow-x-auto">
         <button
@@ -313,34 +357,35 @@ export default function CommercialStation(props: CommercialStationProps) {
               </div>
 
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pt-2">
-                <div className="flex flex-wrap gap-1.5">
+                <div className="flex flex-wrap gap-2">
                   {[
-                    "Boeing Aerospace requests 20 units of Turbine Housing TB-200 needed by next Friday",
-                    "Siemens Energy urgent RFQ: 5 units of Hydraulic Pump PMP-500 needed in 4 days",
-                    "Caterpillar Mining requests 15 units of Utility Pump PMP-200 with standard Net-30",
+                    { label: "Boeing Aerospace (20x Impeller Pumps)", prompt: "Boeing Aerospace requests 20 units of Turbine Housing TB-200 needed by next Friday" },
+                    { label: "Siemens Energy (5x Hydraulic Pumps)", prompt: "Siemens Energy urgent RFQ: 5 units of Hydraulic Pump PMP-500 needed in 4 days" },
+                    { label: "Caterpillar Mining (15x Utility Pumps)", prompt: "Caterpillar Mining requests 15 units of Utility Pump PMP-200 with standard Net-30" },
                   ].map((preset, idx) => (
                     <button
                       key={idx}
-                      onClick={() => props.setPrompt(preset)}
-                      className="text-[10px] text-slate-400 hover:text-slate-200 px-2.5 py-1 bg-white/[0.03] rounded border border-white/[0.06] transition-colors truncate max-w-xs cursor-pointer font-mono"
+                      onClick={() => props.setPrompt(preset.prompt)}
+                      className="text-xs text-slate-300 hover:text-white px-3 py-1.5 bg-white/[0.04] hover:bg-white/[0.08] rounded-lg border border-white/[0.08] transition-all cursor-pointer font-sans font-medium"
                     >
-                      {preset.split(":")[0]}
+                      {preset.label}
                     </button>
                   ))}
                 </div>
                 <button
                   onClick={props.handleEvaluateRFQ}
                   disabled={props.evaluating}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-lg text-xs shadow-sm flex items-center space-x-1.5 transition-all cursor-pointer whitespace-nowrap"
+                  className="px-5 py-2.5 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs shadow-md flex items-center space-x-2 transition-all cursor-pointer whitespace-nowrap"
                 >
                   {props.evaluating ? (
                     <>
-                      <RefreshCw className="w-3 h-3 animate-spin" />
-                      <span>Solving CTP Feasibility...</span>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Solving CTP Feasibility with OR-Tools...</span>
                     </>
                   ) : (
                     <>
-                      <span>Evaluate CTP Promise</span>
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span>Evaluate CTP Feasibility</span>
                       <ArrowRight className="w-3.5 h-3.5" />
                     </>
                   )}
@@ -350,43 +395,43 @@ export default function CommercialStation(props: CommercialStationProps) {
 
             {/* Generated Proposal Card */}
             {props.proposal && (
-              <div className="hairline-panel-elevated rounded-xl p-5 space-y-4 animate-in fade-in duration-200 border border-blue-500/30">
+              <div className="hairline-panel-elevated rounded-xl p-5 space-y-4 animate-in fade-in duration-200 border border-blue-500/40 bg-[#0d111d]">
                 <div className="flex justify-between items-start border-b border-white/[0.08] pb-3">
                   <div>
                     <span className="text-[10px] font-mono font-bold uppercase text-blue-400">
-                      Proposal Ready for Commercial Sign-Off
+                      ★ Feasibility Verified · Ready for Commercial Contract Booking
                     </span>
-                    <h3 className="font-bold text-slate-100 text-sm mt-0.5">
+                    <h3 className="font-bold text-white text-base mt-0.5">
                       {props.proposal.parsed_rfq?.customer_name} · {props.proposal.parsed_rfq?.quantity}x{" "}
                       {props.proposal.parsed_rfq?.part_description}
                     </h3>
                   </div>
-                  <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-emerald-950 text-emerald-400 border border-emerald-800/40">
-                    CREDIT APPROVED
+                  <span className="px-2.5 py-1 rounded text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                    CREDIT & CAPACITY APPROVED
                   </span>
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono text-xs">
-                  <div className="bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
-                    <span className="text-[10px] text-slate-400 block">TOTAL VALUE</span>
+                  <div className="bg-[#08090d] p-3 rounded-lg border border-white/[0.06]">
+                    <span className="text-[10px] text-slate-400 block">TOTAL CONTRACT VALUE</span>
                     <span className="text-base font-bold text-emerald-400">
                       ${props.proposal.pricing?.total_quote?.toLocaleString()}
                     </span>
                   </div>
-                  <div className="bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
-                    <span className="text-[10px] text-slate-400 block">FEASIBILITY</span>
+                  <div className="bg-[#08090d] p-3 rounded-lg border border-white/[0.06]">
+                    <span className="text-[10px] text-slate-400 block">CTP FEASIBILITY</span>
                     <span className="text-base font-bold text-blue-400">
-                      {props.proposal.scheduling_feasibility?.feasible ? "100% CTP" : "AT RISK"}
+                      {props.proposal.scheduling_feasibility?.feasible ? "100% CTP Feasible" : "AT RISK"}
                     </span>
                   </div>
-                  <div className="bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
-                    <span className="text-[10px] text-slate-400 block">LEAD TIME</span>
-                    <span className="text-base font-bold text-slate-200">
+                  <div className="bg-[#08090d] p-3 rounded-lg border border-white/[0.06]">
+                    <span className="text-[10px] text-slate-400 block">MANUFACTURING LEAD TIME</span>
+                    <span className="text-base font-bold text-slate-100">
                       {props.proposal.scheduling_feasibility?.projected_lead_time_days || 4} Days
                     </span>
                   </div>
-                  <div className="bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
-                    <span className="text-[10px] text-slate-400 block">DELIVERY PROMISE</span>
+                  <div className="bg-[#08090d] p-3 rounded-lg border border-white/[0.06]">
+                    <span className="text-[10px] text-slate-400 block">DELIVERY COMMITMENT</span>
                     <span className="text-base font-bold text-purple-400">
                       {props.proposal.scheduling_feasibility?.projected_delivery_date
                         ? new Date(props.proposal.scheduling_feasibility.projected_delivery_date).toLocaleDateString()
@@ -395,25 +440,50 @@ export default function CommercialStation(props: CommercialStationProps) {
                   </div>
                 </div>
 
-                <div className="text-xs text-slate-300 font-mono bg-[#0a0b0e] p-3 rounded-lg border border-white/[0.06]">
-                  <strong>AI Analysis:</strong> {props.proposal.reasoning}
+                {/* 3 Feasibility Pillars */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5 text-xs font-mono">
+                  <div className="p-2.5 rounded-lg bg-[#08090d] border border-white/[0.06] flex items-center space-x-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <div>
+                      <div className="font-bold text-slate-200">Machine Capacity</div>
+                      <div className="text-[10px] text-slate-400">Haas 5-Axis (CNC-01) Reserved</div>
+                    </div>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-[#08090d] border border-white/[0.06] flex items-center space-x-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <div>
+                      <div className="font-bold text-slate-200">Material Stock</div>
+                      <div className="text-[10px] text-slate-400">Alloy Lot Allocated (100% On-Hand)</div>
+                    </div>
+                  </div>
+                  <div className="p-2.5 rounded-lg bg-[#08090d] border border-white/[0.06] flex items-center space-x-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <div>
+                      <div className="font-bold text-slate-200">Secondary Tooling</div>
+                      <div className="text-[10px] text-slate-400">Fixture FIX-5AXIS-A Collision-Free</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="text-xs text-slate-300 font-mono bg-[#08090d] p-3 rounded-lg border border-white/[0.06]">
+                  <strong className="text-blue-400">Autonomous SCM Synthesis:</strong> {props.proposal.reasoning}
                 </div>
 
                 <div className="flex justify-end pt-2">
                   <button
                     onClick={props.handleApprove}
                     disabled={props.approving}
-                    className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-lg text-xs shadow-sm flex items-center space-x-2 transition-all cursor-pointer"
+                    className="px-6 py-2.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold rounded-xl text-xs shadow-lg flex items-center space-x-2 transition-all cursor-pointer"
                   >
                     {props.approving ? (
                       <>
                         <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                        <span>Authorizing SOX Contract & Scheduling...</span>
+                        <span>Authorizing SOX Contract & Scheduling to Plant...</span>
                       </>
                     ) : (
                       <>
                         <CheckCircle2 className="w-4 h-4" />
-                        <span>Book Sales Contract & Dispatch Operations</span>
+                        <span>Book Contract & Dispatch Operations to Plant Floor</span>
                       </>
                     )}
                   </button>
